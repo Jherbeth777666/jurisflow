@@ -21,6 +21,9 @@ interface ModalProps {
 
 const DISCARD_MSG = 'Descartar as alterações não salvas?'
 
+// Pilha de modais abertos: só o do topo responde a Esc/Tab (diálogos empilhados).
+const openStack: symbol[] = []
+
 const sizes = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
 export function Modal({ open, onClose, title, description, children, footer, size = 'md', dirty = false }: ModalProps) {
@@ -39,10 +42,11 @@ export function Modal({ open, onClose, title, description, children, footer, siz
   useEffect(() => {
     if (!open) return
     const prevFocus = document.activeElement as HTMLElement | null
+    const me = Symbol('modal')
+    openStack.push(me)
     const onKey = (e: KeyboardEvent) => {
+      if (openStack[openStack.length - 1] !== me) return
       if (e.key === 'Escape') {
-        // Outro diálogo empilhado (ex.: confirmação) trata o próprio Esc.
-        if (e.defaultPrevented) return
         e.preventDefault()
         if (!dirtyRef.current || window.confirm(DISCARD_MSG)) onCloseRef.current()
       }
@@ -69,8 +73,9 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       ;(target ?? panelRef.current)?.focus()
     })
     return () => {
+      openStack.splice(openStack.indexOf(me), 1)
       document.removeEventListener('keydown', onKey)
-      document.body.style.overflow = ''
+      if (!openStack.length) document.body.style.overflow = ''
       prevFocus?.focus?.()
     }
   }, [open])

@@ -541,7 +541,7 @@ begin
       from public.payments where contract_id = new.contract_id and id <> new.id;
     if v_paid + new.amount > v_total + 0.01 then
       raise exception 'O pagamento excede o saldo do contrato (saldo em aberto: R$ %).',
-        to_char(greatest(v_total - v_paid, 0), 'FM999G999G990D00') using errcode = 'P0001';
+        translate(to_char(greatest(v_total - v_paid, 0), 'FM999,999,990.00'), ',.', '.,') using errcode = 'P0001';
     end if;
     if new.installment_id is not null then
       select amount into v_inst from public.installments where id = new.installment_id;
@@ -549,7 +549,7 @@ begin
         from public.payments where installment_id = new.installment_id and id <> new.id;
       if v_paid + new.amount > v_inst + 0.01 then
         raise exception 'O pagamento excede o restante da parcela (em aberto: R$ %).',
-          to_char(greatest(v_inst - v_paid, 0), 'FM999G999G990D00') using errcode = 'P0001';
+          translate(to_char(greatest(v_inst - v_paid, 0), 'FM999,999,990.00'), ',.', '.,') using errcode = 'P0001';
       end if;
     end if;
   end if;
