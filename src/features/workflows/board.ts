@@ -22,7 +22,8 @@ export const BOARD_SELECT =
   'id, title, client_id, category_id, stage_id, responsible_id, priority, status, next_action, next_action_date, stage_changed_at, closed_at, client:clients(full_name)'
 
 /** Dias parada a partir dos quais o card recebe destaque. */
-export const STALE_DAYS = 15
+// Mesmo limite e regra de dias de calendário do dashboard e da lista (lib/format).
+export { STALLED_DAYS as STALE_DAYS } from '@/lib/format'
 /** Concluídas exibidas na coluna final. */
 export const DONE_LIMIT = 20
 export const DONE_WINDOW_DAYS = 30

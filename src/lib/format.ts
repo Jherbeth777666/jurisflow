@@ -111,9 +111,31 @@ export function diffInDays(a: string, b: string): number {
   return Math.round(ms / 86_400_000)
 }
 
-/** Dias desde um timestamp até hoje. */
-export function daysSince(value: string): number {
-  return Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 86_400_000))
+/**
+ * Dias de CALENDÁRIO (datas locais) desde um timestamp até hoje: algo feito ontem às
+ * 23h conta 1 dia hoje às 8h. Regra única para "parada há N dias" (dashboard, lista,
+ * detalhe e kanban).
+ */
+export function daysSince(value: string, now: Date = new Date()): number {
+  return Math.max(0, diffInDays(toISODate(new Date(value)), toISODate(now)))
+}
+
+/** Limite padrão para considerar uma demanda parada na etapa. */
+export const STALLED_DAYS = 15
+
+/**
+ * Corte (timestamp ISO) para consultas "parada há N+ dias": `stage_changed_at < corte`
+ * equivale a `daysSince(stage_changed_at) >= days`. É o início (meia-noite local) do dia
+ * `hoje - days + 1`.
+ */
+export function stalledCutoff(days: number, now: Date = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days + 1)
+  return d.toISOString()
+}
+
+/** Parada há `days` dias de calendário ou mais. */
+export function isStalledSince(value: string, days: number = STALLED_DAYS, now: Date = new Date()): boolean {
+  return daysSince(value, now) >= days
 }
 
 export function formatRelative(value: string): string {

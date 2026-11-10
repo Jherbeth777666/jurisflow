@@ -1,6 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   addDaysISO,
+  STALLED_DAYS,
+  daysSince,
+  isStalledSince,
+  stalledCutoff,
   diffInDays,
   escapeLike,
   formatCPF,
@@ -205,5 +209,25 @@ describe('datas ISO sem bug de fuso', () => {
   it('formatMonthShort', () => {
     expect(formatMonthShort('2026-11')).toBe('nov/26')
     expect(formatMonthShort('2027-01')).toBe('jan/27')
+  })
+})
+
+describe('dias parada (dias de calendário, datas locais)', () => {
+  const now = new Date(2026, 10, 20, 8, 0) // 20/11 08:00 local
+  it('ontem às 23h conta 1 dia; hoje cedo conta 0', () => {
+    expect(daysSince(new Date(2026, 10, 19, 23, 0).toISOString(), now)).toBe(1)
+    expect(daysSince(new Date(2026, 10, 20, 0, 5).toISOString(), now)).toBe(0)
+  })
+  it('futuro (relógio adiantado) não fica negativo', () => {
+    expect(daysSince(new Date(2026, 10, 22).toISOString(), now)).toBe(0)
+  })
+  it('consulta (stalledCutoff) e exibição (isStalledSince) concordam na fronteira', () => {
+    const cutoff = new Date(stalledCutoff(STALLED_DAYS, now)).getTime()
+    const justBefore = new Date(cutoff - 60_000).toISOString() // 05/11 23:59
+    const atCutoff = new Date(cutoff).toISOString() // 06/11 00:00
+    expect(isStalledSince(justBefore, STALLED_DAYS, now)).toBe(true)
+    expect(daysSince(justBefore, now)).toBe(15)
+    expect(isStalledSince(atCutoff, STALLED_DAYS, now)).toBe(false)
+    expect(daysSince(atCutoff, now)).toBe(14)
   })
 })

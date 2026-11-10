@@ -1,11 +1,11 @@
 // Lógica pura do módulo de demandas: filtros (URL ⇄ objeto), validação e regras de exibição.
 import { DEMAND_STATUS, PRIORITY } from '@/lib/constants'
-import { daysSince, todayISO } from '@/lib/format'
+import { STALLED_DAYS, daysSince, stalledCutoff, todayISO } from '@/lib/format'
 import type { Demand, DemandStatus, PriorityLevel } from '@/types/database'
 
 export const CLOSED_STATUSES: DemandStatus[] = ['concluida', 'cancelada']
 export const OPEN_STATUSES: DemandStatus[] = (Object.keys(DEMAND_STATUS) as DemandStatus[]).filter((s) => !CLOSED_STATUSES.includes(s))
-export const STALLED_DAYS = 15
+export { STALLED_DAYS, stalledCutoff }
 
 export const isOpenStatus = (s: DemandStatus) => !CLOSED_STATUSES.includes(s)
 
@@ -93,11 +93,6 @@ export function patchDemandFilters(f: DemandFilters, patch: Partial<DemandFilter
 
 export function hasActiveFilters(f: DemandFilters): boolean {
   return !!(f.q.trim() || f.category || f.responsible || f.priority || f.status !== 'abertas' || f.waitingDocs || f.stalled)
-}
-
-/** Data-limite ISO (timestamp) para "parada há N dias". */
-export function stalledCutoff(days: number, now = new Date()): string {
-  return new Date(now.getTime() - days * 86_400_000).toISOString()
 }
 
 export function isStalled(d: Pick<Demand, 'stage_changed_at' | 'status'>, days = STALLED_DAYS): boolean {

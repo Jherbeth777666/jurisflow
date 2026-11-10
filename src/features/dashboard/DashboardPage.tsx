@@ -30,7 +30,7 @@ import {
   Hourglass,
 } from 'lucide-react'
 import { supabase, unwrap } from '@/lib/supabase'
-import { daysSince, diffInDays, formatCurrency, formatDate, formatMonthShort, formatNumber, todayISO } from '@/lib/format'
+import { STALLED_DAYS, daysSince, diffInDays, stalledCutoff, formatCurrency, formatDate, formatMonthShort, formatNumber, todayISO } from '@/lib/format'
 import { DEMAND_STATUS, PRIORITY } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import { useOrg } from '@/contexts/AuthContext'
@@ -44,7 +44,6 @@ import { ChartTooltip, Legend } from './charts'
 import { axisProps, CHART, compactCurrency, STATUS_COLORS } from './chartTheme'
 import { dueTone, firstName, greeting, sortPriorityTasks } from './logic'
 
-const STALLED_DAYS = 15
 
 function normalizeMetrics(m: DashboardMetrics): DashboardMetrics {
   const n = (v: unknown) => Number(v ?? 0)
@@ -509,7 +508,7 @@ function StalledDemands() {
   const q = useQuery({
     queryKey: [...qk.dashboard(orgId), 'stalled', STALLED_DAYS],
     queryFn: async () => {
-      const limit = new Date(Date.now() - STALLED_DAYS * 86_400_000).toISOString()
+      const limit = stalledCutoff(STALLED_DAYS)
       const res = await supabase
         .from('demands')
         .select('id, title, client_id, category_id, stage_id, stage_changed_at', { count: 'exact' })
@@ -534,7 +533,7 @@ function StalledDemands() {
     <Card className="h-fit">
       <CardHeader
         title="Demandas paradas"
-        description={`Sem mudança de etapa há mais de ${STALLED_DAYS} dias`}
+        description={`Sem mudança de etapa há ${STALLED_DAYS} dias ou mais`}
         action={
           q.data && q.data.total > 0 ? (
             <Link to={`/demandas?stalled=${STALLED_DAYS}`} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-700 hover:underline">

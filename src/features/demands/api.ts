@@ -39,7 +39,7 @@ export function useDemandsList(filters: DemandFilters, waitingStageIds: string[]
       if (filters.priority) q = q.eq('priority', filters.priority)
       if (filters.q.trim()) q = q.ilike('title', `%${escapeLike(filters.q.trim())}%`)
       if (needsStages && waitingStageIds) q = q.in('stage_id', waitingStageIds)
-      if (filters.stalled > 0) q = q.lte('stage_changed_at', stalledCutoff(filters.stalled))
+      if (filters.stalled > 0) q = q.lt('stage_changed_at', stalledCutoff(filters.stalled))
 
       q = filters.stalled > 0
         ? q.order('stage_changed_at', { ascending: true })

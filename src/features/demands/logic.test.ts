@@ -60,8 +60,8 @@ describe('regras de exibição', () => {
     expect(isNextActionOverdue({ next_action_date: '2026-11-08', status: 'concluida' }, '2026-11-09')).toBe(false)
     expect(isNextActionOverdue({ next_action_date: null, status: 'em_andamento' }, '2026-11-09')).toBe(false)
   })
-  it('stalledCutoff subtrai N dias', () => {
-    expect(stalledCutoff(15, new Date('2026-11-20T12:00:00Z'))).toBe('2026-11-05T12:00:00.000Z')
+  it('stalledCutoff: meia-noite local de (hoje - N + 1) — dias de calendário', () => {
+    expect(stalledCutoff(15, new Date(2026, 10, 20, 8, 30))).toBe(new Date(2026, 10, 6).toISOString())
   })
 })
 
