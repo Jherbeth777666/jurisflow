@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -49,6 +49,29 @@ const NAV_TOOLS: NavItem[] = [
 function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { organization, memberships, switchOrganization, profile, role, signOut } = useAuth()
   const [orgMenu, setOrgMenu] = useState(false)
+  const orgRef = useRef<HTMLDivElement>(null)
+  const orgButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Seletor de escritório: fecha ao clicar fora e com Esc (devolvendo o foco ao botão).
+  useEffect(() => {
+    if (!orgMenu) return
+    const onDown = (e: PointerEvent) => {
+      if (orgRef.current && !orgRef.current.contains(e.target as Node)) setOrgMenu(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation()
+        setOrgMenu(false)
+        orgButtonRef.current?.focus()
+      }
+    }
+    document.addEventListener('pointerdown', onDown)
+    document.addEventListener('keydown', onKey, true)
+    return () => {
+      document.removeEventListener('pointerdown', onDown)
+      document.removeEventListener('keydown', onKey, true)
+    }
+  }, [orgMenu])
 
   return (
     <div className="flex h-full flex-col bg-navy-900 text-navy-100">
@@ -63,14 +86,17 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </span>
       </div>
 
-      <div className="relative px-3 pb-2">
+      <div ref={orgRef} className="relative px-3 pb-2">
         <button
+          ref={orgButtonRef}
           onClick={() => memberships.length > 1 && setOrgMenu((o) => !o)}
           className={cn(
             'flex w-full items-center justify-between rounded-md bg-navy-800/70 px-2.5 py-2 text-left',
             memberships.length > 1 && 'hover:bg-navy-800',
           )}
           aria-haspopup={memberships.length > 1 ? 'menu' : undefined}
+          aria-expanded={memberships.length > 1 ? orgMenu : undefined}
+          aria-label={memberships.length > 1 ? `Escritório atual: ${organization?.name ?? ''}. Trocar de escritório` : undefined}
         >
           <span className="min-w-0">
             <span className="block truncate text-[13px] font-medium text-white">{organization?.name}</span>
@@ -79,11 +105,12 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           {memberships.length > 1 && <ChevronsUpDown className="size-3.5 shrink-0 text-navy-300" />}
         </button>
         {orgMenu && (
-          <div role="menu" className="absolute left-3 right-3 z-20 mt-1 rounded-md bg-surface py-1 text-ink shadow-[var(--shadow-pop)]">
+          <div role="menu" aria-label="Escritórios" className="absolute left-3 right-3 z-20 mt-1 rounded-md bg-surface py-1 text-ink shadow-[var(--shadow-pop)]">
             {memberships.map((m) => (
               <button
                 key={m.organization.id}
-                role="menuitem"
+                role="menuitemradio"
+                aria-checked={m.organization.id === organization?.id}
                 onClick={() => {
                   switchOrganization(m.organization.id)
                   setOrgMenu(false)
@@ -157,24 +184,16 @@ export function AppLayout() {
         <Sidebar />
       </aside>
 
-      {mobileOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-navy-950/50" onClick={() => setMobileOpen(false)} aria-hidden />
-          <aside className="absolute inset-y-0 left-0 w-64">
-            <Sidebar onNavigate={() => setMobileOpen(false)} />
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="absolute right-2 top-3 rounded-md p-1.5 text-navy-200 hover:bg-white/10"
-              aria-label="Fechar menu"
-            >
-              <X className="size-4" />
-            </button>
-          </aside>
-        </div>
-      )}
+      {mobileOpen && <MobileMenu onClose={() => setMobileOpen(false)} />}
 
       <header className="sticky top-0 z-20 flex h-12 items-center gap-3 border-b border-line bg-surface/90 px-4 backdrop-blur lg:hidden">
-        <button onClick={() => setMobileOpen(true)} className="rounded-md p-1.5 text-ink-muted hover:bg-navy-50" aria-label="Abrir menu">
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="rounded-md p-1.5 text-ink-muted hover:bg-navy-50"
+          aria-label="Abrir menu"
+          aria-expanded={mobileOpen}
+          aria-haspopup="dialog"
+        >
           <Menu className="size-5" />
         </button>
         <span className="text-[14px] font-semibold">{current?.label ?? 'JurisFlow AI'}</span>
@@ -189,6 +208,66 @@ export function AppLayout() {
           </Suspense>
         </RouteErrorBoundary>
       </main>
+    </div>
+  )
+}
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/** Menu lateral no celular: diálogo modal (Esc fecha, foco preso, foco devolvido ao fechar). */
+function MobileMenu({ onClose }: { onClose: () => void }) {
+  const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
+
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    panelRef.current?.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        onCloseRef.current()
+        return
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return
+      const f = panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)
+      if (!f.length) return
+      const first = f[0]
+      const last = f[f.length - 1]
+      if (e.shiftKey && (document.activeElement === first || !panelRef.current.contains(document.activeElement))) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      document.body.style.overflow = overflow
+      prev?.focus?.()
+    }
+  }, [])
+
+  return (
+    <div className="fixed inset-0 z-40 lg:hidden">
+      <div className="absolute inset-0 bg-navy-950/50" onClick={onClose} aria-hidden />
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Menu" className="absolute inset-y-0 left-0 w-64">
+        <Sidebar onNavigate={onClose} />
+        <button
+          data-autofocus
+          onClick={onClose}
+          className="absolute right-2 top-3 rounded-md p-1.5 text-navy-200 hover:bg-white/10"
+          aria-label="Fechar menu"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
     </div>
   )
 }
