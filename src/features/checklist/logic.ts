@@ -46,3 +46,16 @@ export const pendingLabels = (items: { done: boolean; label: string; position: n
     .filter((i) => !i.done)
     .sort((a, b) => a.position - b.position)
     .map((i) => i.label)
+
+/**
+ * Próxima etapa a partir da etapa ATUAL real da demanda. Nunca devolve uma etapa com
+ * posição <= à atual (não retrocede). Sem etapa atual conhecida → undefined.
+ */
+export function nextStageAfter<T extends { id: string; position: number }>(stages: T[], currentStageId: string | null | undefined): T | undefined {
+  if (!currentStageId) return undefined
+  const current = stages.find((s) => s.id === currentStageId)
+  if (!current) return undefined
+  return stages
+    .filter((s) => s.position > current.position)
+    .sort((a, b) => a.position - b.position)[0]
+}

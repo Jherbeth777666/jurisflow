@@ -183,7 +183,7 @@ export function DemandDetailPage() {
             </CardBody>
           </Card>
 
-          <DemandChecklist demandId={d.id} categoryId={d.category_id} clientId={d.client_id} />
+          <DemandChecklist demandId={d.id} categoryId={d.category_id} clientId={d.client_id} stageId={d.stage_id} status={d.status} />
 
           <Card>
             <CardHeader title="Tarefas" />

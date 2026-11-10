@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checklistProgress, moveItem, pendingLabels, validateLabel } from './logic'
+import { checklistProgress, moveItem, nextStageAfter, pendingLabels, validateLabel } from './logic'
 
 describe('checklist', () => {
   it('progresso', () => {
@@ -36,5 +36,24 @@ describe('checklist', () => {
         { label: 'C', done: true, position: 0 },
       ]),
     ).toEqual(['A', 'B'])
+  })
+})
+
+describe('nextStageAfter', () => {
+  const stages = [
+    { id: 'c', position: 3 },
+    { id: 'a', position: 1 },
+    { id: 'b', position: 2 },
+  ]
+  it('devolve a etapa de posição imediatamente maior, independente da ordem do array', () => {
+    expect(nextStageAfter(stages, 'a')?.id).toBe('b')
+    expect(nextStageAfter(stages, 'b')?.id).toBe('c')
+  })
+  it('na última etapa não há próxima (nunca retrocede)', () => {
+    expect(nextStageAfter(stages, 'c')).toBeUndefined()
+  })
+  it('sem etapa atual conhecida não sugere nada', () => {
+    expect(nextStageAfter(stages, null)).toBeUndefined()
+    expect(nextStageAfter(stages, 'x')).toBeUndefined()
   })
 })

@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp, CheckCircle2, ClipboardList, Info, ListPlus, MessageCircle, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button, Card, CardHeader, ConfirmDialog, EmptyState, ErrorState, Skeleton, useToast } from '@/components/ui'
 import { useOrg } from '@/contexts/AuthContext'
@@ -7,11 +7,11 @@ import { qk, useCategories } from '@/hooks/useOrgData'
 import { supabase, unwrap } from '@/lib/supabase'
 import { formatDateTime } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import type { Demand } from '@/types/database'
+import type { DemandStatus } from '@/types/database'
 import { MessageComposerModal } from '@/features/messages/MessageComposerModal'
 import { DEFAULT_TEMPLATE_IDS } from '@/features/messages/defaultTemplates'
 import { useChecklistActions, useChecklistItems, useChecklistTemplates } from './api'
-import { checklistProgress, moveItem, validateLabel } from './logic'
+import { checklistProgress, moveItem, nextStageAfter, validateLabel } from './logic'
 import { CHECKLIST_LABEL_MAX, type DemandChecklistItem } from './types'
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Não foi possível concluir a ação.')
@@ -20,7 +20,20 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : 'Não foi poss�
  * Checklist de pendências da demanda (lista textual de itens solicitados/recebidos —
  * nenhum arquivo é armazenado).
  */
-export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: string; categoryId: string; clientId?: string }) {
+export function DemandChecklist({
+  demandId,
+  categoryId,
+  clientId,
+  stageId,
+  status,
+}: {
+  demandId: string
+  categoryId: string
+  clientId: string
+  /** Etapa atual real (vem de qk.demand no DemandDetailPage — sempre atualizada). */
+  stageId: string | null
+  status: DemandStatus
+}) {
   const { orgId, can } = useOrg()
   const toast = useToast()
   const qc = useQueryClient()
@@ -29,15 +42,6 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
   const cats = useCategories()
   const actions = useChecklistActions(demandId)
   const canDelete = can('demands.delete')
-
-  const demand = useQuery({
-    queryKey: ['checklist-demand', orgId, demandId],
-    queryFn: async () =>
-      unwrap(
-        await supabase.from('demands').select('id, client_id, stage_id, status').eq('organization_id', orgId).eq('id', demandId).single(),
-      ) as Pick<Demand, 'id' | 'client_id' | 'stage_id' | 'status'>,
-    staleTime: 15_000,
-  })
 
   const [newLabel, setNewLabel] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
@@ -51,16 +55,19 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
   const categoryTemplates = (templates.data ?? []).filter((t) => t.category_id === categoryId)
   const category = cats.data?.find((c) => c.id === categoryId)
   const stages = category?.stages ?? []
-  const stageIdx = stages.findIndex((s) => s.id === demand.data?.stage_id)
-  const nextStage = stageIdx >= 0 ? stages[stageIdx + 1] : undefined
-  const effectiveClientId = clientId ?? demand.data?.client_id
+  const nextStage = nextStageAfter(stages, stageId)
+  const effectiveClientId = clientId
 
   const moveStage = useMutation({
-    mutationFn: async (stageId: string) => {
-      unwrap(await supabase.from('demands').update({ stage_id: stageId }).eq('id', demandId).eq('organization_id', orgId).select('id').single())
+    mutationFn: async ({ from, to }: { from: string; to: string }) => {
+      // Só move se a demanda ainda estiver na etapa que o usuário viu (evita retroceder
+      // uma demanda que outra pessoa/aba já avançou).
+      const rows = unwrap(
+        await supabase.from('demands').update({ stage_id: to }).eq('id', demandId).eq('organization_id', orgId).eq('stage_id', from).select('id'),
+      ) as { id: string }[]
+      if (!rows.length) throw new Error('A demanda já mudou de etapa. A tela foi atualizada — confira a etapa atual.')
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['checklist-demand', orgId, demandId] })
       qc.invalidateQueries({ queryKey: qk.demand(orgId, demandId) })
       qc.invalidateQueries({ queryKey: qk.demands(orgId) })
       qc.invalidateQueries({ queryKey: qk.dashboard(orgId) })
@@ -188,7 +195,7 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
         </div>
       )}
 
-      {progress.complete && nextStage && !dismissSuggestion && demand.data?.status !== 'concluida' && (
+      {progress.complete && nextStage && !dismissSuggestion && stageId && status !== 'concluida' && (
         <div className="mx-4 mt-3 flex flex-col gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-900 sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex items-center gap-2">
             <CheckCircle2 className="size-4 shrink-0" />
@@ -203,7 +210,7 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
               variant="primary"
               loading={moveStage.isPending}
               onClick={() =>
-                moveStage.mutate(nextStage.id, {
+                moveStage.mutate({ from: stageId!, to: nextStage.id }, {
                   onSuccess: () => toast.show(`Demanda movida para "${nextStage.name}".`),
                   onError: (err) => toast.show(errMsg(err), 'error'),
                 })
