@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { Button, InlineError, Input, Modal, Textarea } from '@/components/ui'
 import { useSaveMessageTemplate } from './api'
 import { VariableText } from './VariableText'
@@ -13,31 +13,26 @@ export interface TemplateDraft {
 
 const MAX_BODY = 2000
 
-export function TemplateFormModal({
-  open,
-  onClose,
-  initial,
-  onSaved,
-}: {
+interface TemplateFormModalProps {
   open: boolean
   onClose: () => void
   initial: TemplateDraft | null
   onSaved?: (id: string) => void
-}) {
+}
+
+/** Estado recriado a cada abertura (chave), sem efeito de reinício. */
+export function TemplateFormModal(props: TemplateFormModalProps) {
+  if (!props.open) return null
+  return <TemplateForm key={props.initial?.id ?? 'novo'} {...props} />
+}
+
+function TemplateForm({ open, onClose, initial, onSaved }: TemplateFormModalProps) {
   const save = useSaveMessageTemplate()
-  const [name, setName] = useState('')
-  const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
+  const [name, setName] = useState(initial?.name ?? '')
+  const [subject, setSubject] = useState(initial?.subject ?? '')
+  const [body, setBody] = useState(initial?.body ?? '')
   const [error, setError] = useState<string | null>(null)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    setName(initial?.name ?? '')
-    setSubject(initial?.subject ?? '')
-    setBody(initial?.body ?? '')
-    setError(null)
-  }, [open, initial])
 
   const unknown = [...unknownVariables(body), ...unknownVariables(subject)]
 
@@ -82,6 +77,7 @@ export function TemplateFormModal({
     <Modal
       open={open}
       onClose={onClose}
+      dirty={save.isPending || name !== (initial?.name ?? '') || subject !== (initial?.subject ?? '') || body !== (initial?.body ?? '')}
       title={initial?.id ? 'Editar modelo' : 'Novo modelo de mensagem'}
       description="Use variáveis para que os dados do cliente sejam preenchidos automaticamente."
       size="xl"

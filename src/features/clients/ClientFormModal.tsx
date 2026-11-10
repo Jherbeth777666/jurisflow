@@ -30,7 +30,8 @@ export function ClientFormModal(props: ClientFormModalProps) {
 function ClientFormModalInner({ open, onClose, client, onSaved }: ClientFormModalProps) {
   const toast = useToast()
   const save = useSaveClient()
-  const [values, setValues] = useState<ClientFormValues>(() => (client ? clientToForm(client) : emptyClientForm))
+  const [start] = useState<ClientFormValues>(() => (client ? clientToForm(client) : emptyClientForm))
+  const [values, setValues] = useState<ClientFormValues>(start)
   const [errors, setErrors] = useState<ClientFormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -64,6 +65,7 @@ function ClientFormModalInner({ open, onClose, client, onSaved }: ClientFormModa
     <Modal
       open={open}
       onClose={save.isPending ? () => {} : onClose}
+      dirty={save.isPending || JSON.stringify(values) !== JSON.stringify(start)}
       title={client ? 'Editar cliente' : 'Novo cliente'}
       size="lg"
       footer={

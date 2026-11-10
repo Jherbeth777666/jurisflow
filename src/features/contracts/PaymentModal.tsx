@@ -78,6 +78,7 @@ function PaymentForm({ open, onClose, contractId, installmentId, defaultMethod =
     <Modal
       open={open}
       onClose={create.isPending ? () => {} : onClose}
+      dirty={create.isPending || amountInput !== null || notes !== ''}
       title="Registrar pagamento"
       description={subtitle}
       footer={

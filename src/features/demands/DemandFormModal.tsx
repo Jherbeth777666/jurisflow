@@ -63,7 +63,8 @@ function DemandFormModalInner({ open, onClose, demand, defaults, onSaved }: Dema
   const save = useSaveDemand()
   const cats = useCategories()
   const members = useMemberNames()
-  const [values, setValues] = useState<DemandFormValues>(() => initialValues(demand, defaults))
+  const [start] = useState<DemandFormValues>(() => initialValues(demand, defaults))
+  const [values, setValues] = useState<DemandFormValues>(start)
   const [errors, setErrors] = useState<DemandFormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -124,6 +125,7 @@ function DemandFormModalInner({ open, onClose, demand, defaults, onSaved }: Dema
     <Modal
       open={open}
       onClose={save.isPending ? () => {} : onClose}
+      dirty={save.isPending || JSON.stringify(values) !== JSON.stringify(start)}
       title={demand ? 'Editar demanda' : 'Nova demanda'}
       size="lg"
       footer={

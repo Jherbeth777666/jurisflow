@@ -80,7 +80,8 @@ function ContractForm({ open, onClose, contract, defaults, onSaved }: ContractFo
   const toast = useToast()
   const invalidate = useInvalidateFinance()
   const isEdit = !!contract
-  const [form, setForm] = useState<FormState>(() => initialState(contract, defaults))
+  const [start] = useState<FormState>(() => initialState(contract, defaults))
+  const [form, setForm] = useState<FormState>(start)
   const [errors, setErrors] = useState<Errors>({})
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -196,6 +197,7 @@ function ContractForm({ open, onClose, contract, defaults, onSaved }: ContractFo
     <Modal
       open={open}
       onClose={saving ? () => {} : onClose}
+      dirty={saving || JSON.stringify(form) !== JSON.stringify(start)}
       title={isEdit ? 'Editar contrato' : 'Novo contrato'}
       description="Honorários e condições de pagamento. As parcelas são geradas automaticamente."
       size="lg"
