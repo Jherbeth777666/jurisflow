@@ -2412,3 +2412,8 @@ insert into supabase_migrations.schema_migrations (version, name) values
   ('20261109000008', 'review_fixes'),
   ('20261109000009', 'ai_quota')
 on conflict do nothing;
+
+-- >>>>>>>>>> perfis de usuários que se cadastraram ANTES da criação do banco
+insert into public.profiles (id, full_name, email)
+select id, coalesce(raw_user_meta_data->>'full_name', ''), email from auth.users
+on conflict (id) do nothing;
