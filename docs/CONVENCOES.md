@@ -41,6 +41,17 @@ supabase/tests/         Testes SQL (*_test.sql) executados por run_local.sh
 - Inserir contrato gera parcelas automaticamente (`installments`). Alterar valor/parcelas/1º vencimento só é permitido sem pagamentos.
 - Pagamento deve referenciar `installment_id` da mesma `contract_id`. Status `quitado/ativo` é recalculado automaticamente.
 - Views: `contract_overview` (recebido, saldo, parcelas vencidas, próximo vencimento) e `installment_overview` (status por parcela).
-- RPCs: `dashboard_metrics(p_org)`, `create_organization(p_name)`, `accept_pending_invitations()`, `anonymize_client(p_client)`, `reorder_workflow_stages(p_category, p_stage_ids)`, `delete_workflow_stage(p_stage, p_move_to)`.
+- RPCs: `dashboard_metrics(p_org)`, `create_organization(p_name)`, convites com consentimento `my_pending_invitations()`, `accept_invitation(p_id)`, `decline_invitation(p_id)`, `leave_organization(p_org)` (`accept_pending_invitations()` está obsoleta e sempre retorna 0), `anonymize_client(p_client)`, `reorder_workflow_stages(p_category, p_stage_ids)`, `delete_workflow_stage(p_stage, p_move_to)`.
 - `activity_logs` é preenchido por triggers; para clientes só registra os NOMES dos campos alterados.
 - Clientes com demandas/contratos não podem ser excluídos (FK restrict) → oferecer **anonimizar** (admin).
+
+## Regras adicionadas na auditoria (migration 010 e frontend)
+- **Grants explícitos:** tabelas e funções nascem fechadas. Toda RPC nova precisa de `grant execute ... to authenticated` explícito na migration; funções internas/trigger não recebem EXECUTE.
+- **Testes do banco** usam o stub com os *default privileges* reais do Supabase — um grant esquecido aparece nos testes.
+- **Pagamentos:** bloqueados em contrato `rascunho`, acima do saldo do contrato ou da parcela; contrato com pagamentos não troca de cliente.
+- **Datas de sistema** (`created_at`, `stage_changed_at`, `closed_at`, `completed_at`) são definidas pelo banco; não envie esses campos.
+- **Status × etapa:** reabrir demanda em etapa final volta para a etapa anterior; concluir em etapa não final vai para a etapa final.
+- **"Parada há N dias":** sempre `daysSince` / `isStalledSince` / `STALLED_DAYS` de `lib/format` (dias de calendário).
+- **Modal:** passe `dirty` em formulários para não perder dados ao clicar fora. **Tabs:** use `idPrefix` e ligue os painéis por `aria-controls`.
+- **Paginação:** use `usePageClamp` em listas paginadas.
+- **IA:** resultados de ferramentas vão num envelope de dados não confiáveis, sem URLs; histórico limitado a 8000 caracteres; prazo de 45 s; cota por hora (máx. 200) e teto mensal por escritório (`AI_MONTHLY_ORG_LIMIT`).
