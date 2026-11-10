@@ -67,6 +67,22 @@ export function serializeDemandFilters(f: DemandFilters): URLSearchParams {
   return p
 }
 
+export interface DemandStatusConstraint {
+  eq: DemandStatus | null
+  excludeClosed: boolean
+}
+
+/**
+ * Regra única do filtro de status: um status específico sempre vence os atalhos
+ * "só abertas" (aguardando documentação/paradas); sem status específico, os
+ * atalhos excluem concluídas e canceladas. Evita consulta contraditória (lista vazia).
+ */
+export function statusConstraint(f: Pick<DemandFilters, 'status' | 'waitingDocs' | 'stalled'>): DemandStatusConstraint {
+  if (f.status !== 'abertas' && f.status !== 'todas') return { eq: f.status, excludeClosed: false }
+  if (f.status === 'abertas' || f.waitingDocs || f.stalled > 0) return { eq: null, excludeClosed: true }
+  return { eq: null, excludeClosed: false }
+}
+
 /** Aplica uma alteração de filtro; qualquer mudança que não seja de página volta à página 0. */
 export function patchDemandFilters(f: DemandFilters, patch: Partial<DemandFilters>): DemandFilters {
   const next = { ...f, ...patch }

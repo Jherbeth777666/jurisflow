@@ -120,6 +120,14 @@ describe('financeiro', () => {
     expect(s.buckets.map((b) => b.count)).toEqual([1, 1, 0, 1])
     expect(s.rows[0].id).toBe('2') // mais atrasada primeiro
   })
+  it('vencida com vencimento hoje (fuso) entra na 1ª faixa: soma das faixas = total', () => {
+    const s = overdueSummary(
+      [{ id: '1', contract_id: 'c1', client_id: 'k1', number: 1, due_date: TODAY, remaining_amount: 30, status: 'vencida' }],
+      TODAY,
+    )
+    expect(s.buckets[0]).toMatchObject({ count: 1, total: 30 })
+    expect(s.buckets.reduce((a, b) => a + b.total, 0)).toBe(s.total)
+  })
 })
 
 describe('CSV', () => {

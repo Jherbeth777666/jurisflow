@@ -256,7 +256,9 @@ export interface OverdueSummary {
 export function overdueSummary(list: OverdueLite[], today: string): OverdueSummary {
   const rows = list
     .filter((i) => i.status === 'vencida' && Number(i.remaining_amount) > 0)
-    .map((i) => ({ ...i, remaining: Number(i.remaining_amount), days: diffInDays(i.due_date, today) }))
+    // 'vencida' com vencimento "hoje" (fuso do navegador × São Paulo, relógio) entra na
+    // 1ª faixa em vez de sumir das faixas — a soma das faixas sempre bate com o total.
+    .map((i) => ({ ...i, remaining: Number(i.remaining_amount), days: Math.max(1, diffInDays(i.due_date, today)) }))
     .sort((a, b) => b.days - a.days)
   const defs: { label: string; min: number; max: number }[] = [
     { label: '1–30 dias', min: 1, max: 30 },

@@ -6,7 +6,7 @@ import { PAGE_SIZE } from '@/lib/constants'
 import { qk } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
 import type { Client, ContractOverview, Demand, DemandStatus } from '@/types/database'
-import { CLOSED_STATUSES, demandFormToPayload, stalledCutoff, type DemandFilters, type DemandFormValues } from './logic'
+import { CLOSED_STATUSES, demandFormToPayload, stalledCutoff, statusConstraint, type DemandFilters, type DemandFormValues } from './logic'
 
 export type DemandWithClient = Demand & { client: Pick<Client, 'id' | 'full_name' | 'anonymized_at'> | null }
 
@@ -29,9 +29,9 @@ export function useDemandsList(filters: DemandFilters, waitingStageIds: string[]
       const from = filters.page * PAGE_SIZE
       let q = supabase.from('demands').select(DEMAND_SELECT, { count: 'exact' }).eq('organization_id', orgId)
 
-      const onlyOpen = filters.status === 'abertas' || filters.waitingDocs || filters.stalled > 0
-      if (filters.status !== 'abertas' && filters.status !== 'todas') q = q.eq('status', filters.status)
-      if (onlyOpen) q = q.not('status', 'in', closedList)
+      const status = statusConstraint(filters)
+      if (status.eq) q = q.eq('status', status.eq)
+      if (status.excludeClosed) q = q.not('status', 'in', closedList)
       if (filters.category) q = q.eq('category_id', filters.category)
       if (filters.stage) q = q.eq('stage_id', filters.stage)
       if (filters.responsible === 'none') q = q.is('responsible_id', null)

@@ -3,6 +3,7 @@ import {
   OPEN_STATUSES,
   demandFormToPayload,
   hasActiveFilters,
+  statusConstraint,
   isNextActionOverdue,
   parseDemandFilters,
   patchDemandFilters,
@@ -91,5 +92,22 @@ describe('formulário de demanda', () => {
   it('payload: vazios viram null e etapa vazia deixa o banco escolher a 1ª', () => {
     const p = demandFormToPayload({ ...base, title: '  X Y  ' })
     expect(p).toMatchObject({ stage_id: null, responsible_id: null, description: null, next_action_date: null, title: 'X Y' })
+  })
+})
+
+describe('statusConstraint', () => {
+  const base = parseDemandFilters(new URLSearchParams(''))
+  it('status específico tem prioridade sobre os recortes de abertas', () => {
+    expect(statusConstraint({ ...base, stalled: 15, status: 'concluida' })).toEqual({ eq: 'concluida', excludeClosed: false })
+    expect(statusConstraint({ ...base, waitingDocs: true, status: 'cancelada' })).toEqual({ eq: 'cancelada', excludeClosed: false })
+  })
+  it('abertas/todas com atalhos excluem os status fechados', () => {
+    expect(statusConstraint(base)).toEqual({ eq: null, excludeClosed: true })
+    expect(statusConstraint({ ...base, status: 'todas' })).toEqual({ eq: null, excludeClosed: false })
+    expect(statusConstraint({ ...base, status: 'todas', stalled: 15 })).toEqual({ eq: null, excludeClosed: true })
+  })
+  it('stalled + troca para Concluídas deixa de ser contraditória', () => {
+    const f = patchDemandFilters({ ...base, stalled: 15 }, { status: 'concluida' })
+    expect(statusConstraint(f)).toEqual({ eq: 'concluida', excludeClosed: false })
   })
 })
