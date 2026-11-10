@@ -97,10 +97,12 @@ if (-not $apiUrl -or -not $anon) { Falha "Nao consegui ler URL/chave do Supabase
 $envFile = Join-Path $root '.env.local'
 @(
   "# Gerado por scripts/iniciar.ps1 - Supabase LOCAL",
-  "VITE_SUPABASE_URL=$apiUrl",
+  "# A API local e servida pelo proxy do Vite (mesmo endereco do site)",
+  "VITE_SUPABASE_URL=http://localhost:5173/supabase",
   "VITE_SUPABASE_ANON_KEY=$anon"
 ) | Set-Content -Path $envFile -Encoding ascii
-Write-Host ".env.local atualizado ($apiUrl)"
+$env:SUPABASE_LOCAL_URL = $apiUrl
+Write-Host ".env.local atualizado (API local $apiUrl via proxy do site)"
 
 # --- 5. Dados de demonstracao ---------------------------------------------------------
 Passo "Preparando escritorio de demonstracao"
@@ -128,12 +130,16 @@ Write-Host "  Senha demo:  Demo@2026" -ForegroundColor Green
 Write-Host "  Banco (Studio): http://localhost:54323" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "Mantenha esta janela aberta enquanto usa o sistema. Para parar: feche-a e rode PARAR-JURISFLOW.bat" -ForegroundColor DarkGray
-$emUso = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
-if ($emUso) {
-  Write-Host "O site ja esta rodando em outra janela; abrindo o navegador." -ForegroundColor DarkGray
-  Start-Process 'http://localhost:5173'
-  Read-Host "Pressione ENTER para fechar esta janela"
-} else {
-  Start-Job { Start-Sleep -Seconds 4; Start-Process 'http://localhost:5173' } | Out-Null
-  npm run dev -- --port 5173 --strictPort
+# Se ja houver um servidor do site rodando (de uma execucao anterior), encerra-o para
+# que a nova configuracao (.env.local) seja carregada.
+$pids = netstat -ano | Select-String ':5173\s+\S+\s+LISTENING\s+(\d+)' | ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique
+foreach ($p in $pids) {
+  $proc = Get-Process -Id $p -ErrorAction SilentlyContinue
+  if ($proc -and $proc.ProcessName -eq 'node') {
+    Write-Host "Reiniciando o servidor do site (processo $p)..." -ForegroundColor DarkGray
+    Stop-Process -Id $p -Force
+  }
 }
+Start-Sleep -Seconds 1
+Start-Job { Start-Sleep -Seconds 4; Start-Process 'http://localhost:5173' } | Out-Null
+npm run dev -- --port 5173 --strictPort
