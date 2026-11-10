@@ -1,5 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
-import { PageHeader, Tabs } from '@/components/ui'
+import { PageHeader, Tabs, tabPanelProps } from '@/components/ui'
 import { ProfileTab } from './ProfileTab'
 import { OrganizationTab } from './OrganizationTab'
 import { TeamTab } from './TeamTab'
@@ -14,11 +14,13 @@ export function SettingsPage() {
   return (
     <div>
       <PageHeader title="Configurações" description="Perfil, escritório, equipe e privacidade." />
-      <Tabs value={tab} onChange={change} items={SETTINGS_TABS} className="mb-4 overflow-x-auto" />
-      {tab === 'perfil' && <ProfileTab />}
-      {tab === 'escritorio' && <OrganizationTab />}
-      {tab === 'equipe' && <TeamTab />}
-      {tab === 'privacidade' && <PrivacyTab />}
+      <Tabs value={tab} onChange={change} items={SETTINGS_TABS} className="mb-4" idPrefix="config" label="Seções das configurações" />
+      <div {...tabPanelProps('config', tab)} className="outline-none">
+        {tab === 'perfil' && <ProfileTab />}
+        {tab === 'escritorio' && <OrganizationTab />}
+        {tab === 'equipe' && <TeamTab />}
+        {tab === 'privacidade' && <PrivacyTab />}
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Info } from 'lucide-react'
-import { ErrorState, PageHeader, Skeleton, Tabs } from '@/components/ui'
+import { ErrorState, PageHeader, Skeleton, Tabs, tabPanelProps } from '@/components/ui'
 import { useCategories } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
 import { KanbanBoard } from './KanbanBoard'
@@ -56,6 +56,7 @@ export function WorkflowsPage() {
 
       <Tabs<Tab>
         className="mb-4"
+        idPrefix="fluxos"
         value={tab}
         onChange={setTab}
         items={[
@@ -64,6 +65,7 @@ export function WorkflowsPage() {
         ]}
       />
 
+      <div {...tabPanelProps('fluxos', tab)} className="outline-none">
       {categories.isLoading ? (
         <div className="flex gap-3 overflow-hidden" aria-busy="true" aria-label="Carregando">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -85,6 +87,7 @@ export function WorkflowsPage() {
           <ChecklistTemplatesEditor initialCategoryId={categoryId ?? undefined} />
         </div>
       )}
+      </div>
     </div>
   )
 }

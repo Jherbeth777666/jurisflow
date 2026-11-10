@@ -21,6 +21,7 @@ import {
   Table,
   TableSkeleton,
   Tabs,
+  tabPanelProps,
   TBody,
   TD,
   TH,
@@ -114,6 +115,7 @@ export function ContractsPage() {
 
       <Tabs
         className="mb-4"
+        idPrefix="contratos"
         value={tab}
         onChange={setTab}
         items={[
@@ -122,7 +124,9 @@ export function ContractsPage() {
         ]}
       />
 
-      {tab === 'contratos' ? <ContractsTab onCreate={() => setFormOpen(true)} /> : <ReceivablesTab query={receivables} />}
+      <div {...tabPanelProps('contratos', tab)} className="outline-none">
+        {tab === 'contratos' ? <ContractsTab onCreate={() => setFormOpen(true)} /> : <ReceivablesTab query={receivables} />}
+      </div>
 
       <ContractFormModal open={formOpen} onClose={() => setFormOpen(false)} onSaved={(c) => navigate(`/contratos/${c.id}`)} />
     </div>
