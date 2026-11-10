@@ -65,11 +65,22 @@ export function DemandDetailPage() {
   const open = isOpenStatus(d.status)
   const days = daysSince(d.stage_changed_at)
   const overdue = isNextActionOverdue(d)
+  // Reabrir demanda que está numa etapa final: o banco a devolve para a etapa anterior.
+  const inFinalStage = !!stage?.is_final
+  const sortedStages = [...stages].sort((a, b) => a.position - b.position)
+  const reopenStage = inFinalStage ? sortedStages.filter((s) => stage && s.position < stage.position).at(-1) : undefined
 
   const quick = async (p: { stage_id?: string; status?: DemandStatus }, msg: string) => {
     try {
       const saved = await patch.mutateAsync({ id: d.id, patch: p })
-      toast.show(saved.status === 'concluida' && p.stage_id ? `${msg} A demanda foi concluída.` : msg)
+      const movedTo = !p.stage_id && saved.stage_id !== d.stage_id ? stages.find((s) => s.id === saved.stage_id) : undefined
+      toast.show(
+        saved.status === 'concluida' && p.stage_id
+          ? `${msg} A demanda foi concluída.`
+          : movedTo
+            ? `${msg} Etapa atual: “${movedTo.name}”.`
+            : msg,
+      )
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Não foi possível atualizar.', 'error')
     }
@@ -146,9 +157,18 @@ export function DemandDetailPage() {
                 />
                 <Select
                   label="Status"
-                  options={toOptions(DEMAND_STATUS)}
+                  options={toOptions(DEMAND_STATUS).map((o) =>
+                    inFinalStage && isOpenStatus(o.value as DemandStatus) && !open
+                      ? { ...o, label: `${o.label} (reabre${reopenStage ? ` em “${reopenStage.name}”` : ''})` }
+                      : o,
+                  )}
                   value={d.status}
                   disabled={patch.isPending}
+                  hint={
+                    inFinalStage && !open
+                      ? `Está na etapa final. Ao reabrir, volta automaticamente para ${reopenStage ? `“${reopenStage.name}”` : 'a etapa anterior'}.`
+                      : undefined
+                  }
                   onChange={(e) => {
                     const v = e.target.value as DemandStatus
                     if (v !== d.status) quick({ status: v }, `Status alterado para “${DEMAND_STATUS[v].label}”.`)
