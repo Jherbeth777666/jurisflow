@@ -52,6 +52,9 @@ export async function fetchClientNames(orgId: string, ids: string[]): Promise<Ma
 // Resumo financeiro do escritório
 // ---------------------------------------------------------------------------
 export interface FinanceSummary {
+  /** Honorários contratados: ativos + quitados (mesma definição do dashboard). */
+  contractedTotal: number
+  contractedCount: number
   activeTotal: number
   received: number
   balance: number
@@ -88,10 +91,14 @@ export function useFinanceSummary() {
       // Parcelas de rascunhos não são cobradas — ficam fora do valor vencido
       const billable = new Set(contracts.filter((c) => c.status !== 'rascunho').map((c) => c.id))
       const overdueBillable = overdue.filter((i) => billable.has(i.contract_id))
-      const s: FinanceSummary = { activeTotal: 0, received: 0, balance: 0, overdue: 0, overdueCount: overdueBillable.length, activeCount: 0 }
+      const s: FinanceSummary = { contractedTotal: 0, contractedCount: 0, activeTotal: 0, received: 0, balance: 0, overdue: 0, overdueCount: overdueBillable.length, activeCount: 0 }
       for (const c of contracts) {
         if (c.status === 'rascunho') continue
         s.received += num(c.received_amount)
+        if (c.status === 'ativo' || c.status === 'quitado') {
+          s.contractedTotal += num(c.total_amount)
+          s.contractedCount++
+        }
         if (c.status === 'ativo') {
           s.activeTotal += num(c.total_amount)
           s.balance += num(c.balance_amount)

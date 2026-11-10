@@ -75,7 +75,10 @@ export function ContractDetailPage() {
   const instList = installments.data ?? []
   const instNumber = new Map(instList.map((i) => [i.id, i.number]))
   const hasOpen = instList.some((i) => i.remaining_amount > 0 && i.status !== 'cancelada' && i.status !== 'paga')
-  const canPay = can('payments.create') && !cancelled && hasOpen
+  const draft = c.status === 'rascunho'
+  // Rascunho não recebe pagamentos (o banco também bloqueia): ative o contrato antes.
+  const canPay = can('payments.create') && !cancelled && !draft && hasOpen
+  const draftPayHint = can('payments.create') && draft && hasOpen
 
   return (
     <div className="space-y-4">
@@ -106,6 +109,13 @@ export function ContractDetailPage() {
               <Button variant="primary" icon={<HandCoins className="size-4" />} onClick={() => setPayOpen({})}>
                 Registrar pagamento
               </Button>
+            )}
+            {draftPayHint && (
+              <span title="Contrato em rascunho: altere o status para Ativo (em Editar) para registrar pagamentos.">
+                <Button variant="primary" icon={<HandCoins className="size-4" />} disabled aria-describedby="draft-pay-hint">
+                  Registrar pagamento
+                </Button>
+              </span>
             )}
             {can('contracts.manage') && (
               <Button icon={<Pencil className="size-4" />} onClick={() => setEditOpen(true)}>
@@ -170,7 +180,14 @@ export function ContractDetailPage() {
         <div className="space-y-4">
           {/* Cronograma */}
           <Card>
-            <CardHeader title="Cronograma de parcelas" description={c.status === 'rascunho' ? 'Contrato em rascunho — parcelas ainda não são cobradas.' : undefined} />
+            <CardHeader
+              title="Cronograma de parcelas"
+              description={
+                draft ? (
+                  <span id="draft-pay-hint">Contrato em rascunho — parcelas ainda não são cobradas e não é possível registrar pagamentos. Ative o contrato em “Editar” para receber.</span>
+                ) : undefined
+              }
+            />
             {installments.isLoading ? (
               <TableSkeleton rows={4} cols={5} />
             ) : installments.isError ? (

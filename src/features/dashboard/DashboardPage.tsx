@@ -190,7 +190,7 @@ function StatGrid({ m }: { m: DashboardMetrics | undefined }) {
         to="/tarefas?aba=todas&filter=week"
         tone={m.deadlines_upcoming > 0 ? 'warning' : 'default'}
       />
-      <StatCard label="Honorários previstos" value={formatCurrency(m.fees_expected)} icon={<Receipt className="size-4" />} to="/contratos" hint="Contratos ativos e quitados" />
+      <StatCard label="Honorários contratados" value={formatCurrency(m.fees_expected)} icon={<Receipt className="size-4" />} to="/contratos" hint="Contratos ativos e quitados" />
       <StatCard
         label="Honorários recebidos"
         value={formatCurrency(m.fees_received)}
@@ -201,7 +201,7 @@ function StatGrid({ m }: { m: DashboardMetrics | undefined }) {
           m.installments_overdue > 0 ? (
             <span className="text-red-600">{formatCurrency(m.installments_overdue)} vencido</span>
           ) : m.fees_expected > 0 ? (
-            `${pct}% do previsto`
+            `${pct}% do contratado`
           ) : undefined
         }
       />

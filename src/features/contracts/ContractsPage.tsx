@@ -93,9 +93,9 @@ export function ContractsPage() {
         ) : (
           <>
             <StatCard
-              label="Total contratado ativo"
-              value={formatCurrency(summary.data!.activeTotal)}
-              hint={`${summary.data!.activeCount} contrato${summary.data!.activeCount === 1 ? '' : 's'} ativo${summary.data!.activeCount === 1 ? '' : 's'}`}
+              label="Honorários contratados"
+              value={formatCurrency(summary.data!.contractedTotal)}
+              hint={`Ativos e quitados · ${summary.data!.activeCount} ativo${summary.data!.activeCount === 1 ? '' : 's'} (${formatCurrency(summary.data!.activeTotal)})`}
               icon={<FileSignature className="size-4" />}
             />
             <StatCard label="Recebido" value={formatCurrency(summary.data!.received)} hint="Ativos e quitados" icon={<Wallet className="size-4" />} tone="success" />
