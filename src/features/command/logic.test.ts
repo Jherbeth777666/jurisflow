@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { assistantPath, cpfDigitsFromQuery, loadRecents, matchesQuery, normalizeText, recentKey, saveRecent, type StorageLike } from './logic'
+import {
+  assistantPath,
+  cpfDigitsFromQuery,
+  loadRecents,
+  matchesQuery,
+  normalizeText,
+  recentIdsByKind,
+  recentKey,
+  recentPath,
+  saveRecent,
+  type StorageLike,
+} from './logic'
 
 const memory = (): StorageLike & { data: Map<string, string> } => {
   const data = new Map<string, string>()
@@ -28,27 +39,45 @@ describe('busca local', () => {
 })
 
 describe('recentes', () => {
+  const id = (n: number) => `00000000-0000-4000-8000-00000000000${n}`
   it('salva sem duplicar, mais recente primeiro, com limite', () => {
     const s = memory()
-    for (let i = 0; i < 8; i++) saveRecent('org', { kind: 'cliente', id: `c${i}`, label: `Cliente ${i}`, path: `/clientes/c${i}` }, s)
-    saveRecent('org', { kind: 'cliente', id: 'c3', label: 'Cliente 3', path: '/clientes/c3' }, s)
+    for (let i = 0; i < 8; i++) saveRecent('org', { kind: 'cliente', id: id(i) }, s)
+    saveRecent('org', { kind: 'cliente', id: id(3) }, s)
     const list = loadRecents('org', s)
     expect(list).toHaveLength(6)
-    expect(list[0].id).toBe('c3')
-    expect(list.filter((r) => r.id === 'c3')).toHaveLength(1)
+    expect(list[0].id).toBe(id(3))
+    expect(list.filter((r) => r.id === id(3))).toHaveLength(1)
   })
-  it('isola por escritório e nunca guarda CPF', () => {
+  it('guarda SÓ tipo + id (nunca nome de cliente) e isola por escritório', () => {
     const s = memory()
-    saveRecent('a', { kind: 'cliente', id: '1', label: 'Maria 529.982.247-25', path: '/clientes/1' }, s)
+    saveRecent('a', { kind: 'cliente', id: id(1), label: 'Maria da Silva 529.982.247-25' } as never, s)
     expect(loadRecents('b', s)).toEqual([])
-    expect(s.data.get(recentKey('a'))).not.toMatch(/529/)
-    expect(loadRecents('a', s)[0].label).toBe('Maria')
+    const raw = s.data.get(recentKey('a'))!
+    expect(raw).not.toMatch(/Maria|529/)
+    expect(JSON.parse(raw)).toEqual([{ kind: 'cliente', id: id(1) }])
+  })
+  it('limpa recentes antigos que tinham rótulo (migração)', () => {
+    const s = memory()
+    s.setItem(recentKey('a'), JSON.stringify([{ kind: 'demanda', id: id(2), label: 'Ação de João', path: `/demandas/${id(2)}` }]))
+    expect(loadRecents('a', s)).toEqual([{ kind: 'demanda', id: id(2) }])
+    expect(s.data.get(recentKey('a'))).not.toMatch(/João/)
+  })
+  it('caminhos e agrupamento por tipo', () => {
+    expect(recentPath({ kind: 'cliente', id: id(1) })).toBe(`/clientes/${id(1)}`)
+    expect(recentPath({ kind: 'tarefa', id: id(2) })).toBe(`/tarefas?tarefa=${id(2)}`)
+    expect(recentPath({ kind: 'pagina', id: '/relatorios' })).toBe('/relatorios')
+    expect(recentIdsByKind([{ kind: 'cliente', id: id(1) }, { kind: 'pagina', id: '/' }, { kind: 'tarefa', id: id(2) }])).toEqual({
+      cliente: [id(1)],
+      demanda: [],
+      tarefa: [id(2)],
+    })
   })
   it('tolera dados corrompidos e armazenamento indisponível', () => {
     const s = memory()
     s.setItem(recentKey('x'), '{lixo')
     expect(loadRecents('x', s)).toEqual([])
-    s.setItem(recentKey('x'), JSON.stringify([{ kind: 'cliente', id: 1 }, { kind: 'pagina', id: 'p', label: 'P', path: 'http://mal' }]))
+    s.setItem(recentKey('x'), JSON.stringify([{ kind: 'cliente', id: 1 }, { kind: 'pagina', id: 'http://mal' }, { kind: 'cliente', id: '../x' }]))
     expect(loadRecents('x', s)).toEqual([])
     expect(loadRecents('x', null)).toEqual([])
     const throwing: StorageLike = {
@@ -59,6 +88,6 @@ describe('recentes', () => {
         throw new Error('bloqueado')
       },
     }
-    expect(saveRecent('x', { kind: 'pagina', id: '/', label: 'Início', path: '/' }, throwing)).toHaveLength(1)
+    expect(saveRecent('x', { kind: 'pagina', id: '/' }, throwing)).toHaveLength(1)
   })
 })
