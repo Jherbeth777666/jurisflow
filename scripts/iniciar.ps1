@@ -80,6 +80,10 @@ Passo "Iniciando o Supabase local (na primeira vez baixa as imagens do Docker, ~
 npx --yes supabase@latest start
 if ($LASTEXITCODE -ne 0) { Falha "Nao foi possivel iniciar o Supabase local. Veja a mensagem acima." }
 
+Passo "Aplicando migrations do banco"
+npx --yes supabase@latest migration up --local --include-all
+if ($LASTEXITCODE -ne 0) { Falha "Falha ao aplicar as migrations. Veja a mensagem acima." }
+
 $status = npx --yes supabase@latest status -o env 2>$null
 $vars = @{}
 foreach ($line in $status) {
@@ -124,5 +128,12 @@ Write-Host "  Senha demo:  Demo@2026" -ForegroundColor Green
 Write-Host "  Banco (Studio): http://localhost:54323" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "Mantenha esta janela aberta enquanto usa o sistema. Para parar: feche-a e rode PARAR-JURISFLOW.bat" -ForegroundColor DarkGray
-Start-Job { Start-Sleep -Seconds 4; Start-Process 'http://localhost:5173' } | Out-Null
-npm run dev -- --port 5173 --strictPort
+$emUso = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue
+if ($emUso) {
+  Write-Host "O site ja esta rodando em outra janela; abrindo o navegador." -ForegroundColor DarkGray
+  Start-Process 'http://localhost:5173'
+  Read-Host "Pressione ENTER para fechar esta janela"
+} else {
+  Start-Job { Start-Sleep -Seconds 4; Start-Process 'http://localhost:5173' } | Out-Null
+  npm run dev -- --port 5173 --strictPort
+}
