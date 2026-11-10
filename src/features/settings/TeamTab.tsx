@@ -27,7 +27,13 @@ import { ROLE_LABELS } from '@/lib/constants'
 import { formatDate } from '@/lib/format'
 import type { MemberRole, MemberWithProfile, OrganizationInvitation } from '@/types/database'
 import { useCancelInvitation, useCreateInvitation, useInvitations, useUpdateMember } from './api'
-import { ROLE_CAPABILITIES, sortMembers, validateInvitation, wouldRemoveLastAdmin } from './logic'
+import { ROLE_CAPABILITIES, invitationState, sortMembers, validateInvitation, wouldRemoveLastAdmin, type InvitationState } from './logic'
+
+const INVITE_STATE: Record<InvitationState, { label: string; tone: 'blue' | 'gray' | 'amber' }> = {
+  pendente: { label: 'Aguardando resposta', tone: 'blue' },
+  recusado: { label: 'Recusado', tone: 'gray' },
+  expirado: { label: 'Expirado', tone: 'amber' },
+}
 
 const ROLE_OPTIONS = (Object.keys(ROLE_LABELS) as MemberRole[]).map((r) => ({ value: r, label: ROLE_LABELS[r] }))
 
@@ -201,8 +207,8 @@ function InvitationsCard() {
         <div role="note" className="flex items-start gap-2 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-[13px] text-accent-700">
           <Info className="mt-0.5 size-4 shrink-0" />
           <span>
-            A pessoa deve criar conta com este e-mail; o convite é aceito automaticamente no primeiro acesso. O sistema não envia
-            e-mail de convite — avise a pessoa diretamente. O convite só é aceito depois que ela confirmar o e-mail da conta.
+            A pessoa deve criar conta com este e-mail e confirmá-lo; ao entrar, verá o convite para aceitar ou recusar (vale por 14
+            dias). O sistema não envia e-mail de convite — avise a pessoa diretamente.
           </span>
         </div>
         <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-start" noValidate>
@@ -225,11 +231,11 @@ function InvitationsCard() {
 
       <div className="border-t border-line">
         {invitations.isLoading ? (
-          <TableSkeleton rows={2} cols={3} />
+          <TableSkeleton rows={2} cols={4} />
         ) : invitations.isError ? (
           <ErrorState message={(invitations.error as Error).message} onRetry={() => invitations.refetch()} />
         ) : !invitations.data?.length ? (
-          <p className="px-4 py-5 text-center text-[13px] text-ink-muted">Nenhum convite pendente.</p>
+          <p className="px-4 py-5 text-center text-[13px] text-ink-muted">Nenhum convite em aberto.</p>
         ) : (
           <Table>
             <THead>
@@ -237,6 +243,7 @@ function InvitationsCard() {
                 <TH>E-mail</TH>
                 <TH>Papel</TH>
                 <TH>Convidado em</TH>
+                <TH>Situação</TH>
                 <TH className="text-right">Ações</TH>
               </tr>
             </THead>
@@ -246,6 +253,11 @@ function InvitationsCard() {
                   <TD>{inv.email}</TD>
                   <TD>{ROLE_LABELS[inv.role]}</TD>
                   <TD className="text-ink-muted">{formatDate(inv.created_at)}</TD>
+                  <TD>
+                    <Badge tone={INVITE_STATE[invitationState(inv)].tone} dot>
+                      {INVITE_STATE[invitationState(inv)].label}
+                    </Badge>
+                  </TD>
                   <TD className="text-right">
                     <Button size="sm" variant="ghost" icon={<X className="size-4" />} onClick={() => setToCancel(inv)}>
                       Cancelar
@@ -267,7 +279,7 @@ function InvitationsCard() {
           toast.show('Convite cancelado.')
         }}
         title="Cancelar convite"
-        description={toCancel ? `${toCancel.email} não será mais adicionado(a) ao escritório ao criar a conta.` : ''}
+        description={toCancel ? `${toCancel.email} não poderá mais aceitar este convite.` : ''}
         confirmLabel="Cancelar convite"
       />
     </Card>

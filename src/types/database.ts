@@ -54,6 +54,9 @@ export interface OrganizationInvitation extends Timestamps {
   role: MemberRole
   invited_by: UUID | null
   accepted_at: ISODateTime | null
+  /** Migration 010: convite com validade e recusa explícita. */
+  expires_at?: ISODateTime | null
+  declined_at?: ISODateTime | null
 }
 
 export interface Client extends Timestamps {

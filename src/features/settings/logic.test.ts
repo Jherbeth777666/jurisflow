@@ -8,6 +8,7 @@ import {
   parseTab,
   sortMembers,
   validateFullName,
+  invitationState,
   validateInvitation,
   validateOrgName,
   validatePassword,
@@ -54,6 +55,16 @@ describe('validações', () => {
     // membro desativado pode ser reconvidado
     const inactive = [member({ active: false, profile: { id: '2', full_name: 'B', email: 'b@x.com' } })]
     expect(validateInvitation('b@x.com', inactive, [])).toBeNull()
+  })
+
+  it('convite recusado não bloqueia; expirado pede cancelamento', () => {
+    const past = '2000-01-01T00:00:00Z'
+    expect(invitationState({ declined_at: past, expires_at: null })).toBe('recusado')
+    expect(invitationState({ declined_at: null, expires_at: past })).toBe('expirado')
+    expect(invitationState({ declined_at: null, expires_at: '2999-01-01T00:00:00Z' })).toBe('pendente')
+    expect(invitationState({})).toBe('pendente')
+    expect(validateInvitation('x@x.com', [], [{ email: 'x@x.com', declined_at: past }])).toBeNull()
+    expect(validateInvitation('x@x.com', [], [{ email: 'x@x.com', expires_at: past }])).toMatch(/expirou/)
   })
 })
 

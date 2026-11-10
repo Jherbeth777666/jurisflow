@@ -53,18 +53,33 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
+export type InvitationState = 'pendente' | 'recusado' | 'expirado'
+
+/** Situação de um convite não aceito (recusado/expirado não bloqueiam um novo convite). */
+export function invitationState(
+  inv: Pick<OrganizationInvitation, 'declined_at' | 'expires_at'>,
+  now: Date = new Date(),
+): InvitationState {
+  if (inv.declined_at) return 'recusado'
+  if (inv.expires_at && new Date(inv.expires_at).getTime() <= now.getTime()) return 'expirado'
+  return 'pendente'
+}
+
 /** Valida um novo convite contra membros e convites pendentes já existentes. */
 export function validateInvitation(
   email: string,
   members: Pick<MemberWithProfile, 'active' | 'profile'>[],
-  pending: Pick<OrganizationInvitation, 'email'>[],
+  invitations: Pick<OrganizationInvitation, 'email' | 'declined_at' | 'expires_at'>[],
 ): string | null {
   const e = normalizeEmail(email)
   if (!e) return 'Informe o e-mail.'
   if (!isValidEmail(e)) return 'E-mail inválido.'
   const member = members.find((m) => normalizeEmail(m.profile?.email ?? '') === e)
   if (member?.active) return 'Esta pessoa já faz parte da equipe.'
-  if (pending.some((p) => normalizeEmail(p.email) === e)) return 'Já existe um convite pendente para este e-mail.'
+  // Recusado não bloqueia; expirado ainda ocupa o índice único do banco (precisa ser cancelado).
+  const same = invitations.filter((i) => normalizeEmail(i.email) === e).map((i) => invitationState(i))
+  if (same.includes('pendente')) return 'Já existe um convite pendente para este e-mail.'
+  if (same.includes('expirado')) return 'O convite anterior para este e-mail expirou. Cancele-o na lista abaixo e convide novamente.'
   return null
 }
 

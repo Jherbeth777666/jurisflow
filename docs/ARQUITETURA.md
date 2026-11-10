@@ -33,7 +33,7 @@ Não há Python/FastAPI — não havia justificativa técnica.
 | **`stage_changed_at`** | Permite medir "demanda parada há X dias" com precisão (usado no Kanban, lista, dashboard e IA). |
 | **Parcelas geradas no banco** + views `contract_overview` / `installment_overview` (`security_invoker`) | Valor recebido, saldo, vencidas e próximos recebimentos sempre consistentes; arredondamento exato (última parcela absorve o resto). |
 | **`dashboard_metrics()` no banco** | Indicadores calculados com dados reais em uma ida ao servidor, respeitando RLS. |
-| **Convites por e-mail sem envio** | O admin convida o e-mail; ao entrar com e-mail confirmado o convite é aceito por `accept_pending_invitations()`. Sem serviço de e-mail no MVP — e a UI não finge que há. |
+| **Convites por e-mail sem envio** | O admin convida o e-mail; ao entrar com e-mail confirmado a pessoa vê o convite (`my_pending_invitations()`) e aceita ou recusa explicitamente (`accept_invitation`/`decline_invitation`, migration 010; validade de 14 dias). Sem serviço de e-mail no MVP — e a UI não finge que há. |
 | **Anonimização em vez de exclusão** quando há vínculos | Atende pedidos de eliminação (LGPD) mantendo o histórico operacional/financeiro exigido para retenção. |
 | **Assistente com ferramentas whitelisted** | O modelo nunca escreve SQL; escolhe uma ferramenta da lista, os argumentos são validados e o `organization_id` vem sempre da requisição autenticada. As RPCs são SECURITY INVOKER (RLS do usuário). |
 | **Pseudonimização reversível** | Nomes de clientes/membros viram tokens ("Cliente C1") antes de ir ao provedor e são restaurados na resposta. CPF/telefone/e-mail digitados são removidos. |
