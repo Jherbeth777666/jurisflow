@@ -50,6 +50,18 @@ if (-not $remoto) {
   git remote add origin $remoto
 }
 
+# Se o GitHub ja tiver commits que nao estao aqui (ex.: enviados pelo Claude),
+# os arquivos DESTA pasta viram a nova versao, mantendo o historico do GitHub.
+git fetch -q origin main 2>$null
+if ($LASTEXITCODE -eq 0) {
+  git merge-base --is-ancestor origin/main HEAD 2>$null
+  if ($LASTEXITCODE -ne 0) {
+    git reset -q --soft origin/main
+    git add -A
+    git commit -q -m "Atualizacao do JurisFlow AI ($(Get-Date -Format 'dd/MM/yyyy HH:mm'))" 2>$null
+  }
+}
+
 Write-Host "`nEnviando para $remoto (na primeira vez o navegador abre para login no GitHub)..." -ForegroundColor Cyan
 git push -u origin main
 if ($LASTEXITCODE -ne 0) { Falha "O envio falhou. Confira se o repositorio existe, esta vazio e se voce entrou na conta certa." }
