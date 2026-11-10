@@ -71,10 +71,10 @@ interface Props {
 export function ReviewStep(p: Props) {
   const [filter, setFilter] = useState<Filter>('todos')
   const [rawPage, setPage] = useState(0)
-  // Se a lista visível encolheu (ex.: linhas desmarcadas/filtradas), fica na última página válida.
-  const page = Math.min(rawPage, Math.max(0, Math.ceil(visible.length / PAGE) - 1))
   const fields = DISPLAY_FIELDS.filter((f) => p.mapping[f] !== undefined)
   const visible = useMemo(() => (filter === 'todos' ? p.rows : p.rows.filter((r) => r.status === filter)), [p.rows, filter])
+  // Se a lista visível encolheu (ex.: linhas desmarcadas/filtradas), fica na última página válida.
+  const page = Math.min(rawPage, Math.max(0, Math.ceil(visible.length / PAGE) - 1))
   const pageRows = visible.slice(page * PAGE, (page + 1) * PAGE)
   const s = p.summary
   const toImport = s.criar + s.atualizar
