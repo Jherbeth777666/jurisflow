@@ -1,5 +1,5 @@
 // Aba "Quadro": Kanban por categoria com arrastar e soltar (dnd-kit) e menu "Mover para…".
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
+import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type KeyboardEventHandler, type MouseEvent, type PointerEvent, type PointerEventHandler, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -18,7 +18,7 @@ import {
   type DragStartEvent,
   type KeyboardCoordinateGetter,
 } from '@dnd-kit/core'
-import { ArrowRightLeft, CheckCircle2, Clock, FileClock, KanbanSquare, Plus, Settings2 } from 'lucide-react'
+import { ArrowRightLeft, CheckCircle2, Clock, FileClock, GripVertical, KanbanSquare, Plus, Settings2 } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, ErrorState, Modal, SearchInput, Select, Skeleton } from '@/components/ui'
 import { DemandFormModal } from '@/features/demands/DemandFormModal'
 import { useMemberNames, type CategoryWithStages } from '@/hooks/useOrgData'
@@ -350,21 +350,33 @@ function DraggableCard({
   onOpen: () => void
   onMove: () => void
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: demand.id })
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: demand.id })
+  // O cartão em si não é um controle (evita interativos aninhados: link e botão "Mover"
+  // dentro de um role="button"). O mouse/toque arrasta pelo cartão inteiro; pelo teclado,
+  // o arraste é feito na alça dedicada, que é o elemento focável com a descrição ARIA.
+  const handle = (
+    <button
+      type="button"
+      ref={setActivatorNodeRef}
+      {...attributes}
+      onKeyDown={listeners?.onKeyDown as KeyboardEventHandler<HTMLButtonElement> | undefined}
+      onClick={(e) => e.stopPropagation()}
+      aria-roledescription="alça de arraste"
+      aria-label={`Arrastar "${demand.title}"${demand.client ? ` (${demand.client.full_name})` : ''} para outra etapa`}
+      title="Arrastar (teclado: Espaço para pegar, setas para mover, Espaço para soltar)"
+      className="-ml-1 -mt-0.5 shrink-0 cursor-grab rounded p-0.5 text-ink-subtle hover:bg-navy-50 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-500 active:cursor-grabbing"
+    >
+      <GripVertical className="size-3.5" aria-hidden />
+    </button>
+  )
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      aria-roledescription="demanda arrastável"
-      aria-label={`${demand.title}${demand.client ? `, ${demand.client.full_name}` : ''}`}
+      onPointerDown={listeners?.onPointerDown as PointerEventHandler<HTMLDivElement> | undefined}
       onClick={onOpen}
-      className={cn(
-        'cursor-grab rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent-500 active:cursor-grabbing',
-        isDragging && 'opacity-40',
-      )}
+      className={cn('cursor-grab rounded-md active:cursor-grabbing', isDragging && 'opacity-40')}
     >
-      <CardBody demand={demand} responsible={responsible} onMove={onMove} />
+      <CardBody demand={demand} responsible={responsible} onMove={onMove} handle={handle} />
     </div>
   )
 }
@@ -379,11 +391,13 @@ function CardBody({
   demand: d,
   responsible,
   onMove,
+  handle,
   className,
 }: {
   demand: BoardDemand
   responsible: string | null
   onMove?: () => void
+  handle?: ReactNode
   className?: string
 }) {
   const closed = isClosed(d)
@@ -399,6 +413,7 @@ function CardBody({
       )}
     >
       <div className="flex items-start gap-1.5">
+        {handle}
         <Link
           to={`/demandas/${d.id}`}
           {...stop}
