@@ -179,7 +179,7 @@ function StatGrid({ m }: { m: DashboardMetrics | undefined }) {
         label="Atividades pendentes"
         value={formatNumber(m.tasks_pending)}
         icon={<ListTodo className="size-4" />}
-        to="/tarefas"
+        to="/tarefas?aba=todas"
         hint={m.tasks_overdue > 0 ? <span className="text-red-600">{m.tasks_overdue} vencida{m.tasks_overdue === 1 ? '' : 's'}</span> : 'Nenhuma vencida'}
         tone={m.tasks_overdue > 0 ? 'danger' : 'default'}
       />
@@ -187,7 +187,7 @@ function StatGrid({ m }: { m: DashboardMetrics | undefined }) {
         label="Prazos nos próximos 7 dias"
         value={formatNumber(m.deadlines_upcoming)}
         icon={<CalendarClock className="size-4" />}
-        to="/tarefas?filter=week"
+        to="/tarefas?aba=todas&filter=week"
         tone={m.deadlines_upcoming > 0 ? 'warning' : 'default'}
       />
       <StatCard label="Honorários previstos" value={formatCurrency(m.fees_expected)} icon={<Receipt className="size-4" />} to="/contratos" hint="Contratos ativos e quitados" />
@@ -434,7 +434,7 @@ function PriorityTasks({ className }: { className?: string }) {
         title="Tarefas prioritárias"
         description="Pendentes ordenadas por vencimento e prioridade"
         action={
-          <Link to="/tarefas" className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-700 hover:underline">
+          <Link to="/tarefas?aba=todas" className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-700 hover:underline">
             Ver todas <ArrowRight className="size-3.5" />
           </Link>
         }

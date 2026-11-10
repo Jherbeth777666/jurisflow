@@ -23,7 +23,7 @@ import { PRIORITY, TASK_STATUS, toOptions } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import type { PriorityLevel, Task, TaskStatus } from '@/types/database'
 import { OPEN_STATUSES, TASK_SELECT, useDeleteTask, useToggleTask, type TaskRow } from './api'
-import { DUE_BUCKET_LABEL, groupByDueBucket, parseRangeFilter, rangeBounds, type DueBucket, type RangeFilter } from './dueBuckets'
+import { DUE_BUCKET_LABEL, groupByDueBucket, parseRangeFilter, rangeBounds, tabFromParams, type DueBucket, type RangeFilter } from './dueBuckets'
 import { TaskFormModal } from './TaskFormModal'
 import { TaskRowItem } from './TaskRow'
 import { useOpenFromParam } from '@/hooks/useOpenFromParam'
@@ -92,7 +92,13 @@ export function TasksPage() {
   const [params, setParams] = useSearchParams()
   const range = parseRangeFilter(params.get('filter'))
 
-  const [tab, setTab] = useState<Tab>('mine')
+  // Aba vive na URL (?aba=todas|minhas) para que links do dashboard abram com os mesmos números.
+  const tab: Tab = tabFromParams(params)
+  const setTab = (t: Tab) => {
+    const next = new URLSearchParams(params)
+    next.set('aba', t === 'all' ? 'todas' : 'minhas')
+    setParams(next, { replace: true })
+  }
   const [assignee, setAssignee] = useState('')
   const [priority, setPriority] = useState<'' | PriorityLevel>('')
   const [status, setStatus] = useState<StatusFilter>('open')

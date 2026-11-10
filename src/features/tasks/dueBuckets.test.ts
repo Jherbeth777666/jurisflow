@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dueBucket, dueLabel, groupByDueBucket, parseRangeFilter, rangeBounds } from './dueBuckets'
+import { dueBucket, dueLabel, groupByDueBucket, parseRangeFilter, rangeBounds, tabFromParams } from './dueBuckets'
 
 const TODAY = '2026-11-09'
 
@@ -69,5 +69,17 @@ describe('filtros de URL', () => {
     expect(rangeBounds('today', TODAY)).toEqual({ gte: TODAY, lte: TODAY })
     expect(rangeBounds('week', TODAY)).toEqual({ gte: TODAY, lte: '2026-11-16' })
     expect(rangeBounds('nodate', TODAY)).toEqual({ isNull: true })
+  })
+})
+
+describe('tabFromParams', () => {
+  it('abre em "Todas" quando vem com filtro do dashboard', () => {
+    expect(tabFromParams(new URLSearchParams('filter=week'))).toBe('all')
+    expect(tabFromParams(new URLSearchParams('aba=todas'))).toBe('all')
+  })
+  it('padrão "Minhas"; ?aba explícita tem precedência', () => {
+    expect(tabFromParams(new URLSearchParams(''))).toBe('mine')
+    expect(tabFromParams(new URLSearchParams('filter=week&aba=minhas'))).toBe('mine')
+    expect(tabFromParams(new URLSearchParams('filter=xyz'))).toBe('mine')
   })
 })

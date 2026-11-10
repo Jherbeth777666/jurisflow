@@ -91,3 +91,15 @@ export function rangeBounds(
       return { isNull: true }
   }
 }
+
+/**
+ * Aba inicial da tela de tarefas a partir da URL. ?aba=todas|minhas tem precedência;
+ * links com ?filter= (vindos do dashboard, que conta a equipe toda) abrem em "Todas"
+ * para que os números batam.
+ */
+export function tabFromParams(params: URLSearchParams): 'mine' | 'all' {
+  const aba = params.get('aba')
+  if (aba === 'todas') return 'all'
+  if (aba === 'minhas') return 'mine'
+  return parseRangeFilter(params.get('filter')) ? 'all' : 'mine'
+}
