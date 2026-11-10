@@ -48,6 +48,16 @@ supabase/
   seed/            dados de demonstração (somente ambiente demo)
 ```
 
+## Rodar no seu computador (Windows) — jeito rápido
+Pré-requisitos: [Node.js LTS](https://nodejs.org) e [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+
+1. Dê **duplo clique em `INICIAR-JURISFLOW.bat`**. Ele abre o Docker, instala as dependências, sobe o Supabase local,
+   cria um escritório de demonstração com dados fictícios e abre o site em `http://localhost:5173`.
+2. Entre com **demo@jurisflow.local** / **Demo@2026** (ou crie sua própria conta).
+3. Para ligar o Assistente IA: copie `supabase/functions/.env.example` para `supabase/functions/.env`, preencha a chave
+   (Gemini tem plano gratuito) e rode o `.bat` de novo.
+4. Para parar: feche a janela e dê duplo clique em `PARAR-JURISFLOW.bat` (os dados ficam salvos).
+
 ## Instalação
 
 ### 1. Supabase
