@@ -19,7 +19,7 @@ import {
   FileUp,
   HeartPulse,
 } from 'lucide-react'
-import { CommandPalette, CommandTrigger } from '@/features/command/CommandPalette'
+import { CommandPalette, CommandTrigger } from '@/features/command/CommandHost'
 import { useAuth } from '@/contexts/AuthContext'
 import { ROLE_LABELS } from '@/lib/constants'
 import { Avatar, Spinner } from '@/components/ui'

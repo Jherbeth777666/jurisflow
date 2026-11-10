@@ -1,14 +1,17 @@
-import { lazy } from 'react'
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { isSupabaseConfigured } from '@/lib/supabase'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Spinner, ErrorState } from '@/components/ui'
-import { LoginPage } from '@/pages/auth/LoginPage'
-import { SignupPage } from '@/pages/auth/SignupPage'
-import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/auth/ForgotPasswordPage'
-import { OnboardingPage } from '@/pages/auth/OnboardingPage'
-import { ChooseOrganizationPage } from '@/pages/auth/ChooseOrganizationPage'
+
+// Telas de acesso também sob demanda: quem já está logado não baixa login/cadastro.
+const LoginPage = lazy(() => import('@/pages/auth/LoginPage').then((x) => ({ default: x.LoginPage })))
+const SignupPage = lazy(() => import('@/pages/auth/SignupPage').then((x) => ({ default: x.SignupPage })))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage').then((x) => ({ default: x.ForgotPasswordPage })))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage').then((x) => ({ default: x.ResetPasswordPage })))
+const OnboardingPage = lazy(() => import('@/pages/auth/OnboardingPage').then((x) => ({ default: x.OnboardingPage })))
+const ChooseOrganizationPage = lazy(() => import('@/pages/auth/ChooseOrganizationPage').then((x) => ({ default: x.ChooseOrganizationPage })))
 
 // Rotas carregadas sob demanda (code-splitting)
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((x) => ({ default: x.DashboardPage })))
@@ -47,14 +50,18 @@ export default function App() {
   if (!isSupabaseConfigured) return <ConfigMissing />
   if (loading) return <Spinner className="min-h-dvh" label="Carregando JurisFlow…" />
 
+  const page = <Spinner className="min-h-dvh" />
+
   if (!session) {
     return (
+      <Suspense fallback={page}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/cadastro" element={<SignupPage />} />
         <Route path="/recuperar-senha" element={<ForgotPasswordPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
+      </Suspense>
     )
   }
 
@@ -62,16 +69,25 @@ export default function App() {
 
   if (!organization) {
     return (
+      <Suspense fallback={page}>
       <Routes>
         <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
         <Route path="*" element={memberships.length > 1 ? <ChooseOrganizationPage /> : <OnboardingPage />} />
       </Routes>
+      </Suspense>
     )
   }
 
   return (
     <Routes>
-      <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
+      <Route
+        path="/redefinir-senha"
+        element={
+          <Suspense fallback={page}>
+            <ResetPasswordPage />
+          </Suspense>
+        }
+      />
       <Route element={<AppLayout />}>
         <Route index element={<DashboardPage />} />
         <Route path="clientes" element={<ClientsPage />} />

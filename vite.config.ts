@@ -19,6 +19,21 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Bibliotecas que mudam pouco em chunks estáveis: um deploy só do app não invalida o
+    // cache delas no navegador (/assets/* é imutável). Vite 8 usa rolldown → codeSplitting.
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          groups: [
+            { name: 'vendor-react', test: /[\\/]node_modules[\\/](react|react-dom|scheduler|react-router|react-router-dom|cookie|set-cookie-parser)[\\/]/, priority: 30 },
+            { name: 'vendor-supabase', test: /[\\/]node_modules[\\/]@supabase[\\/]/, priority: 20 },
+            { name: 'vendor-query', test: /[\\/]node_modules[\\/]@tanstack[\\/]/, priority: 10 },
+          ],
+        },
+      },
+    },
+  },
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },

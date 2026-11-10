@@ -1,20 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { lazy, Suspense, useState, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import {
   AlarmClock,
   ArrowRight,
@@ -30,19 +16,25 @@ import {
   Hourglass,
 } from 'lucide-react'
 import { supabase, unwrap } from '@/lib/supabase'
-import { STALLED_DAYS, daysSince, diffInDays, stalledCutoff, formatCurrency, formatDate, formatMonthShort, formatNumber, todayISO } from '@/lib/format'
-import { DEMAND_STATUS, PRIORITY } from '@/lib/constants'
+import { STALLED_DAYS, daysSince, diffInDays, stalledCutoff, formatCurrency, formatDate, formatNumber, todayISO } from '@/lib/format'
+import { PRIORITY } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import { useOrg } from '@/contexts/AuthContext'
 import { qk, useCategories, useMemberNames } from '@/hooks/useOrgData'
 import { Badge, Card, CardBody, CardHeader, EmptyState, ErrorState, Skeleton, StatCard, StatusBadge } from '@/components/ui'
 import { ActivityFeed } from '@/components/ActivityFeed'
-import { DemandFormModal } from '@/features/demands/DemandFormModal'
 import type { DashboardMetrics, Demand, Task } from '@/types/database'
-import { fetchClientNames } from '@/features/contracts/api'
-import { ChartTooltip, Legend } from './charts'
-import { axisProps, CHART, compactCurrency, STATUS_COLORS } from './chartTheme'
 import { dueTone, firstName, greeting, sortPriorityTasks } from './logic'
+
+// recharts (~100 kB gzip) fica num chunk separado: indicadores aparecem antes dos gráficos.
+const loadCharts = () => import('./DashboardCharts')
+const MonthlyChart = lazy(() => loadCharts().then((m) => ({ default: m.MonthlyChart })))
+const StatusChart = lazy(() => loadCharts().then((m) => ({ default: m.StatusChart })))
+const RevenueChart = lazy(() => loadCharts().then((m) => ({ default: m.RevenueChart })))
+const CategoryChart = lazy(() => loadCharts().then((m) => ({ default: m.CategoryChart })))
+const ProductivityChart = lazy(() => loadCharts().then((m) => ({ default: m.ProductivityChart })))
+// Modal só abre por clique no painel de boas-vindas
+const DemandFormModal = lazy(() => import('@/features/demands/DemandFormModal').then((m) => ({ default: m.DemandFormModal })))
 
 
 function normalizeMetrics(m: DashboardMetrics): DashboardMetrics {
@@ -229,170 +221,24 @@ function ChartCard({
   return (
     <Card className={className}>
       <CardHeader title={title} description={description} action={action} />
-      <CardBody>{loading ? <Skeleton className="h-[240px] w-full" /> : children}</CardBody>
+      <CardBody>
+        {loading ? (
+          <Skeleton className="h-[240px] w-full" />
+        ) : (
+          <Suspense fallback={<Skeleton className="h-[240px] w-full" aria-label="Carregando gráfico" />}>{children}</Suspense>
+        )}
+      </CardBody>
     </Card>
-  )
-}
-
-function ChartEmpty({ text }: { text: string }) {
-  return <div className="flex h-[240px] items-center justify-center text-center text-[13px] text-ink-subtle">{text}</div>
-}
-
-function MonthlyChart({ data }: { data: DashboardMetrics['monthly'] }) {
-  if (!data.some((d) => d.opened || d.closed || d.new_clients)) return <ChartEmpty text="Sem movimentação nos últimos 6 meses." />
-  return (
-    <div>
-      <Legend
-        items={[
-          { label: 'Demandas abertas', color: CHART.navy700 },
-          { label: 'Concluídas', color: CHART.accent },
-          { label: 'Novos clientes', color: CHART.navy300, dashed: true },
-        ]}
-      />
-      <div className="mt-3 h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
-            <CartesianGrid stroke={CHART.grid} vertical={false} />
-            <XAxis dataKey="month" tickFormatter={formatMonthShort} {...axisProps} />
-            <YAxis allowDecimals={false} {...axisProps} />
-            <Tooltip content={<ChartTooltip formatLabel={formatMonthShort} />} cursor={{ stroke: CHART.grid }} />
-            <Line type="monotone" dataKey="opened" name="Demandas abertas" stroke={CHART.navy700} strokeWidth={2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
-            <Line type="monotone" dataKey="closed" name="Concluídas" stroke={CHART.accent} strokeWidth={2} dot={{ r: 2.5 }} activeDot={{ r: 4 }} />
-            <Line type="monotone" dataKey="new_clients" name="Novos clientes" stroke={CHART.navy300} strokeWidth={2} strokeDasharray="4 3" dot={false} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
-
-function StatusChart({ data }: { data: DashboardMetrics['by_status'] }) {
-  const rows = (Object.keys(DEMAND_STATUS) as (keyof typeof DEMAND_STATUS)[])
-    .map((s) => ({ status: s, name: DEMAND_STATUS[s].label, count: data.find((d) => d.status === s)?.count ?? 0, fill: STATUS_COLORS[s] }))
-    .filter((r) => r.count > 0)
-  const total = rows.reduce((s, r) => s + r.count, 0)
-  if (!total) return <ChartEmpty text="Nenhuma demanda cadastrada." />
-  return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="relative h-[170px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie data={rows} dataKey="count" nameKey="name" innerRadius="62%" outerRadius="92%" paddingAngle={1.5} stroke="none" isAnimationActive={false}>
-              {rows.map((r) => (
-                <Cell key={r.status} fill={r.fill} />
-              ))}
-            </Pie>
-            <Tooltip content={<ChartTooltip />} />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="tabular text-[20px] font-semibold text-ink">{formatNumber(total)}</span>
-          <span className="text-[11.5px] text-ink-subtle">demandas</span>
-        </div>
-      </div>
-      <ul className="w-full space-y-1 text-[12.5px]">
-        {rows.map((r) => (
-          <li key={r.status} className="flex items-center justify-between">
-            <span className="flex items-center gap-2 text-ink-muted">
-              <span className="size-2 rounded-sm" style={{ backgroundColor: r.fill }} />
-              {r.name}
-            </span>
-            <span className="tabular text-ink">
-              {r.count} <span className="text-ink-subtle">· {Math.round((r.count / total) * 100)}%</span>
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
-function RevenueChart({ data }: { data: DashboardMetrics['revenue_monthly'] }) {
-  if (!data.some((d) => d.received || d.expected)) return <ChartEmpty text="Nenhum honorário com vencimento ou recebimento nos últimos 6 meses." />
-  return (
-    <div>
-      <Legend
-        items={[
-          { label: 'Previsto', color: CHART.navy200 },
-          { label: 'Recebido', color: CHART.navy700 },
-        ]}
-      />
-      <div className="mt-3 h-[220px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 6, right: 8, left: 4, bottom: 0 }} barGap={2}>
-            <CartesianGrid stroke={CHART.grid} vertical={false} />
-            <XAxis dataKey="month" tickFormatter={formatMonthShort} {...axisProps} />
-            <YAxis tickFormatter={compactCurrency} width={70} {...axisProps} />
-            <Tooltip content={<ChartTooltip formatValue={formatCurrency} formatLabel={formatMonthShort} />} cursor={{ fill: CHART.grid, opacity: 0.6 }} />
-            <Bar dataKey="expected" name="Previsto" fill={CHART.navy200} radius={[3, 3, 0, 0]} maxBarSize={28} />
-            <Bar dataKey="received" name="Recebido" fill={CHART.navy700} radius={[3, 3, 0, 0]} maxBarSize={28} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
-
-function CategoryChart({ data }: { data: DashboardMetrics['by_category'] }) {
-  if (!data.length) return <ChartEmpty text="Nenhuma demanda em aberto." />
-  const rows = data.map((d) => ({ ...d, fill: d.color }))
-  const height = Math.max(160, rows.length * 34 + 20)
-  return (
-    <div style={{ height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-          <XAxis type="number" hide allowDecimals={false} />
-          <YAxis type="category" dataKey="name" width={130} {...axisProps} tick={{ fill: '#5b6474', fontSize: 11.5 }} />
-          <Tooltip content={<ChartTooltip />} cursor={{ fill: CHART.grid, opacity: 0.6 }} />
-          <Bar dataKey="count" name="Demandas" radius={[0, 3, 3, 0]} barSize={14} label={{ position: 'right', fill: '#5b6474', fontSize: 11.5 }}>
-            {rows.map((r) => (
-              <Cell key={r.name} fill={r.color} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
-    </div>
-  )
-}
-
-function ProductivityChart({ data }: { data: DashboardMetrics['productivity'] }) {
-  const rows = data
-    .map((p) => ({ ...p, short: firstName(p.name) || p.name }))
-    .filter((p) => p.tasks_done_30d || p.demands_closed_30d || p.open_demands)
-  if (!rows.length) return <ChartEmpty text="Sem tarefas ou demandas atribuídas à equipe no período." />
-  return (
-    <div>
-      <Legend
-        items={[
-          { label: 'Tarefas concluídas (30d)', color: CHART.navy700 },
-          { label: 'Demandas concluídas (30d)', color: CHART.accent },
-          { label: 'Demandas abertas', color: CHART.navy200 },
-        ]}
-      />
-      <div className="mt-3 h-[230px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 6, right: 8, left: -18, bottom: 0 }} barGap={2}>
-            <CartesianGrid stroke={CHART.grid} vertical={false} />
-            <XAxis dataKey="short" {...axisProps} interval={0} />
-            <YAxis allowDecimals={false} {...axisProps} />
-            <Tooltip
-              content={<ChartTooltip formatLabel={(l) => rows.find((r) => r.short === l)?.name ?? l} />}
-              cursor={{ fill: CHART.grid, opacity: 0.6 }}
-            />
-            <Bar dataKey="tasks_done_30d" name="Tarefas concluídas" fill={CHART.navy700} radius={[3, 3, 0, 0]} maxBarSize={22} />
-            <Bar dataKey="demands_closed_30d" name="Demandas concluídas" fill={CHART.accent} radius={[3, 3, 0, 0]} maxBarSize={22} />
-            <Bar dataKey="open_demands" name="Demandas abertas" fill={CHART.navy200} radius={[3, 3, 0, 0]} maxBarSize={22} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
   )
 }
 
 // ---------------------------------------------------------------------------
 // Tarefas prioritárias
 // ---------------------------------------------------------------------------
-type PriorityTask = Pick<Task, 'id' | 'title' | 'due_date' | 'priority' | 'status' | 'assignee_id' | 'demand_id' | 'client_id'>
+type PriorityTask = Pick<Task, 'id' | 'title' | 'due_date' | 'priority' | 'status' | 'assignee_id' | 'demand_id' | 'client_id'> & {
+  demand: { title: string } | null
+  client: { full_name: string } | null
+}
 
 function PriorityTasks({ className }: { className?: string }) {
   const { orgId } = useOrg()
@@ -400,29 +246,20 @@ function PriorityTasks({ className }: { className?: string }) {
   const q = useQuery({
     queryKey: [...qk.dashboard(orgId), 'priority-tasks'],
     queryFn: async () => {
+      // Uma só consulta: título da demanda e nome do cliente vêm embutidos (FKs compostas
+      // tasks→demands e tasks→clients), sem as idas e voltas sequenciais de antes.
       const rows = unwrap(
         await supabase
           .from('tasks')
-          .select('id, title, due_date, priority, status, assignee_id, demand_id, client_id')
+          .select('id, title, due_date, priority, status, assignee_id, demand_id, client_id, demand:demands(title), client:clients(full_name)')
           .eq('organization_id', orgId)
           .in('status', ['pendente', 'em_andamento'])
           .order('due_date', { ascending: true, nullsFirst: false })
           .limit(40),
-      ) as PriorityTask[]
-      const top = sortPriorityTasks(rows).slice(0, 8)
-      const demandIds = [...new Set(top.map((t) => t.demand_id).filter((x): x is string => !!x))]
-      const demands = demandIds.length
-        ? (unwrap(await supabase.from('demands').select('id, title').eq('organization_id', orgId).in('id', demandIds)) as Pick<Demand, 'id' | 'title'>[])
-        : []
-      const clients = await fetchClientNames(
-        orgId,
-        top.filter((t) => !t.demand_id && t.client_id).map((t) => t.client_id!),
-      )
-      const dMap = new Map(demands.map((d) => [d.id, d.title]))
-      return top.map((t) => ({
-        ...t,
-        context: t.demand_id ? dMap.get(t.demand_id) ?? null : t.client_id ? clients.get(t.client_id) ?? null : null,
-      }))
+      ) as unknown as PriorityTask[]
+      return sortPriorityTasks(rows)
+        .slice(0, 8)
+        .map((t) => ({ ...t, context: t.demand_id ? (t.demand?.title ?? null) : (t.client?.full_name ?? null) }))
     },
   })
   const today = todayISO()
@@ -511,15 +348,16 @@ function StalledDemands() {
       const limit = stalledCutoff(STALLED_DAYS)
       const res = await supabase
         .from('demands')
-        .select('id, title, client_id, category_id, stage_id, stage_changed_at', { count: 'exact' })
+        .select('id, title, client_id, category_id, stage_id, stage_changed_at, client:clients(full_name)', { count: 'exact' })
         .eq('organization_id', orgId)
         .not('status', 'in', '(concluida,cancelada)')
         .lt('stage_changed_at', limit)
         .order('stage_changed_at', { ascending: true })
         .limit(5)
-      const rows = unwrap(res) as Pick<Demand, 'id' | 'title' | 'client_id' | 'category_id' | 'stage_id' | 'stage_changed_at'>[]
-      const clients = await fetchClientNames(orgId, rows.map((r) => r.client_id))
-      return { rows: rows.map((r) => ({ ...r, client: clients.get(r.client_id) ?? '—' })), total: res.count ?? rows.length }
+      const rows = unwrap(res) as unknown as (Pick<Demand, 'id' | 'title' | 'client_id' | 'category_id' | 'stage_id' | 'stage_changed_at'> & {
+        client: { full_name: string } | null
+      })[]
+      return { rows: rows.map((r) => ({ ...r, client: r.client?.full_name ?? '—' })), total: res.count ?? rows.length }
     },
   })
   const stageName = new Map<string, string>()
@@ -618,7 +456,11 @@ function WelcomePanel() {
           </button>
         </div>
       </div>
-      <DemandFormModal open={demandOpen} onClose={() => setDemandOpen(false)} />
+      {demandOpen && (
+        <Suspense fallback={null}>
+          <DemandFormModal open onClose={() => setDemandOpen(false)} />
+        </Suspense>
+      )}
     </Card>
   )
 }
