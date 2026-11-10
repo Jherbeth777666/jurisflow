@@ -8,3 +8,4 @@ dist
 supabase/.temp
 supabase/.branches
 supabase/functions/.env
+.netlify
