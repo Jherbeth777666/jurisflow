@@ -1,0 +1,288 @@
+import { useCallback, useMemo } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Briefcase, Plus, X } from 'lucide-react'
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  CategoryTag,
+  EmptyState,
+  ErrorState,
+  PageHeader,
+  Pagination,
+  SearchInput,
+  Select,
+  StatusBadge,
+  Table,
+  TableSkeleton,
+  TBody,
+  TD,
+  TH,
+  THead,
+  TR,
+} from '@/components/ui'
+import { useCategories, useMemberNames } from '@/hooks/useOrgData'
+import { DEMAND_STATUS, PAGE_SIZE, PRIORITY, toOptions } from '@/lib/constants'
+import { daysSince, formatDate } from '@/lib/format'
+import { cn } from '@/lib/cn'
+import type { PriorityLevel } from '@/types/database'
+import { useDemandsList } from './api'
+import { DemandFormModal } from './DemandFormModal'
+import { useOpenFromParam } from '@/hooks/useOpenFromParam'
+import { ExportDemands } from './ExportDemands'
+import {
+  STALLED_DAYS,
+  formatDaysStalled,
+  hasActiveFilters,
+  isNextActionOverdue,
+  isOpenStatus,
+  parseDemandFilters,
+  patchDemandFilters,
+  serializeDemandFilters,
+  type DemandFilters,
+  type DemandStatusFilter,
+} from './logic'
+
+const STATUS_FILTER_OPTIONS = [
+  { value: 'abertas', label: 'Abertas' },
+  { value: 'todas', label: 'Todas' },
+  ...toOptions(DEMAND_STATUS),
+]
+
+export function DemandsPage() {
+  const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
+  const filters = useMemo(() => parseDemandFilters(params), [params])
+  const [creating, setCreating] = useOpenFromParam('nova')
+
+  const cats = useCategories()
+  const members = useMemberNames()
+
+  const catById = useMemo(() => new Map((cats.data ?? []).map((c) => [c.id, c])), [cats.data])
+  const stageById = useMemo(() => {
+    const m = new Map<string, { name: string; is_waiting_docs: boolean }>()
+    cats.data?.forEach((c) => c.stages.forEach((s) => m.set(s.id, s)))
+    return m
+  }, [cats.data])
+  const waitingStageIds = useMemo(
+    () => (cats.data ? cats.data.flatMap((c) => c.stages.filter((s) => s.is_waiting_docs).map((s) => s.id)) : null),
+    [cats.data],
+  )
+
+  const q = useDemandsList(filters, waitingStageIds)
+
+  const apply = useCallback(
+    (patch: Partial<DemandFilters>) => setParams(serializeDemandFilters(patchDemandFilters(parseDemandFilters(params), patch)), { replace: true }),
+    [params, setParams],
+  )
+  const onSearch = useCallback((v: string) => apply({ q: v }), [apply])
+
+  const categoryOptions = (cats.data ?? []).map((c) => ({ value: c.id, label: c.active ? c.name : `${c.name} (inativa)` }))
+  const stageOptions = (catById.get(filters.category)?.stages ?? []).map((s) => ({ value: s.id, label: s.name }))
+  const responsibleOptions = [{ value: 'none', label: 'Sem responsável' }, ...members.options]
+
+  const active = hasActiveFilters(filters)
+
+  return (
+    <div>
+      <PageHeader
+        title="Demandas"
+        description="Acompanhe os casos do escritório por categoria, etapa e responsável."
+        actions={
+          <>
+            <ExportDemands />
+            <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
+              Nova demanda
+            </Button>
+          </>
+        }
+      />
+
+      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(200px,1.4fr)_repeat(5,minmax(0,1fr))]">
+        <SearchInput value={filters.q} onChange={onSearch} placeholder="Buscar por título" />
+        <Select
+          aria-label="Categoria"
+          options={categoryOptions}
+          placeholder="Todas as categorias"
+          value={filters.category}
+          onChange={(e) => apply({ category: e.target.value })}
+        />
+        <Select
+          aria-label="Etapa"
+          options={stageOptions}
+          placeholder={filters.category ? 'Todas as etapas' : 'Etapa (escolha a categoria)'}
+          disabled={!filters.category}
+          value={filters.stage}
+          onChange={(e) => apply({ stage: e.target.value })}
+        />
+        <Select
+          aria-label="Responsável"
+          options={responsibleOptions}
+          placeholder="Todos os responsáveis"
+          value={filters.responsible}
+          onChange={(e) => apply({ responsible: e.target.value })}
+        />
+        <Select
+          aria-label="Prioridade"
+          options={toOptions(PRIORITY)}
+          placeholder="Todas as prioridades"
+          value={filters.priority}
+          onChange={(e) => apply({ priority: e.target.value as PriorityLevel | '' })}
+        />
+        <Select
+          aria-label="Status"
+          options={STATUS_FILTER_OPTIONS}
+          value={filters.status}
+          onChange={(e) => apply({ status: e.target.value as DemandStatusFilter })}
+        />
+      </div>
+
+      {(filters.waitingDocs || filters.stalled > 0 || active) && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+          {filters.waitingDocs && (
+            <FilterChip onRemove={() => apply({ waitingDocs: false })}>Aguardando documentação</FilterChip>
+          )}
+          {filters.stalled > 0 && (
+            <FilterChip onRemove={() => apply({ stalled: 0 })}>{`Paradas há ${filters.stalled}+ dias`}</FilterChip>
+          )}
+          {active && (
+            <button className="text-ink-muted underline-offset-2 hover:text-ink hover:underline" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
+              Limpar filtros
+            </button>
+          )}
+          {q.data && <span className="tabular ml-auto text-ink-subtle">{q.data.total} demanda(s)</span>}
+        </div>
+      )}
+
+      <Card className="overflow-hidden">
+        {q.isLoading || (q.isPending && cats.isLoading) ? (
+          <TableSkeleton cols={6} />
+        ) : q.isError ? (
+          <ErrorState message={(q.error as Error).message} onRetry={() => q.refetch()} />
+        ) : cats.isError ? (
+          <ErrorState message={(cats.error as Error).message} onRetry={() => cats.refetch()} />
+        ) : !q.data?.rows.length ? (
+          active ? (
+            <EmptyState
+              title="Nenhuma demanda encontrada"
+              description="Nenhuma demanda corresponde aos filtros aplicados."
+              action={
+                <Button size="sm" onClick={() => setParams(new URLSearchParams(), { replace: true })}>
+                  Limpar filtros
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={<Briefcase className="size-5" />}
+              title="Nenhuma demanda aberta"
+              description="Cadastre uma demanda para começar a acompanhar o fluxo de trabalho."
+              action={
+                <Button variant="primary" size="sm" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
+                  Nova demanda
+                </Button>
+              }
+            />
+          )
+        ) : (
+          <>
+            <Table className={q.isPlaceholderData ? 'opacity-60' : undefined}>
+              <THead>
+                <tr>
+                  <TH>Demanda</TH>
+                  <TH>Categoria</TH>
+                  <TH>Etapa</TH>
+                  <TH className="hidden md:table-cell">Responsável</TH>
+                  <TH>Prioridade</TH>
+                  <TH className="hidden sm:table-cell">Na etapa</TH>
+                  <TH>Próxima atividade</TH>
+                </tr>
+              </THead>
+              <TBody>
+                {q.data.rows.map((d) => {
+                  const cat = catById.get(d.category_id)
+                  const stage = d.stage_id ? stageById.get(d.stage_id) : undefined
+                  const open = isOpenStatus(d.status)
+                  const days = daysSince(d.stage_changed_at)
+                  const overdue = isNextActionOverdue(d)
+                  const responsible = d.responsible_id ? members.map.get(d.responsible_id) : null
+                  return (
+                    <TR key={d.id} onClick={() => navigate(`/demandas/${d.id}`)}>
+                      <TD className="max-w-[280px]">
+                        <Link
+                          to={`/demandas/${d.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="block truncate font-medium text-ink hover:underline"
+                        >
+                          {d.title}
+                        </Link>
+                        <span className="block truncate text-[12px] text-ink-subtle">{d.client?.full_name ?? '—'}</span>
+                      </TD>
+                      <TD>{cat ? <CategoryTag name={cat.name} color={cat.color} /> : '—'}</TD>
+                      <TD>
+                        <div className="flex flex-col items-start gap-1">
+                          <span className="whitespace-nowrap text-ink-muted">{stage?.name ?? '—'}</span>
+                          {d.status !== 'em_andamento' && <StatusBadge value={d.status} map={DEMAND_STATUS} />}
+                        </div>
+                      </TD>
+                      <TD className="hidden md:table-cell">
+                        {responsible ? (
+                          <span className="flex items-center gap-2 whitespace-nowrap">
+                            <Avatar name={responsible} />
+                            <span className="text-ink-muted">{responsible}</span>
+                          </span>
+                        ) : (
+                          <span className="text-ink-subtle">—</span>
+                        )}
+                      </TD>
+                      <TD>
+                        <StatusBadge value={d.priority} map={PRIORITY} />
+                      </TD>
+                      <TD className="tabular hidden whitespace-nowrap sm:table-cell">
+                        {open ? (
+                          <span className={cn(days >= STALLED_DAYS ? 'font-medium text-amber-700' : 'text-ink-muted')}>
+                            {formatDaysStalled(days)}
+                          </span>
+                        ) : (
+                          <span className="text-ink-subtle">—</span>
+                        )}
+                      </TD>
+                      <TD className="max-w-[220px]">
+                        {d.next_action || d.next_action_date ? (
+                          <>
+                            <span className={cn('tabular block whitespace-nowrap', overdue ? 'font-medium text-red-600' : 'text-ink-muted')}>
+                              {d.next_action_date ? formatDate(d.next_action_date) : 'Sem data'}
+                              {overdue && ' · vencida'}
+                            </span>
+                            {d.next_action && <span className="block truncate text-[12px] text-ink-subtle">{d.next_action}</span>}
+                          </>
+                        ) : (
+                          <span className="text-ink-subtle">—</span>
+                        )}
+                      </TD>
+                    </TR>
+                  )
+                })}
+              </TBody>
+            </Table>
+            <Pagination page={filters.page} pageSize={PAGE_SIZE} total={q.data.total} onChange={(p) => apply({ page: p })} />
+          </>
+        )}
+      </Card>
+
+      <DemandFormModal open={creating} onClose={() => setCreating(false)} onSaved={(d) => navigate(`/demandas/${d.id}`)} />
+    </div>
+  )
+}
+
+function FilterChip({ children, onRemove }: { children: string; onRemove: () => void }) {
+  return (
+    <Badge tone="amber" className="gap-1 pr-1">
+      {children}
+      <button onClick={onRemove} aria-label={`Remover filtro ${children}`} className="rounded-full p-0.5 hover:bg-amber-100">
+        <X className="size-3" />
+      </button>
+    </Badge>
+  )
+}

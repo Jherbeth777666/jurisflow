@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   JurisFlow design tokens
+   Azul-marinho institucional, azul de destaque, fundo cinza muito claro.
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --color-navy-50: #f1f4f9;
+  --color-navy-100: #dfe6f1;
+  --color-navy-200: #bccbe1;
+  --color-navy-300: #8ea6c9;
+  --color-navy-400: #5d7dad;
+  --color-navy-500: #3d5e91;
+  --color-navy-600: #2b4775;
+  --color-navy-700: #1f365d;
+  --color-navy-800: #142747;
+  --color-navy-900: #0b1b36;
+  --color-navy-950: #061024;
+
+  --color-accent-50: #eff5ff;
+  --color-accent-100: #dbe8fe;
+  --color-accent-200: #bfd6fe;
+  --color-accent-500: #3b82f6;
+  --color-accent-600: #2563eb;
+  --color-accent-700: #1d4ed8;
+
+  --color-canvas: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-line: #e6e8ec;
+  --color-line-strong: #d5d9e0;
+  --color-ink: #0f172a;
+  --color-ink-muted: #5b6474;
+  --color-ink-subtle: #8a93a3;
+
+  --radius-card: 10px;
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 0 0 1px rgb(15 23 42 / 0.04);
+  --shadow-pop: 0 10px 30px -10px rgb(15 23 42 / 0.25), 0 0 0 1px rgb(15 23 42 / 0.06);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans text-[14px] leading-relaxed;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  ::selection {
+    @apply bg-accent-100 text-navy-900;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-accent-500;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
