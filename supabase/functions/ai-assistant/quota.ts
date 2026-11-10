@@ -2,13 +2,16 @@
 // três Edge Functions. Módulo puro: recebe executores de RPC/consulta.
 //
 // RPC: ai_consume_quota(p_org, p_kind, p_limit_per_hour, p_monthly_org_limit int default 3000)
-// devolve true (uso registrado) ou false (limite por hora OU mensal atingido).
+// devolve true (uso registrado) ou false (teto mensal do escritório OU limite por hora;
+// o banco checa o mensal primeiro e limita o por hora a 200).
 // Para dizer qual dos dois estourou, conta o uso do próprio usuário na última
 // hora (ai_usage tem RLS: cada um lê só o seu).
 
 export type QuotaKind = 'assistant' | 'import' | 'compose'
 
 export const DEFAULT_MONTHLY_ORG_LIMIT = 3000
+/** Teto fixo que o banco aplica ao limite por hora (migration 010). */
+export const SERVER_HOURLY_CAP = 200
 export const MONTHLY_LIMIT_MESSAGE =
   'Limite mensal de uso da IA do escritório atingido. Fale com o administrador do escritório.'
 
@@ -53,6 +56,6 @@ export async function consumeQuota(i: ConsumeQuotaInput): Promise<QuotaResult> {
   } catch {
     used = null
   }
-  if (used !== null && used >= i.hourlyLimit) return { ok: false, status: 429, code: 'rate_limited', error: i.hourlyMessage }
+  if (used !== null && used >= Math.min(i.hourlyLimit, SERVER_HOURLY_CAP)) return { ok: false, status: 429, code: 'rate_limited', error: i.hourlyMessage }
   return { ok: false, status: 429, code: 'monthly_limit', error: MONTHLY_LIMIT_MESSAGE }
 }

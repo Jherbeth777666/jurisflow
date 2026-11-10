@@ -23,6 +23,10 @@ describe('consumeQuota', () => {
     const rpc = vi.fn().mockResolvedValue({ data: false, error: null })
     expect(await consumeQuota({ ...base, rpc, countLastHour: async () => 30 })).toMatchObject({ status: 429, code: 'rate_limited', error: 'hora' })
   })
+  it('limite por hora acima do teto do banco (200) é comparado com 200', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: false, error: null })
+    expect(await consumeQuota({ ...base, hourlyLimit: 500, rpc, countLastHour: async () => 200 })).toMatchObject({ code: 'rate_limited' })
+  })
   it('banco sem a migration nova (função com 3 argumentos) → usa a assinatura antiga', async () => {
     const rpc = vi
       .fn()
