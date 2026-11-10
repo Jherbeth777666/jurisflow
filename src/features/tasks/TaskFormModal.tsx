@@ -1,6 +1,6 @@
 // CONTRATO DE INTERFACE (implementação pelo agente de fluxos/tarefas).
 // Usado também na ficha da demanda e do cliente.
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button, InlineError, Input, Modal, Select, Textarea, useToast } from '@/components/ui'
 import { ClientPicker } from '@/components/ClientPicker'
@@ -32,7 +32,14 @@ interface FormState {
 
 type DemandOption = Pick<Demand, 'id' | 'title' | 'client_id' | 'status'> & { client: { full_name: string } | null }
 
-export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFormModalProps) {
+export function TaskFormModal(props: TaskFormModalProps) {
+  // O formulário só existe enquanto aberto; a chave recria o estado a cada abertura/tarefa
+  // (sem efeito de "reiniciar" que sobrescreve o que o usuário fez).
+  if (!props.open) return null
+  return <TaskFormModalBody key={props.task?.id ?? 'nova'} {...props} />
+}
+
+function TaskFormModalBody({ open, onClose, task, defaults, onSaved }: TaskFormModalProps) {
   const { orgId, userId } = useOrg()
   const qc = useQueryClient()
   const toast = useToast()
@@ -50,28 +57,19 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
     status: task?.status ?? 'pendente',
   })
 
-  const [form, setForm] = useState<FormState>(initial)
+  const [start] = useState<FormState>(initial)
+  const [form, setForm] = useState<FormState>(start)
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({})
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Demanda cujo cliente pode ser preenchido automaticamente (a que veio pronta, sem
+  // cliente). Quando o usuário mexe no cliente ("Limpar cliente"), isso é desligado.
+  const [autoClientFor, setAutoClientFor] = useState<string | null>(start.client_id ? null : start.demand_id || null)
+  const dirty = JSON.stringify(form) !== JSON.stringify(start)
 
-  // Reinicia o formulário a cada abertura
-  useEffect(() => {
-    if (open) {
-      setForm(initial())
-      setErrors({})
-      setError(null)
-    }
-  }, [open, task?.id])
-
-  // Callback estável: o Modal refoca o 1º campo quando onClose muda de referência.
-  const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
-  const savingRef = useRef(false)
-  savingRef.current = saving
-  const close = useCallback(() => {
-    if (!savingRef.current) onCloseRef.current()
-  }, [])
+  const close = () => {
+    if (!saving) onClose()
+  }
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }))
 
@@ -110,11 +108,13 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
 
   const demandList: DemandOption[] = [...(demands.data ?? [])]
   if (linked.data && !demandList.some((d) => d.id === linked.data.id)) demandList.unshift(linked.data)
-  // Demanda informada sem cliente (ex.: vinda da ficha da demanda) → preenche o cliente dela.
-  const inferredClient = !form.client_id && form.demand_id ? demandList.find((d) => d.id === form.demand_id)?.client_id : undefined
-  useEffect(() => {
-    if (inferredClient) setForm((f) => (f.client_id ? f : { ...f, client_id: inferredClient }))
-  }, [inferredClient])
+  // Demanda informada sem cliente (ex.: vinda da ficha da demanda) → usa o cliente dela,
+  // derivado na renderização (sem efeito): "Limpar cliente" desliga e não é repreenchido.
+  const inferredClient =
+    !form.client_id && form.demand_id && form.demand_id === autoClientFor
+      ? (demandList.find((d) => d.id === form.demand_id)?.client_id ?? null)
+      : null
+  const clientId = form.client_id ?? inferredClient
 
   const demandOptions = demandList.map((d) => ({
     value: d.id,
@@ -145,7 +145,7 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
     const payload = {
       title: form.title.trim(),
       description: form.description.trim() || null,
-      client_id: form.client_id,
+      client_id: clientId,
       demand_id: form.demand_id || null,
       assignee_id: form.assignee_id || null,
       due_date: form.due_date || null,
@@ -164,13 +164,14 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
               .select('*')
               .single(),
           ) as Task)
-      await invalidateTaskData(qc, orgId)
+      // Atualiza listas em segundo plano: o modal fecha sem esperar as consultas.
+      void invalidateTaskData(qc, orgId)
       toast.show(isEdit ? 'Tarefa atualizada.' : 'Tarefa criada.')
+      setSaving(false)
       onSaved?.(saved)
-      onCloseRef.current()
+      onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível salvar a tarefa.')
-    } finally {
       setSaving(false)
     }
   }
@@ -179,6 +180,7 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
     <Modal
       open={open}
       onClose={close}
+      dirty={dirty || saving}
       title={isEdit ? 'Editar tarefa' : 'Nova tarefa'}
       size="lg"
       footer={
@@ -213,8 +215,11 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
         />
         <ClientPicker
           label="Cliente (opcional)"
-          value={form.client_id}
-          onChange={(id) => setForm((f) => ({ ...f, client_id: id, demand_id: id && id === f.client_id ? f.demand_id : '' }))}
+          value={clientId}
+          onChange={(id) => {
+            setAutoClientFor(null)
+            setForm((f) => ({ ...f, client_id: id, demand_id: id && id === clientId ? f.demand_id : '' }))
+          }}
         />
         <div className="flex flex-col gap-1">
           <Select
@@ -237,8 +242,15 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
                   : 'Escolher a demanda preenche o cliente.'
             }
           />
-          {form.client_id && (
-            <button type="button" className="self-start text-[12px] text-accent-700 hover:underline" onClick={() => set('client_id', null)}>
+          {clientId && (
+            <button
+              type="button"
+              className="self-start text-[12px] text-accent-700 hover:underline"
+              onClick={() => {
+                setAutoClientFor(null)
+                set('client_id', null)
+              }}
+            >
               Limpar cliente
             </button>
           )}
