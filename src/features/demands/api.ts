@@ -1,6 +1,7 @@
 // Consultas e mutações do módulo de demandas.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, unwrap } from '@/lib/supabase'
+import { pageOrEmpty } from '@/lib/pagination'
 import { escapeLike } from '@/lib/format'
 import { PAGE_SIZE } from '@/lib/constants'
 import { qk } from '@/hooks/useOrgData'
@@ -46,6 +47,8 @@ export function useDemandsList(filters: DemandFilters, waitingStageIds: string[]
         : q.order('opened_at', { ascending: false }).order('created_at', { ascending: false })
 
       const res = await q.range(from, from + PAGE_SIZE - 1)
+      const outOfRange = pageOrEmpty(res, from)
+      if (outOfRange) return outOfRange as { rows: DemandWithClient[]; total: number }
       return { rows: unwrap(res) as DemandWithClient[], total: res.count ?? 0 }
     },
   })

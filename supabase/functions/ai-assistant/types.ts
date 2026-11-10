@@ -32,6 +32,8 @@ export interface CompletionRequest {
   /** 'none' força resposta em texto (usado após o limite de rodadas) */
   toolChoice: 'auto' | 'none'
   maxTokens?: number
+  /** Prazo total da requisição: abortar cancela a chamada HTTP (e impede o fallback). */
+  signal?: AbortSignal
 }
 
 export interface CompletionResponse {

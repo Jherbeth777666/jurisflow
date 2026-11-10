@@ -5,6 +5,8 @@
 // e datas reais são preenchidos depois, no navegador. Se o modelo contiver
 // CPF/telefone/e-mail digitados, a requisição é recusada (não há o que "limpar").
 
+import { containsUrl, redactPII } from '../ai-assistant/redact.ts'
+
 export const MAX_TEMPLATE_CHARS = 2000
 export const MAX_OUTPUT_CHARS = 2400
 export const MAX_BODY_BYTES = 8 * 1024
@@ -118,5 +120,41 @@ export function checkRewrite(original: string, rewrittenRaw: string): RewriteChe
   if (PLACEHOLDER_RE.test(stripped) && !PLACEHOLDER_RE.test(originalStripped)) {
     return { ok: false, error: 'A IA incluiu espaços reservados que não existem no modelo.' }
   }
+  // Contatos novos (link, telefone, e-mail) são recusados: só podem vir do texto original.
+  if (introducesContact(originalStripped, stripped)) {
+    return { ok: false, error: 'A IA incluiu link, telefone ou e-mail que não estava no modelo.' }
+  }
   return { ok: true, text }
+}
+
+const URL_TOKEN_RE = /\b(?:https?|ftp):\/\/[^\s<>"']+|\bwww\.[^\s<>"']+/gi
+const digitsOf = (s: string) => s.replace(/\D/g, '')
+
+/** Telefones, e-mails e links presentes (normalizados) num texto. */
+function contactsOf(text: string): { phones: Set<string>; emails: Set<string>; urls: Set<string>; hasUrl: boolean } {
+  const phones = new Set<string>()
+  const emails = new Set<string>()
+  const urls = new Set<string>()
+  for (const m of text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g) ?? []) emails.add(m.toLowerCase())
+  for (const m of text.match(URL_TOKEN_RE) ?? []) urls.add(m.toLowerCase().replace(/[.,;:!?)]+$/, ''))
+  // Sequências de 8+ dígitos (com separadores comuns) = telefone/0800
+  for (const m of text.match(/(?:\+?\d[\d\s().-]{6,}\d)/g) ?? []) {
+    const d = digitsOf(m)
+    if (d.length >= 8) phones.add(d.replace(/^55(?=\d{10,11}$)/, ''))
+  }
+  return { phones, emails, urls, hasUrl: containsUrl(text) }
+}
+
+/** A reescrita traz contato (link/telefone/e-mail) que não estava no original? */
+export function introducesContact(original: string, rewritten: string): boolean {
+  const a = contactsOf(original)
+  const b = contactsOf(rewritten)
+  if ([...b.emails].some((e) => !a.emails.has(e))) return true
+  if ([...b.urls].some((u) => !a.urls.has(u))) return true
+  if (b.hasUrl && !a.hasUrl) return true
+  if ([...b.phones].some((p) => !a.phones.has(p))) return true
+  // Formatos que só o redator reconhece (e-mail ofuscado, telefone com espaços etc.)
+  const kinds = (t: string) => new Set(redactPII(t).removed.filter((k) => k === 'email' || k === 'telefone'))
+  const ka = kinds(original)
+  return [...kinds(rewritten)].some((k) => !ka.has(k))
 }

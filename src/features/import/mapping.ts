@@ -227,10 +227,60 @@ export function maskValue(value: string, max = 40): string {
     .replace(/[^\s9Aa#.,;:/()\-+_]/g, '*')
 }
 
-/** Valor de "tipo de demanda" pode ir à IA? Só se não parecer dado pessoal. */
+/** Valor de "tipo de demanda" pode ir à IA? Só se não parecer dado pessoal (dígitos, @, tamanho). */
 export function isShareableCategoryValue(v: string): boolean {
   const s = v.trim()
   return s.length >= 2 && s.length <= 80 && !/\d/.test(s) && !s.includes('@')
+}
+
+/**
+ * Vocabulário de categorias/benefícios/áreas (radicais sem acento). Um valor com
+ * esses termos é "tipo de demanda"; sem eles, é tratado com desconfiança.
+ */
+const CATEGORY_VOCAB = [
+  'matern', 'patern', 'aposent', 'auxili', 'benefic', 'bpc', 'loas', 'pensao', 'pensoes', 'morte', 'incapac',
+  'invalidez', 'doenca', 'acident', 'revis', 'trabalh', 'reclamat', 'rescis', 'contrat', 'pesc', 'defeso', 'seguro',
+  'desemprego', 'salari', 'especial', 'rural', 'urban', 'idade', 'tempo', 'contribu', 'reclus', 'deficien',
+  'previd', 'inss', 'rpps', 'servidor', 'divorc', 'aliment', 'invent', 'familia', 'guarda', 'consumid', 'civel',
+  'tribut', 'usucapi', 'indeniz', 'dano', 'cobranc', 'execuc', 'planejament', 'cadastr', 'adicional', 'insalubr',
+  'periculos', 'hora', 'extra', 'fgts', 'verba', 'clt', 'outro', 'outra', 'diversos', 'consulta', 'administrativ',
+  'judicial', 'recurso', 'vida', 'toda', 'hibrid', 'program', 'mandado', 'seguranca', 'criminal', 'penal',
+  'empresarial', 'imobiliar', 'locac', 'despejo', 'assistencia', 'assistencial', 'amparo', 'social', 'acao',
+  'demanda', 'processo', 'pedido', 'requerimento', 'restabelec', 'concess', 'averbac', 'certid', 'ctc', 'cnis',
+  'abono', 'pis', 'pasep', 'atrasad', 'diferenc', 'temporari', 'permanente', 'acompanhament',
+]
+const CONNECTORS = new Set(['da', 'de', 'do', 'das', 'dos', 'e', 'a', 'o', 'por', 'para', 'com', 'sem', 'em', 'no', 'na'])
+
+const isVocabWord = (folded: string, extra: Set<string>) =>
+  extra.has(folded) || CATEGORY_VOCAB.some((stem) => folded.startsWith(stem))
+
+/**
+ * Valor distinto pode ir ao provedor? Exige: não parecer dado pessoal; não estar
+ * na coluna de nomes; e (a) casar com o vocabulário de categorias sem nenhuma
+ * outra palavra capitalizada (possível nome: "Aposentadoria da Maria" sai), ou
+ * (b) ter 1–3 palavras sem padrão de nome próprio (nenhuma palavra capitalizada,
+ * exceto siglas em maiúsculas como "BPC").
+ */
+export function isSafeCategoryValue(v: string, opts: { officeCategories?: string[]; personNames?: Set<string> } = {}): boolean {
+  if (!isShareableCategoryValue(v)) return false
+  if (opts.personNames?.has(nameKey(v))) return false
+  const extra = new Set((opts.officeCategories ?? []).flatMap((c) => nameKey(c).split(' ')).filter((w) => w.length >= 3))
+  const words = v.trim().split(/[\s\-–/,;.()]+/).filter(Boolean)
+  const meaningful = words.filter((w) => !CONNECTORS.has(nameKey(w)))
+  if (!meaningful.length) return false
+  const isAcronym = (w: string) => /^\p{Lu}{2,6}$/u.test(w)
+  const vocab = meaningful.map((w) => isVocabWord(nameKey(w), extra))
+  // palavra capitalizada fora do vocabulário (e que não é sigla) = possível nome próprio
+  const suspicious = meaningful.some((w, i) => !vocab[i] && /^\p{Lu}/u.test(w) && !isAcronym(w))
+  if (suspicious) return false
+  if (vocab.some(Boolean)) return true
+  return meaningful.length <= 3 && meaningful.every((w) => !/^\p{Lu}/u.test(w) || isAcronym(w))
+}
+
+/** Valores (dobrados) da coluna de nomes, para nunca enviá-los como "tipo de demanda". */
+function personNameSet(columns: ColumnInfo[], nameColumn: number | undefined): Set<string> {
+  const col = nameColumn === undefined ? undefined : columns.find((c) => c.index === nameColumn)
+  return new Set((col?.samples ?? []).map((s) => nameKey(s)).filter(Boolean))
 }
 
 /** Valores distintos (case-insensitive) de uma coluna, em ordem de frequência. */
@@ -256,7 +306,14 @@ export interface AIImportRequest {
 
 export const AI_LIMITS = { columns: 60, examples: 3, exampleLength: 40, values: 80, valueLength: 80 } as const
 
-export function buildAIRequest(columns: ColumnInfo[], categories: string[], categoryValues: string[]): AIImportRequest {
+export function buildAIRequest(
+  columns: ColumnInfo[],
+  categories: string[],
+  categoryValues: string[],
+  mapping?: Mapping,
+): AIImportRequest {
+  const nameColumn = mapping?.full_name ?? suggestMapping(columns).mapping.full_name
+  const personNames = personNameSet(columns, nameColumn)
   return {
     columns: columns.slice(0, AI_LIMITS.columns).map((c) => ({
       index: c.index,
@@ -265,7 +322,9 @@ export function buildAIRequest(columns: ColumnInfo[], categories: string[], cate
     })),
     fields: [...IMPORT_FIELDS],
     categories: categories.slice(0, 50).map((c) => c.slice(0, 80)),
-    category_values: categoryValues.filter(isShareableCategoryValue).slice(0, AI_LIMITS.values),
+    category_values: categoryValues
+      .filter((v) => isSafeCategoryValue(v, { officeCategories: categories, personNames }))
+      .slice(0, AI_LIMITS.values),
   }
 }
 

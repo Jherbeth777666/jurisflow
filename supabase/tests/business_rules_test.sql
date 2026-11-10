@@ -290,7 +290,8 @@ begin
   delete from payments where id = v_pay2;
   perform tstb.eq((select status::text from contracts where id = v_con), 'ativo', 'estorno volta o contrato para ativo');
   -- update do valor do pagamento também recalcula
-  update payments set amount = 1200 where id = v_pay;
+  -- (migration 010: pagamento não pode exceder a parcela → desvincula da parcela 1 antes)
+  update payments set installment_id = null, amount = 1200 where id = v_pay;
   perform tstb.eq((select status::text from contracts where id = v_con), 'quitado', 'editar pagamento recalcula status');
   update payments set amount = 10 where id = v_pay;
   perform tstb.eq((select status::text from contracts where id = v_con), 'ativo', 'reduzir pagamento reabre o contrato');

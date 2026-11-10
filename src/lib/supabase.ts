@@ -30,10 +30,14 @@ export function friendlyError(error: unknown): string {
       return 'Você não tem permissão para realizar esta ação.'
     case 'PGRST116':
       return 'Registro não encontrado.'
+    case 'PGRST103':
+      return 'Esta página não existe mais (a lista diminuiu). Volte para a página anterior.'
     case 'P0001':
     case 'P0002':
       return msg
   }
+  if ((e as { status?: number }).status === 416 || msg.includes('Requested range not satisfiable'))
+    return 'Esta página não existe mais (a lista diminuiu). Volte para a página anterior.'
   if (msg.includes('Failed to fetch')) return 'Não foi possível conectar ao servidor. Verifique sua internet.'
   if (msg.includes('Invalid login credentials')) return 'E-mail ou senha incorretos.'
   if (msg.includes('Email not confirmed')) return 'Confirme seu e-mail antes de entrar (verifique sua caixa de entrada).'

@@ -1,6 +1,7 @@
 // Consultas e mutações do módulo de clientes.
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, unwrap } from '@/lib/supabase'
+import { pageOrEmpty } from '@/lib/pagination'
 import { PAGE_SIZE } from '@/lib/constants'
 import { qk } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
@@ -9,7 +10,10 @@ import { clientFormToPayload, parseClientSearch, type ClientFormValues } from '.
 
 export type ClientRow = Client & { open_demands: number }
 
-export function useClientsList(params: { term: string; status: ClientStatus | ''; page: number }) {
+/** Filtro da lista: status do cliente, 'anonimizados' ou '' (todos os não anonimizados). */
+export type ClientListStatus = ClientStatus | 'anonimizados' | ''
+
+export function useClientsList(params: { term: string; status: ClientListStatus; page: number }) {
   const { orgId } = useOrg()
   return useQuery({
     queryKey: qk.clients(orgId, 'list', params),
@@ -22,11 +26,18 @@ export function useClientsList(params: { term: string; status: ClientStatus | ''
         .eq('organization_id', orgId)
         .order('full_name')
         .range(from, from + PAGE_SIZE - 1)
-      if (params.status) q = q.eq('status', params.status)
+      // Anonimizados ficam fora por padrão (LGPD); aparecem só no filtro próprio.
+      if (params.status === 'anonimizados') q = q.not('anonymized_at', 'is', null)
+      else {
+        q = q.is('anonymized_at', null)
+        if (params.status) q = q.eq('status', params.status)
+      }
       const s = parseClientSearch(params.term)
       if (s?.kind === 'cpf') q = q.like('cpf', `%${s.digits}%`)
       if (s?.kind === 'name') q = q.ilike('full_name', s.pattern)
       const res = await q
+      const outOfRange = pageOrEmpty(res, from)
+      if (outOfRange) return outOfRange as { rows: ClientRow[]; total: number }
       const rows = unwrap(res) as Client[]
 
       // Demandas abertas por cliente da página (consulta leve, só client_id).
@@ -107,6 +118,15 @@ function useInvalidateClients() {
     qc.invalidateQueries({ queryKey: qk.dashboard(orgId) })
     qc.invalidateQueries({ queryKey: qk.activity(orgId) })
     qc.invalidateQueries({ queryKey: ['client-name'] })
+    // Telas que exibem dados do cliente (nome, telefone, CPF) a partir de outras consultas
+    qc.invalidateQueries({ queryKey: ['compose-context', orgId] })
+    qc.invalidateQueries({ queryKey: ['command-search', orgId] })
+    qc.invalidateQueries({ queryKey: qk.demands(orgId) })
+    qc.invalidateQueries({ queryKey: ['demand', orgId] })
+    qc.invalidateQueries({ queryKey: qk.contracts(orgId) })
+    qc.invalidateQueries({ queryKey: ['contract', orgId] })
+    qc.invalidateQueries({ queryKey: qk.tasks(orgId) })
+    qc.invalidateQueries({ queryKey: ['reports', orgId] })
   }
 }
 

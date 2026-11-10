@@ -1,6 +1,7 @@
 // Consultas e mutações do módulo de contratos/honorários.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, unwrap } from '@/lib/supabase'
+import { pageOrEmpty } from '@/lib/pagination'
 import { addDaysISO, escapeLike, todayISO } from '@/lib/format'
 import { PAGE_SIZE } from '@/lib/constants'
 import { useOrg } from '@/contexts/AuthContext'
@@ -146,6 +147,8 @@ export function useContractList(params: { status: ContractStatus | ''; search: s
       if (params.status) q = q.eq('status', params.status)
       if (clientIds) q = q.in('client_id', clientIds)
       const res = await q
+      const outOfRange = pageOrEmpty(res, params.page * PAGE_SIZE)
+      if (outOfRange) return outOfRange as { rows: ContractRow[]; total: number }
       const data = (unwrap(res) as ContractOverview[]).map(normalizeContract)
       const names = await fetchClientNames(orgId, data.map((c) => c.client_id))
       return {

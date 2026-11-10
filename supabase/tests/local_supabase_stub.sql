@@ -8,6 +8,12 @@ end $$;
 create schema if not exists auth;
 grant usage on schema auth to anon, authenticated, service_role;
 grant usage on schema public to anon, authenticated, service_role;
+-- Default privileges reais do Supabase: todo objeto novo no public nasce com ALL
+-- para anon/authenticated/service_role. Reproduzidos aqui (ANTES das migrations)
+-- para que os testes peguem grants indevidos.
+alter default privileges in schema public grant all on tables    to anon, authenticated, service_role;
+alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
 create table if not exists auth.users (
   id uuid primary key default gen_random_uuid(),
   email text,

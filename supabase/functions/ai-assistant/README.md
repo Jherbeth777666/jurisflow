@@ -18,11 +18,17 @@ e CPF/CNPJ/telefone/e-mail digitados viram `[dado removido]`. Os nomes são rest
 | `AI_FALLBACK_MODEL` / `AI_FALLBACK_BASE_URL` | padrão do reserva | Overrides do reserva (`AI_MODEL` não se aplica a ele) |
 | `ALLOWED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Origens CORS permitidas, separadas por vírgula (`*` é ignorado) |
 | `AI_RATE_LIMIT_PER_HOUR` | `30` | Mensagens por usuário por hora |
+| `AI_MONTHLY_ORG_LIMIT` | `3000` | Teto mensal de chamadas de IA por escritório (somando assistente, importação e ajuste de tom; vale nas 3 funções) |
 
-Modelos padrão: anthropic `claude-sonnet-5-5` · openai `gpt-4.1-mini` · gemini `gemini-2.5-flash`
+Modelos padrão: anthropic `claude-haiku-5-5` (econômico; use `AI_MODEL` para um modelo maior) · openai `gpt-4.1-mini` · gemini `gemini-2.5-flash`
 (`https://generativelanguage.googleapis.com/v1beta/openai`) · deepseek `deepseek-chat` (`https://api.deepseek.com/v1`) ·
 groq `llama-3.3-70b-versatile` (`https://api.groq.com/openai/v1`).
 Gemini, DeepSeek e Groq usam o adaptador OpenAI-compatível (`tools`/`tool_calls`), sem SDK.
+
+**Custo:** as opções mais baratas são **Gemini Flash** (`AI_PROVIDER=gemini`, `gemini-2.5-flash`, com plano gratuito)
+e **DeepSeek** (`AI_PROVIDER=deepseek`, `deepseek-chat`). No Anthropic, o padrão já é o Haiku. Para limitar gastos,
+combine o limite por hora com o teto mensal por escritório (`AI_MONTHLY_ORG_LIMIT`); cada pergunta tem prazo total
+de 45 s e o histórico/resultados enviados ao modelo são limitados (8 000 caracteres cada).
 
 `SUPABASE_URL` e `SUPABASE_ANON_KEY` são injetadas automaticamente pelo Supabase. A função **não** usa a service role key.
 

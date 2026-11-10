@@ -4,6 +4,7 @@ import {
   columnsOf,
   distinctValues,
   guessCategory,
+  isSafeCategoryValue,
   isShareableCategoryValue,
   looksLikeHeader,
   maskValue,
@@ -129,5 +130,31 @@ describe('distinctValues / guessCategory', () => {
     expect(guessCategory('Seguro defeso', cats)).toBe('p')
     expect(guessCategory('Reclamatória', cats)).toBe('t')
     expect(guessCategory('Divórcio', cats)).toBeNull()
+  })
+})
+
+describe('valores de categoria enviados à IA — sem nomes de pessoas', () => {
+  it('filtra nomes próprios e mantém categorias/benefícios', () => {
+    const values = ['Maria da Silva Souza', 'Aposentadoria da Maria', 'Salário-maternidade', 'BPC']
+    const req = buildAIRequest([{ index: 0, header: 'Benefício', samples: values }], ['Aposentadoria'], values)
+    expect(req.category_values).toEqual(['Salário-maternidade', 'BPC'])
+  })
+  it('isSafeCategoryValue: vocabulário, curtos sem padrão de nome e coluna de nomes', () => {
+    expect(isSafeCategoryValue('Pensão por Morte')).toBe(true)
+    expect(isSafeCategoryValue('Auxílio-Doença')).toBe(true)
+    expect(isSafeCategoryValue('revisão da vida toda')).toBe(true)
+    expect(isSafeCategoryValue('previdenciário')).toBe(true)
+    expect(isSafeCategoryValue('Maria')).toBe(false)
+    expect(isSafeCategoryValue('José Carlos Pereira')).toBe(false)
+    expect(isSafeCategoryValue('Rua das Flores')).toBe(false)
+    expect(isSafeCategoryValue('Planejamento Premium', { officeCategories: ['Planejamento Premium'] })).toBe(true)
+    expect(isSafeCategoryValue('aposentadoria', { personNames: new Set(['aposentadoria']) })).toBe(false)
+  })
+  it('valores iguais aos da coluna mapeada como nome não saem', () => {
+    const cols = [
+      { index: 0, header: 'Nome', samples: ['ana', 'bia'] },
+      { index: 1, header: 'Tipo', samples: ['ana', 'bpc'] },
+    ]
+    expect(buildAIRequest(cols, [], ['ana', 'bpc'], { full_name: 0, category: 1 }).category_values).toEqual(['bpc'])
   })
 })

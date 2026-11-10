@@ -754,21 +754,32 @@ end $$;
 rollback to savepoint t;
 
 -- =============================================================================
--- 8. accept_pending_invitations
+-- 8. Convites (migration 010: aceite explícito via accept_invitation)
 -- =============================================================================
 savepoint t;
+reset role;
+select tst.set_id('inv_ok',  (select id from organization_invitations where email = 'convidado@teste.local'));
+select tst.set_id('inv_unc', (select id from organization_invitations where email = 'naoconfirmado@teste.local'));
 do $$
 begin
   perform tst.login('u_inv_ok');
   perform tst.ok((select count(*) from organizations) = 0, 'convidado ainda não vê o escritório');
-  perform tst.ok(public.accept_pending_invitations() = 1, 'convite (e-mail confirmado, maiúsculas diferentes) é aceito');
+  -- migration 010: nada é aceito automaticamente; o convidado escolhe o convite
+  perform tst.ok(public.accept_pending_invitations() = 0, 'accept_pending_invitations não aceita mais automaticamente');
+  perform tst.ok((select count(*) from organization_members where user_id = tst.id('u_inv_ok')) = 0, 'login não cria membership sem consentimento');
+  perform tst.ok((select count(*) from public.my_pending_invitations()) = 1, 'convite (e-mail confirmado, maiúsculas diferentes) listado');
+  perform tst.ok(public.accept_invitation((select id from public.my_pending_invitations())) = tst.id('org_a'), 'convite aceito explicitamente');
   perform tst.ok((select role from organization_members where user_id = tst.id('u_inv_ok') and organization_id = tst.id('org_a')) = 'advogado',
                  'convidado vira membro com o papel do convite');
   perform tst.ok((select count(*) from clients) = 2, 'convidado passa a ver os dados de A');
-  perform tst.ok(public.accept_pending_invitations() = 0, 'convite não é aceito duas vezes');
+  perform tst.ok((select count(*) from public.my_pending_invitations()) = 0, 'convite aceito some da lista');
+  perform tst.expect_error(format('select public.accept_invitation(%L)',
+                           tst.id('inv_ok')), array['P0002'], 'convite não é aceito duas vezes');
 
   perform tst.login('u_inv_unc');
-  perform tst.ok(public.accept_pending_invitations() = 0, 'e-mail não confirmado não aceita convite');
+  perform tst.ok((select count(*) from public.my_pending_invitations()) = 0, 'e-mail não confirmado não lista convite');
+  perform tst.expect_error(format('select public.accept_invitation(%L)',
+                           tst.id('inv_unc')), array['P0002'], 'e-mail não confirmado não aceita convite');
   perform tst.ok((select count(*) from organizations) = 0, 'não confirmado continua sem acesso');
 end $$;
 reset role;
@@ -785,7 +796,7 @@ update organization_members set active = false where user_id = tst.id('u_a_adv')
 insert into organization_invitations (organization_id, email, role) values (tst.id('org_a'), 'adv.a@teste.local', 'assistente');
 do $$ begin
   perform tst.login('u_a_adv');
-  perform tst.ok(public.accept_pending_invitations() = 1, 'reconvite aceito');
+  perform tst.ok(public.accept_invitation((select id from public.my_pending_invitations())) = tst.id('org_a'), 'reconvite aceito');
   perform tst.ok((select role from organization_members where user_id = tst.id('u_a_adv')) = 'assistente',
                  'membro reativado recebe o papel do novo convite (sem escalonamento)');
 end $$;
@@ -794,9 +805,10 @@ rollback to savepoint t;
 -- Membro ativo convidado de novo mantém o papel atual
 savepoint t;
 insert into organization_invitations (organization_id, email, role) values (tst.id('org_a'), 'asst.a@teste.local', 'admin');
+select tst.set_id('inv_asst', (select id from organization_invitations where email = 'asst.a@teste.local'));
 do $$ begin
   perform tst.login('u_a_asst');
-  perform public.accept_pending_invitations();
+  perform public.accept_invitation(tst.id('inv_asst'));
   perform tst.ok((select role from organization_members where user_id = tst.id('u_a_asst')) = 'assistente', 'membro ativo mantém o papel');
 end $$;
 rollback to savepoint t;

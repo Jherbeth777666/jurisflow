@@ -28,6 +28,7 @@ import { daysSince, formatDate } from '@/lib/format'
 import { cn } from '@/lib/cn'
 import type { PriorityLevel } from '@/types/database'
 import { useDemandsList } from './api'
+import { usePageClamp } from '@/hooks/usePageClamp'
 import { DemandFormModal } from './DemandFormModal'
 import { useOpenFromParam } from '@/hooks/useOpenFromParam'
 import { ExportDemands } from './ExportDemands'
@@ -77,6 +78,8 @@ export function DemandsPage() {
     [params, setParams],
   )
   const onSearch = useCallback((v: string) => apply({ q: v }), [apply])
+  const goToPage = useCallback((p: number) => apply({ page: p }), [apply])
+  usePageClamp(filters.page, PAGE_SIZE, q.data, q.isPlaceholderData, goToPage)
 
   const categoryOptions = (cats.data ?? []).map((c) => ({ value: c.id, label: c.active ? c.name : `${c.name} (inativa)` }))
   const stageOptions = (catById.get(filters.category)?.stages ?? []).map((s) => ({ value: s.id, label: s.name }))
@@ -266,7 +269,7 @@ export function DemandsPage() {
                 })}
               </TBody>
             </Table>
-            <Pagination page={filters.page} pageSize={PAGE_SIZE} total={q.data.total} onChange={(p) => apply({ page: p })} />
+            <Pagination page={filters.page} pageSize={PAGE_SIZE} total={q.data.total} onChange={goToPage} />
           </>
         )}
       </Card>

@@ -117,7 +117,36 @@ export function validateInput(raw: unknown): InputValidation {
     return { ok: false, error: 'Valores de tipo de demanda não podem conter números nem e-mails.' }
   }
 
-  return { ok: true, value: { organizationId: b.organization_id.toLowerCase(), columns, categories, categoryValues } }
+  // Defesa em profundidade: valores com cara de nome de pessoa são descartados (não vão ao provedor).
+  const safeValues = categoryValues.filter((v) => !looksLikePersonName(v, categories))
+
+  return { ok: true, value: { organizationId: b.organization_id.toLowerCase(), columns, categories, categoryValues: safeValues } }
+}
+
+const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+const NAME_CONNECTORS = new Set(['da', 'de', 'do', 'das', 'dos', 'e', 'a', 'o', 'por', 'para', 'com', 'sem', 'em', 'no', 'na'])
+const CATEGORY_STEMS = [
+  'matern', 'patern', 'aposent', 'auxili', 'benefic', 'bpc', 'loas', 'pensao', 'morte', 'incapac', 'invalidez',
+  'doenca', 'acident', 'revis', 'trabalh', 'reclamat', 'rescis', 'contrat', 'pesc', 'defeso', 'seguro', 'desemprego',
+  'salari', 'especial', 'rural', 'urban', 'idade', 'tempo', 'contribu', 'reclus', 'deficien', 'previd', 'inss',
+  'divorc', 'aliment', 'invent', 'familia', 'consumid', 'civel', 'tribut', 'indeniz', 'dano', 'cobranc', 'execuc',
+  'outro', 'outra', 'diversos', 'consulta', 'administrativ', 'judicial', 'recurso', 'vida', 'toda', 'hibrid',
+  'assistencia', 'amparo', 'social', 'acao', 'adicional', 'fgts', 'verba', 'clt', 'hora', 'extra',
+]
+
+/**
+ * Heurística: palavra capitalizada (não sigla) fora do vocabulário de categorias
+ * = possível nome próprio. "Maria da Silva Souza" e "Aposentadoria da Maria" saem;
+ * "Salário-maternidade" e "BPC" ficam.
+ */
+export function looksLikePersonName(value: string, officeCategories: string[] = []): boolean {
+  const extra = new Set(officeCategories.flatMap((c) => fold(c).split(/[^a-z]+/)).filter((w) => w.length >= 3))
+  const words = value.split(/[\s\-–/,;.()]+/).filter((w) => w && !NAME_CONNECTORS.has(fold(w)))
+  return words.some((w) => {
+    if (!/^\p{Lu}/u.test(w) || /^\p{Lu}{2,6}$/u.test(w)) return false
+    const f = fold(w)
+    return !extra.has(f) && !CATEGORY_STEMS.some((s) => f.startsWith(s))
+  })
 }
 
 // ---------------------------------------------------------------------------

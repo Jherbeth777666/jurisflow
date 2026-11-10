@@ -3,6 +3,11 @@
 export const MAX_MESSAGE_CHARS = 2000
 export const MAX_BODY_BYTES = 16 * 1024
 
+/** Tamanho real em bytes UTF-8 (String.length conta unidades UTF-16: "á" = 1, mas são 2 bytes). */
+export function utf8ByteLength(text: string): number {
+  return new TextEncoder().encode(text).length
+}
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export interface AssistantRequest {

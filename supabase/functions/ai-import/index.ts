@@ -10,7 +10,8 @@
 //  * Nada é persistido; nenhuma chave de serviço é usada.
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { createProviderFromEnv } from '../ai-assistant/providers/registry.ts'
-import { bearerToken, corsHeaders, isOriginAllowed, parseAllowedOrigins } from '../ai-assistant/request.ts'
+import { bearerToken, corsHeaders, isOriginAllowed, parseAllowedOrigins, utf8ByteLength } from '../ai-assistant/request.ts'
+import { consumeQuota, monthlyOrgLimitFromEnv } from '../ai-assistant/quota.ts'
 import { ProviderError, type ToolSpec } from '../ai-assistant/types.ts'
 import { buildImportSystemPrompt, buildImportUserMessage } from './prompt.ts'
 import { LIMITS, validateAIResponse, validateInput } from './validate.ts'
@@ -18,6 +19,7 @@ import { LIMITS, validateAIResponse, validateInput } from './validate.ts'
 const env = Deno.env.toObject()
 const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS)
 const RATE_PER_HOUR = Math.max(1, Number(env.AI_IMPORT_RATE_LIMIT_PER_HOUR) || 20)
+const monthlyOrgLimit = monthlyOrgLimitFromEnv(env)
 
 // Alguns provedores exigem ao menos uma ferramenta quando há tool_choice; com 'none' ela nunca é chamada.
 const NO_TOOLS: ToolSpec[] = [
@@ -69,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
   // --- Corpo ------------------------------------------------------------------
   const rawText = await req.text()
-  if (rawText.length > LIMITS.bodyBytes) return fail(413, 'payload_too_large', 'Requisição muito grande.')
+  if (utf8ByteLength(rawText) > LIMITS.bodyBytes) return fail(413, 'payload_too_large', 'Requisição muito grande.')
   let raw: unknown
   try {
     raw = JSON.parse(rawText)
@@ -93,14 +95,28 @@ Deno.serve(async (req: Request) => {
     return fail(503, 'not_configured', 'Mapeamento com IA indisponível (provedor não configurado). Use o mapeamento automático e ajuste manualmente.')
   }
   if (!allow(userId)) return fail(429, 'rate_limited', `Limite de ${RATE_PER_HOUR} mapeamentos por hora atingido.`)
-  // Cota persistente no banco (vale entre instâncias da função)
-  const { data: quotaOk, error: quotaError } = await supabase.rpc('ai_consume_quota', {
-    p_org: input.organizationId,
-    p_kind: 'import',
-    p_limit_per_hour: RATE_PER_HOUR,
+  // Cota persistente no banco (vale entre instâncias da função), com teto mensal do escritório
+  const quota = await consumeQuota({
+    rpc: async (fn, params) => {
+      const { data, error } = await supabase.rpc(fn, params)
+      return { data, error: error ? { message: error.message, code: error.code } : null }
+    },
+    countLastHour: async () => {
+      const { count, error } = await supabase
+        .from('ai_usage')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('kind', 'import')
+        .gt('created_at', new Date(Date.now() - 3_600_000).toISOString())
+      return error ? null : (count ?? 0)
+    },
+    orgId: input.organizationId,
+    kind: 'import',
+    hourlyLimit: RATE_PER_HOUR,
+    monthlyLimit: monthlyOrgLimit,
+    hourlyMessage: `Limite de ${RATE_PER_HOUR} mapeamentos por hora atingido.`,
   })
-  if (quotaError) return fail(500, 'db_error', 'Não foi possível verificar o limite de uso.')
-  if (quotaOk !== true) return fail(429, 'rate_limited', `Limite de ${RATE_PER_HOUR} mapeamentos por hora atingido.`)
+  if (!quota.ok) return fail(quota.status, quota.code, quota.error)
 
   // --- LLM (até 2 tentativas se o JSON vier inválido) --------------------------
   for (let attempt = 0; attempt < 2; attempt++) {

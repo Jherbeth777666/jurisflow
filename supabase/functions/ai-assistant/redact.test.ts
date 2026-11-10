@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
-import { REDACTED, redactDeep, redactPII } from './redact.ts'
+import { LINK_REMOVED, REDACTED, redactDeep, redactPII, stripUrls } from './redact.ts'
 
 describe('redactPII', () => {
   it('remove CPF com e sem máscara', () => {
@@ -52,5 +52,45 @@ describe('redactDeep', () => {
       items: [{ demand: `CPF ${REDACTED}` }],
       total: 3,
     })
+  })
+})
+
+describe('redactPII — formatos adicionais', () => {
+  it('telefone com espaços e sem espaço após o DDD', () => {
+    for (const phone of ['11 9 8765 4321', '(11)98765-4321', '( 11 ) 98765 4321', '0800 777 1234']) {
+      expect(redactPII(`ligar ${phone} hoje`).text, phone).toBe(`ligar ${REDACTED} hoje`)
+    }
+  })
+  it('RG e NB do INSS', () => {
+    expect(redactPII('RG 12.345.678-9').text).toBe(`RG ${REDACTED}`)
+    expect(redactPII('rg: 1.234.567-X').text).toBe(`rg: ${REDACTED}`)
+    expect(redactPII('NB 123.456.789-0 ativo').text).toBe(`NB ${REDACTED} ativo`)
+    expect(redactPII('NB 1234567890').text).toBe(REDACTED)
+    expect(redactPII('benefício nº 1234567890').text).toBe(REDACTED)
+    const r = redactPII('RG 12.345.678-9 e NB 123.456.789-0')
+    expect(r.removed.sort()).toEqual(['nb', 'rg'])
+  })
+  it('e-mail ofuscado', () => {
+    for (const e of ['fulano (arroba) gmail.com', 'joana(arroba)gmail.com', 'fulano at gmail.com', 'fulano [at] gmail (ponto) com', 'fulano arroba gmail ponto com ponto br']) {
+      const r = redactPII(`escreva para ${e}`)
+      expect(r.text, e).toBe(`escreva para ${REDACTED}`)
+      expect(r.removed).toEqual(['email'])
+    }
+  })
+  it('sem falsos positivos em valores monetários, datas e textos comuns', () => {
+    const t = 'R$ 12.345.678,90 em 01/11/2026, 2026-11-30, 10/11/2026 às 14:30, prazo 15 dias, processo 2024, Lei 8.213/91, olhou at home'
+    expect(redactPII(t).text).toBe(t)
+    expect(redactPII('R$ 1.234.567').text).toBe('R$ 1.234.567')
+  })
+})
+
+describe('stripUrls / redactDeep sem links', () => {
+  it('remove URLs, www e domínios nus; preserva texto comum', () => {
+    expect(stripUrls('acesse https://evil.example/login?x=1 agora')).toBe(`acesse ${LINK_REMOVED} agora`)
+    expect(stripUrls('veja www.site.com.br/a e bit.ly/abc ou evil.com')).toBe(`veja ${LINK_REMOVED} e ${LINK_REMOVED} ou ${LINK_REMOVED}`)
+    expect(stripUrls('Salário-maternidade. Aguardando documentos.')).toBe('Salário-maternidade. Aguardando documentos.')
+  })
+  it('redactDeep remove links de textos livres', () => {
+    expect(redactDeep({ title: 'Clique em http://x.io', due_date: '2026-11-09' })).toEqual({ title: `Clique em ${LINK_REMOVED}`, due_date: '2026-11-09' })
   })
 })

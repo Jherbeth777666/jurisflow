@@ -6,11 +6,11 @@ import { ProviderError, type CompletionRequest, type FetchLike, type LLMProvider
 const REQ: CompletionRequest = { system: 's', messages: [{ role: 'user', content: 'oi' }], tools: [], toolChoice: 'auto' }
 
 describe('resolveProviderConfig', () => {
-  it('padrão é Anthropic com claude-sonnet-5-5', () => {
+  it('padrão é Anthropic com claude-haiku-5-5', () => {
     const r = resolveProviderConfig({ ANTHROPIC_API_KEY: 'a' })
     expect(r).toEqual({
       ok: true,
-      config: { id: 'anthropic', kind: 'anthropic', apiKey: 'a', baseUrl: 'https://api.anthropic.com', model: 'claude-sonnet-5-5' },
+      config: { id: 'anthropic', kind: 'anthropic', apiKey: 'a', baseUrl: 'https://api.anthropic.com', model: 'claude-haiku-5-5' },
     })
   })
 

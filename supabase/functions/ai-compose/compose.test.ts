@@ -77,3 +77,29 @@ describe('cleanModelOutput / prompt', () => {
     expect(msg).toContain('formal')
   })
 })
+
+describe('checkRewrite — contatos novos', () => {
+  const orig = 'Olá {{cliente_nome}}, envie seus documentos.'
+  it('rejeita link, telefone ou e-mail que não estavam no original', () => {
+    for (const bad of [
+      'Olá {{cliente_nome}}, envie seus documentos em https://evil.example.',
+      'Olá {{cliente_nome}}, envie seus documentos em evil.com/up.',
+      'Olá {{cliente_nome}}, envie seus documentos ou ligue 0800 777 1234.',
+      'Olá {{cliente_nome}}, envie seus documentos pelo (11) 98765-4321.',
+      'Olá {{cliente_nome}}, envie seus documentos para docs@evil.com.',
+      'Olá {{cliente_nome}}, envie seus documentos para docs (arroba) evil.com.',
+    ]) {
+      const r = checkRewrite(orig, bad)
+      expect(r.ok, bad).toBe(false)
+    }
+  })
+  it('aceita contatos que já estavam no original', () => {
+    const o = 'Olá {{cliente_nome}}, envie para docs@escritorio.com.br ou (11) 3333-4444. Site: https://escritorio.com.br'
+    const r = checkRewrite(o, 'Prezado(a) {{cliente_nome}}, por gentileza envie para docs@escritorio.com.br ou 11 3333-4444. Site: https://escritorio.com.br')
+    expect(r.ok).toBe(true)
+  })
+  it('aceita reescrita com datas e valores comuns', () => {
+    const r = checkRewrite('Olá {{cliente_nome}}, parcela de {{valor}} vence em {{data}}.', 'Prezado(a) {{cliente_nome}}, a parcela de {{valor}} vence em {{data}}.')
+    expect(r.ok).toBe(true)
+  })
+})

@@ -20,7 +20,7 @@ interface Preset {
 }
 
 export const PROVIDER_PRESETS: Record<ProviderId, Preset> = {
-  anthropic: { kind: 'anthropic', keyEnv: 'ANTHROPIC_API_KEY', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-sonnet-5-5' },
+  anthropic: { kind: 'anthropic', keyEnv: 'ANTHROPIC_API_KEY', baseUrl: 'https://api.anthropic.com', defaultModel: 'claude-haiku-5-5' },
   openai: { kind: 'openai', keyEnv: 'OPENAI_API_KEY', baseUrl: 'https://api.openai.com/v1', defaultModel: 'gpt-4.1-mini' },
   gemini: {
     kind: 'openai',
@@ -125,6 +125,8 @@ export class FallbackProvider implements LLMProvider {
       return await this.primary.complete(req)
     } catch (e) {
       if (!(e instanceof ProviderError) || !e.retryable) throw e
+      // Prazo total esgotado: não gasta mais tempo com o reserva.
+      if (req.signal?.aborted) throw e
       this.switched = true
       this.onFallback?.(e)
       return this.secondary.complete(req)

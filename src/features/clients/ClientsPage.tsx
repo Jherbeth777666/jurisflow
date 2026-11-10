@@ -22,7 +22,8 @@ import {
 import { CLIENT_STATUS, PAGE_SIZE, toOptions } from '@/lib/constants'
 import { formatDate, formatPhone, maskCPF } from '@/lib/format'
 import type { ClientStatus } from '@/types/database'
-import { useClientsList } from './api'
+import { useClientsList, type ClientListStatus } from './api'
+import { usePageClamp } from '@/hooks/usePageClamp'
 import { ClientFormModal } from './ClientFormModal'
 import { useOpenFromParam } from '@/hooks/useOpenFromParam'
 import { ExportClients } from './ExportClients'
@@ -34,7 +35,8 @@ export function ClientsPage() {
   const [params, setParams] = useSearchParams()
   const term = params.get('q') ?? ''
   const statusParam = params.get('status') ?? ''
-  const status = (STATUS_VALUES as string[]).includes(statusParam) ? (statusParam as ClientStatus) : ''
+  const status: ClientListStatus =
+    statusParam === 'anonimizados' ? 'anonimizados' : (STATUS_VALUES as string[]).includes(statusParam) ? (statusParam as ClientStatus) : ''
   const page = Math.max(0, Number(params.get('page') ?? 0) || 0)
   const [creating, setCreating] = useOpenFromParam('novo')
 
@@ -54,6 +56,8 @@ export function ClientsPage() {
   const onSearch = useCallback((v: string) => update({ q: v }), [update])
 
   const q = useClientsList({ term, status, page })
+  const goToPage = useCallback((p: number) => update({ page: p ? String(p) : '' }), [update])
+  usePageClamp(page, PAGE_SIZE, q.data, q.isPlaceholderData, goToPage)
   const filtered = !!term || !!status
 
   return (
@@ -75,11 +79,11 @@ export function ClientsPage() {
         <SearchInput value={term} onChange={onSearch} placeholder="Buscar por nome ou CPF" className="sm:max-w-sm sm:flex-1" />
         <Select
           aria-label="Filtrar por status"
-          options={toOptions(CLIENT_STATUS)}
-          placeholder="Todos os status"
+          options={[...toOptions(CLIENT_STATUS), { value: 'anonimizados', label: 'Anonimizados' }]}
+          placeholder="Todos (exceto anonimizados)"
           value={status}
           onChange={(e) => update({ status: e.target.value })}
-          wrapperClassName="sm:w-48"
+          wrapperClassName="sm:w-56"
         />
       </div>
 
@@ -148,7 +152,7 @@ export function ClientsPage() {
                 ))}
               </TBody>
             </Table>
-            <Pagination page={page} pageSize={PAGE_SIZE} total={q.data.total} onChange={(p) => update({ page: p ? String(p) : '' })} />
+            <Pagination page={page} pageSize={PAGE_SIZE} total={q.data.total} onChange={goToPage} />
           </>
         )}
       </Card>

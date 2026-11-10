@@ -1,5 +1,5 @@
 import { buildImportSystemPrompt, buildImportUserMessage } from './prompt'
-import { extractJSON, hasUnmaskedDigits, validateAIResponse, validateInput, type AIImportInput } from './validate'
+import { extractJSON, hasUnmaskedDigits, looksLikePersonName, validateAIResponse, validateInput, type AIImportInput } from './validate'
 
 const ORG = '11111111-2222-3333-4444-555555555555'
 const base = () => ({
@@ -129,5 +129,21 @@ describe('prompt', () => {
     expect(msg).toContain('"header":"CPF"')
     expect(msg).toContain('999.999.999-99')
     expect(msg).not.toContain(ORG)
+  })
+})
+
+describe('valores com cara de nome de pessoa (defesa no servidor)', () => {
+  it('descarta nomes e mantém tipos de demanda', () => {
+    const b = { ...base(), category_values: ['Maria da Silva Souza', 'José Carlos Pereira', 'Aposentadoria da Maria', 'Salário-maternidade', 'BPC', 'Divórcio'] }
+    const r = validateInput(b)
+    expect(r.ok).toBe(true)
+    if (r.ok) expect(r.value.categoryValues).toEqual(['Salário-maternidade', 'BPC', 'Divórcio'])
+  })
+  it('looksLikePersonName', () => {
+    expect(looksLikePersonName('Maria da Silva Souza')).toBe(true)
+    expect(looksLikePersonName('Aposentadoria da Maria')).toBe(true)
+    expect(looksLikePersonName('Pensão por Morte')).toBe(false)
+    expect(looksLikePersonName('BPC LOAS')).toBe(false)
+    expect(looksLikePersonName('Planejamento Escritório', ['Planejamento Escritório'])).toBe(false)
   })
 })

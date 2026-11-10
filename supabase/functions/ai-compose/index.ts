@@ -12,7 +12,8 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { createProviderFromEnv } from '../ai-assistant/providers/registry.ts'
 import { redactPII } from '../ai-assistant/redact.ts'
-import { bearerToken, corsHeaders, isOriginAllowed, parseAllowedOrigins } from '../ai-assistant/request.ts'
+import { bearerToken, corsHeaders, isOriginAllowed, parseAllowedOrigins, utf8ByteLength } from '../ai-assistant/request.ts'
+import { consumeQuota, monthlyOrgLimitFromEnv } from '../ai-assistant/quota.ts'
 import { ProviderError, type ToolSpec } from '../ai-assistant/types.ts'
 import {
   MAX_BODY_BYTES,
@@ -25,6 +26,7 @@ import {
 const env = Deno.env.toObject()
 const allowedOrigins = parseAllowedOrigins(env.ALLOWED_ORIGINS)
 const limitPerHour = Math.max(1, Number(env.AI_COMPOSE_RATE_LIMIT_PER_HOUR) || 40)
+const monthlyOrgLimit = monthlyOrgLimitFromEnv(env)
 
 // Alguns provedores exigem ao menos uma ferramenta declarada quando há tool_choice;
 // com toolChoice 'none' ela nunca é chamada.
@@ -76,7 +78,7 @@ Deno.serve(async (req: Request) => {
 
   // --- Corpo ----------------------------------------------------------------
   const rawText = await req.text()
-  if (rawText.length > MAX_BODY_BYTES) return fail(413, 'payload_too_large', 'Modelo muito grande.')
+  if (utf8ByteLength(rawText) > MAX_BODY_BYTES) return fail(413, 'payload_too_large', 'Modelo muito grande.')
   let raw: unknown
   try {
     raw = JSON.parse(rawText)
@@ -108,16 +110,28 @@ Deno.serve(async (req: Request) => {
   if (!allow(userData.user.id)) {
     return fail(429, 'rate_limited', `Limite de ${limitPerHour} ajustes por hora atingido. Tente novamente mais tarde.`)
   }
-  // Cota persistente no banco (vale entre instâncias da função)
-  const { data: quotaOk, error: quotaError } = await supabase.rpc('ai_consume_quota', {
-    p_org: organizationId,
-    p_kind: 'compose',
-    p_limit_per_hour: limitPerHour,
+  // Cota persistente no banco (vale entre instâncias da função), com teto mensal do escritório
+  const quota = await consumeQuota({
+    rpc: async (fn, params) => {
+      const { data, error } = await supabase.rpc(fn, params)
+      return { data, error: error ? { message: error.message, code: error.code } : null }
+    },
+    countLastHour: async () => {
+      const { count, error } = await supabase
+        .from('ai_usage')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userData.user.id)
+        .eq('kind', 'compose')
+        .gt('created_at', new Date(Date.now() - 3_600_000).toISOString())
+      return error ? null : (count ?? 0)
+    },
+    orgId: organizationId,
+    kind: 'compose',
+    hourlyLimit: limitPerHour,
+    monthlyLimit: monthlyOrgLimit,
+    hourlyMessage: `Limite de ${limitPerHour} ajustes por hora atingido. Tente novamente mais tarde.`,
   })
-  if (quotaError) return fail(500, 'db_error', 'Não foi possível verificar o limite de uso.')
-  if (quotaOk !== true) {
-    return fail(429, 'rate_limited', `Limite de ${limitPerHour} ajustes por hora atingido. Tente novamente mais tarde.`)
-  }
+  if (!quota.ok) return fail(quota.status, quota.code, quota.error)
 
   // --- Chamada ao provedor (até 2 tentativas se a validação falhar) ----------
   let lastError = 'A IA não preservou as variáveis do modelo.'

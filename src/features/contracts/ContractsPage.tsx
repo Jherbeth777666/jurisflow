@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { AlertTriangle, CalendarClock, FileSignature, HandCoins, Plus, Wallet, Scale } from 'lucide-react'
 import { formatCurrency, formatDate, diffInDays, todayISO } from '@/lib/format'
@@ -31,6 +31,7 @@ import type { ContractStatus } from '@/types/database'
 import { useContractList, useFinanceSummary, useReceivables, type ReceivableRow } from './api'
 import { ContractFormModal } from './ContractFormModal'
 import { PaymentModal } from './PaymentModal'
+import { usePageClamp } from '@/hooks/usePageClamp'
 
 type Tab = 'contratos' | 'recebimentos'
 
@@ -136,14 +137,23 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
   const search = params.get('q') ?? ''
   const page = Math.max(0, Number(params.get('p') ?? 0) || 0)
 
-  const update = (patch: Record<string, string>) => {
-    const next = new URLSearchParams(params)
-    Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)))
-    if (!('p' in patch)) next.delete('p')
-    setParams(next, { replace: true })
-  }
+  const update = useCallback(
+    (patch: Record<string, string>) =>
+      setParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)))
+          if (!('p' in patch)) next.delete('p')
+          return next
+        },
+        { replace: true },
+      ),
+    [setParams],
+  )
 
   const list = useContractList({ status, search, page })
+  const goToPage = useCallback((p: number) => update({ p: p ? String(p) : '' }), [update])
+  usePageClamp(page, PAGE_SIZE, list.data, list.isPlaceholderData, goToPage)
   const today = todayISO()
   const filtered = !!status || !!search
 
@@ -229,7 +239,7 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
               ))}
             </TBody>
           </Table>
-          <Pagination page={page} pageSize={PAGE_SIZE} total={list.data.total} onChange={(p) => update({ p: String(p) })} />
+          <Pagination page={page} pageSize={PAGE_SIZE} total={list.data.total} onChange={goToPage} />
         </>
       )}
     </Card>

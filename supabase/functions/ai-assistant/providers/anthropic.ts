@@ -1,5 +1,6 @@
 // Provedor Anthropic (Messages API com tool use). Usa fetch padrão — sem SDK.
 import { ProviderError, type ChatMessage, type CompletionRequest, type CompletionResponse, type FetchLike, type LLMProvider } from '../types.ts'
+import { combineSignals } from './signal.ts'
 
 type Block =
   | { type: 'text'; text: string }
@@ -82,7 +83,7 @@ export class AnthropicProvider implements LLMProvider {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(this.opts.timeoutMs ?? 60_000),
+        signal: combineSignals(AbortSignal.timeout(this.opts.timeoutMs ?? 60_000), req.signal),
       })
     } catch (e) {
       throw new ProviderError(this.name, `Falha de rede/timeout: ${e instanceof Error ? e.name : 'erro'}`, null)
