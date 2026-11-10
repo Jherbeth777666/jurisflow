@@ -10,7 +10,7 @@ import {
   Clock,
   CornerDownLeft,
   FileUp,
-  FlaskConical,
+  HeartPulse,
   KanbanSquare,
   LayoutDashboard,
   Loader2,
@@ -30,7 +30,17 @@ import { escapeLike, formatDate, maskCPF } from '@/lib/format'
 import { DEMAND_STATUS, TASK_STATUS } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import type { DemandStatus, TaskStatus } from '@/types/database'
-import { assistantPath, cpfDigitsFromQuery, loadRecents, matchesQuery, saveRecent, type RecentItem, type RecentKind } from './logic'
+import {
+  assistantPath,
+  cpfDigitsFromQuery,
+  loadRecents,
+  matchesQuery,
+  recentIdsByKind,
+  recentPath,
+  saveRecent,
+  type RecentKind,
+  type RecentRef,
+} from './logic'
 
 // ---------------------------------------------------------------------------
 // Abertura global (atalho + evento para o botão do menu)
@@ -110,7 +120,7 @@ interface Item {
   hint?: string
   icon: LucideIcon
   path: string
-  recent?: RecentItem
+  recent?: RecentRef
 }
 
 const PAGES: { path: string; label: string; icon: LucideIcon; keywords?: string }[] = [
@@ -124,8 +134,9 @@ const PAGES: { path: string; label: string; icon: LucideIcon; keywords?: string 
   { path: '/assistente', label: 'Assistente IA', icon: Sparkles, keywords: 'ia chat' },
   { path: '/relatorios', label: 'Relatórios', icon: BarChart3 },
   { path: '/configuracoes', label: 'Configurações', icon: Settings, keywords: 'equipe escritorio membros' },
-  { path: '/importar', label: 'Importar dados', icon: FileUp, keywords: 'planilha excel importacao' },
-  { path: '/qualidade', label: 'Qualidade dos dados', icon: FlaskConical, keywords: 'duplicados revisao' },
+  // Mesmos nomes e ícones do menu lateral
+  { path: '/importar', label: 'Importar planilha', icon: FileUp, keywords: 'importar dados excel importacao csv' },
+  { path: '/qualidade', label: 'Saúde do cadastro', icon: HeartPulse, keywords: 'qualidade dados duplicados revisao' },
 ]
 
 const ACTIONS: { path: string; label: string; keywords: string }[] = [
@@ -159,7 +170,28 @@ function Palette({ onClose }: { onClose: () => void }) {
   const listId = useId()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  const [recents, setRecents] = useState<RecentItem[]>(() => loadRecents(orgId))
+  const [recents, setRecents] = useState<RecentRef[]>(() => loadRecents(orgId))
+  // Rótulos dos recentes buscados no servidor (nada de nomes no localStorage).
+  const recentIds = recentIdsByKind(recents)
+  const recentLabels = useQuery({
+    queryKey: ['command-search', orgId, 'recents', recentIds],
+    enabled: recents.some((r) => r.kind !== 'pagina'),
+    staleTime: 30_000,
+    queryFn: async () => {
+      const labels = new Map<string, string>()
+      const [c, d, t] = await Promise.all([
+        recentIds.cliente.length
+          ? supabase.from('clients').select('id, full_name').eq('organization_id', orgId).is('anonymized_at', null).in('id', recentIds.cliente)
+          : null,
+        recentIds.demanda.length ? supabase.from('demands').select('id, title').eq('organization_id', orgId).in('id', recentIds.demanda) : null,
+        recentIds.tarefa.length ? supabase.from('tasks').select('id, title').eq('organization_id', orgId).in('id', recentIds.tarefa) : null,
+      ])
+      if (c) (unwrap(c) as { id: string; full_name: string }[]).forEach((x) => labels.set(`cliente:${x.id}`, x.full_name))
+      if (d) (unwrap(d) as { id: string; title: string }[]).forEach((x) => labels.set(`demanda:${x.id}`, x.title))
+      if (t) (unwrap(t) as { id: string; title: string }[]).forEach((x) => labels.set(`tarefa:${x.id}`, x.title))
+      return labels
+    },
+  })
   const debounced = useDebounced(query.trim(), 200)
 
   // Foco inicial e devolução de foco ao fechar
@@ -221,9 +253,12 @@ function Palette({ onClose }: { onClose: () => void }) {
   const items: Item[] = useMemo(() => {
     const out: Item[] = []
     if (!q) {
-      recents.forEach((r) =>
-        out.push({ key: `r:${r.kind}:${r.id}`, group: 'Recentes', label: r.label, icon: RECENT_ICON[r.kind], path: r.path, recent: r, hint: labelKind(r.kind) }),
-      )
+      recents.forEach((r) => {
+        // Registro excluído/anonimizado ou sem acesso: some dos recentes.
+        const label = r.kind === 'pagina' ? PAGES.find((p) => p.path === r.id)?.label : recentLabels.data?.get(`${r.kind}:${r.id}`)
+        if (!label) return
+        out.push({ key: `r:${r.kind}:${r.id}`, group: 'Recentes', label, icon: RECENT_ICON[r.kind], path: recentPath(r), recent: r, hint: labelKind(r.kind) })
+      })
     }
     const data = searchEnabled && debounced === q ? search.data : undefined
     data?.clients.forEach((c) =>
@@ -234,7 +269,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         sublabel: c.cpf ? maskCPF(c.cpf) : undefined,
         icon: User,
         path: `/clientes/${c.id}`,
-        recent: { kind: 'cliente', id: c.id, label: c.full_name, path: `/clientes/${c.id}` },
+        recent: { kind: 'cliente', id: c.id },
         hint: 'Cliente',
       }),
     )
@@ -246,7 +281,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         sublabel: [d.client?.full_name, DEMAND_STATUS[d.status]?.label].filter(Boolean).join(' · '),
         icon: Briefcase,
         path: `/demandas/${d.id}`,
-        recent: { kind: 'demanda', id: d.id, label: d.title, path: `/demandas/${d.id}` },
+        recent: { kind: 'demanda', id: d.id },
         hint: 'Demanda',
       }),
     )
@@ -259,7 +294,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         sublabel: [TASK_STATUS[t.status]?.label, t.due_date ? `vence ${formatDate(t.due_date)}` : null].filter(Boolean).join(' · '),
         icon: CheckSquare,
         path,
-        recent: { kind: 'tarefa', id: t.id, label: t.title, path },
+        recent: { kind: 'tarefa', id: t.id },
         hint: 'Tarefa',
       })
     })
@@ -280,7 +315,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       })
     }
     return out
-  }, [q, debounced, searchEnabled, search.data, recents])
+  }, [q, debounced, searchEnabled, search.data, recents, recentLabels.data])
 
   useEffect(() => setActive(0), [q, search.data])
 

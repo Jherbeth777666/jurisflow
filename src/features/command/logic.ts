@@ -27,15 +27,15 @@ export function cpfDigitsFromQuery(query: string): string | null {
 export const assistantPath = (q: string) => `/assistente?q=${encodeURIComponent(q.trim())}`
 
 // ---------------------------------------------------------------------------
-// Recentes (localStorage): apenas tipo, id, rótulo e caminho — nunca CPF.
+// Recentes (localStorage): SOMENTE tipo + id. Nada de nomes de clientes, títulos ou CPF
+// no navegador — o rótulo é buscado no servidor (com RLS) quando a paleta abre.
 // ---------------------------------------------------------------------------
 export type RecentKind = 'cliente' | 'demanda' | 'tarefa' | 'pagina'
 
-export interface RecentItem {
+export interface RecentRef {
   kind: RecentKind
+  /** id do registro; para 'pagina', o caminho (ex.: '/relatorios') */
   id: string
-  label: string
-  path: string
 }
 
 export const RECENT_LIMIT = 6
@@ -55,44 +55,69 @@ function safeStorage(): StorageLike | null {
   }
 }
 
-const isRecent = (x: unknown): x is RecentItem => {
-  if (!x || typeof x !== 'object') return false
+const KINDS: RecentKind[] = ['cliente', 'demanda', 'tarefa', 'pagina']
+const UUIDISH = /^[0-9a-f-]{8,64}$/i
+
+const toRef = (x: unknown): RecentRef | null => {
+  if (!x || typeof x !== 'object') return null
   const r = x as Record<string, unknown>
-  return (
-    ['cliente', 'demanda', 'tarefa', 'pagina'].includes(r.kind as string) &&
-    typeof r.id === 'string' &&
-    typeof r.label === 'string' &&
-    typeof r.path === 'string' &&
-    r.path.startsWith('/')
-  )
+  if (!KINDS.includes(r.kind as RecentKind) || typeof r.id !== 'string') return null
+  const kind = r.kind as RecentKind
+  if (kind === 'pagina' ? !/^\/[\w\-/]*$/.test(r.id) : !UUIDISH.test(r.id)) return null
+  return { kind, id: r.id }
 }
 
-export function loadRecents(orgId: string, storage: StorageLike | null = safeStorage()): RecentItem[] {
+function write(orgId: string, list: RecentRef[], storage: StorageLike | null) {
+  if (!storage) return
+  try {
+    storage.setItem(recentKey(orgId), JSON.stringify(list))
+  } catch {
+    /* armazenamento cheio/indisponível */
+  }
+}
+
+export function loadRecents(orgId: string, storage: StorageLike | null = safeStorage()): RecentRef[] {
   if (!storage) return []
   try {
     const raw = storage.getItem(recentKey(orgId))
     const parsed: unknown = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed.filter(isRecent).slice(0, RECENT_LIMIT) : []
+    if (!Array.isArray(parsed)) return []
+    const list = parsed.map(toRef).filter((r): r is RecentRef => !!r).slice(0, RECENT_LIMIT)
+    // Versões antigas guardavam rótulo/caminho (nomes de clientes): regrava só tipo+id.
+    if (parsed.some((x) => x && typeof x === 'object' && Object.keys(x).some((k) => k !== 'kind' && k !== 'id'))) write(orgId, list, storage)
+    return list
   } catch {
     return []
   }
 }
 
-/** Remove dígitos de CPF que eventualmente estejam no rótulo (defesa extra). */
-const sanitizeLabel = (label: string) => label.replace(/\d{3}\.?\d{3}\.?\d{3}-?\d{2}/g, '').replace(/\s+/g, ' ').trim().slice(0, 120)
-
-export function saveRecent(orgId: string, item: RecentItem, storage: StorageLike | null = safeStorage()): RecentItem[] {
-  const clean: RecentItem = { kind: item.kind, id: item.id, label: sanitizeLabel(item.label), path: item.path }
-  const next = [clean, ...loadRecents(orgId, storage).filter((r) => !(r.kind === clean.kind && r.id === clean.id))].slice(
-    0,
-    RECENT_LIMIT,
-  )
-  if (storage) {
-    try {
-      storage.setItem(recentKey(orgId), JSON.stringify(next))
-    } catch {
-      /* armazenamento cheio/indisponível */
-    }
-  }
+export function saveRecent(orgId: string, item: RecentRef, storage: StorageLike | null = safeStorage()): RecentRef[] {
+  const ref = toRef(item)
+  if (!ref) return loadRecents(orgId, storage)
+  const next = [ref, ...loadRecents(orgId, storage).filter((r) => !(r.kind === ref.kind && r.id === ref.id))].slice(0, RECENT_LIMIT)
+  write(orgId, next, storage)
   return next
+}
+
+/** Caminho para abrir um recente. */
+export function recentPath(r: RecentRef): string {
+  switch (r.kind) {
+    case 'cliente':
+      return `/clientes/${r.id}`
+    case 'demanda':
+      return `/demandas/${r.id}`
+    case 'tarefa':
+      return `/tarefas?tarefa=${r.id}`
+    case 'pagina':
+      return r.id
+  }
+}
+
+/** Ids a resolver no servidor, por tipo. */
+export function recentIdsByKind(list: RecentRef[]): { cliente: string[]; demanda: string[]; tarefa: string[] } {
+  const out = { cliente: [] as string[], demanda: [] as string[], tarefa: [] as string[] }
+  list.forEach((r) => {
+    if (r.kind !== 'pagina') out[r.kind].push(r.id)
+  })
+  return out
 }
