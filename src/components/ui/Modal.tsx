@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -12,24 +12,40 @@ interface ModalProps {
   children: ReactNode
   footer?: ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  /**
+   * Formulário com alterações não salvas: clique no fundo NÃO fecha e Esc pede
+   * confirmação. Fechar pelo X ou por "Cancelar" continua explícito.
+   */
+  dirty?: boolean
 }
+
+const DISCARD_MSG = 'Descartar as alterações não salvas?'
 
 const sizes = { sm: 'max-w-sm', md: 'max-w-lg', lg: 'max-w-2xl', xl: 'max-w-4xl' }
 
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+export function Modal({ open, onClose, title, description, children, footer, size = 'md', dirty = false }: ModalProps) {
+  const titleId = useId()
+  const descId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
   // onClose em ref: o efeito (foco inicial, trava de scroll) roda só ao abrir/fechar,
   // não a cada render do pai com uma nova função.
   const onCloseRef = useRef(onClose)
+  const dirtyRef = useRef(dirty)
   useEffect(() => {
     onCloseRef.current = onClose
-  }, [onClose])
+    dirtyRef.current = dirty
+  }, [onClose, dirty])
 
   useEffect(() => {
     if (!open) return
     const prevFocus = document.activeElement as HTMLElement | null
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCloseRef.current()
+      if (e.key === 'Escape') {
+        // Outro diálogo empilhado (ex.: confirmação) trata o próprio Esc.
+        if (e.defaultPrevented) return
+        e.preventDefault()
+        if (!dirtyRef.current || window.confirm(DISCARD_MSG)) onCloseRef.current()
+      }
       if (e.key === 'Tab' && panelRef.current) {
         const f = panelRef.current.querySelectorAll<HTMLElement>(
           'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -63,12 +79,19 @@ export function Modal({ open, onClose, title, description, children, footer, siz
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
+      <div
+        className="absolute inset-0 bg-navy-950/40 backdrop-blur-[2px]"
+        onClick={() => {
+          if (!dirty) onClose()
+        }}
+        aria-hidden
+      />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
+        aria-describedby={description ? descId : undefined}
         tabIndex={-1}
         className={cn(
           'relative flex max-h-[92vh] w-full flex-col rounded-t-xl bg-surface shadow-[var(--shadow-pop)] sm:rounded-xl',
@@ -77,10 +100,10 @@ export function Modal({ open, onClose, title, description, children, footer, siz
       >
         <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
           <div>
-            <h2 id="modal-title" className="text-[15px] font-semibold text-ink">
+            <h2 id={titleId} className="text-[15px] font-semibold text-ink">
               {title}
             </h2>
-            {description && <p className="mt-0.5 text-[13px] text-ink-muted">{description}</p>}
+            {description && <p id={descId} className="mt-0.5 text-[13px] text-ink-muted">{description}</p>}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
             <X className="size-4" />
