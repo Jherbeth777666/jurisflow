@@ -5,7 +5,16 @@
 [build.environment]
   NODE_VERSION = "22"
 
-# SPA: todas as rotas caem no index.html
+# Arquivos de /assets inexistentes (ex.: versão anterior após um deploy) devem dar 404
+# de verdade — nunca o index.html com status 200, que quebraria o import do módulo e
+# deixaria a tela branca. Arquivos existentes têm precedência (sem force), então só
+# os ausentes caem aqui. Deve vir ANTES do redirecionamento da SPA.
+[[redirects]]
+  from = "/assets/*"
+  to = "/404.html"   # inexistente de propósito: a Netlify responde com sua página 404 padrão
+  status = 404
+
+# SPA: todas as outras rotas caem no index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -18,3 +27,10 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Arquivos com hash no nome: podem ficar em cache para sempre.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+

@@ -24,6 +24,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { ROLE_LABELS } from '@/lib/constants'
 import { Avatar, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean }
 
@@ -182,9 +183,11 @@ export function AppLayout() {
       <CommandPalette />
 
       <main className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
-        <Suspense fallback={<Spinner />}>
-          <Outlet />
-        </Suspense>
+        <RouteErrorBoundary resetKey={location.pathname}>
+          <Suspense fallback={<Spinner />}>
+            <Outlet />
+          </Suspense>
+        </RouteErrorBoundary>
       </main>
     </div>
   )

@@ -5,7 +5,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/contexts/AuthContext'
 import { ToastProvider } from '@/components/ui'
 import App from './App'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
+import { installPreloadErrorHandler } from '@/lib/chunkReload'
 import './index.css'
+
+installPreloadErrorHandler()
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,7 +23,9 @@ createRoot(document.getElementById('root')!).render(
       <BrowserRouter>
         <AuthProvider>
           <ToastProvider>
-            <App />
+            <RouteErrorBoundary>
+              <App />
+            </RouteErrorBoundary>
           </ToastProvider>
         </AuthProvider>
       </BrowserRouter>
