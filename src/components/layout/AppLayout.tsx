@@ -25,6 +25,7 @@ import { ROLE_LABELS } from '@/lib/constants'
 import { Avatar, Spinner } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
+import { PendingInvitations } from '@/components/PendingInvitations'
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; end?: boolean }
 
@@ -198,6 +199,8 @@ export function AppLayout() {
         </button>
         <span className="text-[14px] font-semibold">{current?.label ?? 'JurisFlow AI'}</span>
       </header>
+
+      <PendingInvitations variant="banner" />
 
       <CommandPalette />
 

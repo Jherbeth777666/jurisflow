@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { KeyRound, Save } from 'lucide-react'
-import { Button, Card, CardBody, CardHeader, InlineError, Input, useToast } from '@/components/ui'
+import { DoorOpen, KeyRound, Save } from 'lucide-react'
+import { Button, Card, CardBody, CardHeader, ConfirmDialog, InlineError, Input, useToast } from '@/components/ui'
 import { useOrg } from '@/contexts/AuthContext'
 import { ROLE_LABELS } from '@/lib/constants'
 import { useChangePassword, useUpdateProfileName } from './api'
 import { validateFullName, validatePassword } from './logic'
 
 export function ProfileTab() {
-  const { profile, session, role } = useOrg()
+  const { profile, session, role, organization, leaveOrganization } = useOrg()
+  const [leaving, setLeaving] = useState(false)
   const toast = useToast()
   const updateName = useUpdateProfileName()
   const changePassword = useChangePassword()
@@ -116,6 +117,36 @@ export function ProfileTab() {
           </form>
         </CardBody>
       </Card>
+
+      <Card className="lg:col-span-2">
+        <CardHeader
+          title="Sair deste escritório"
+          description={`Você deixará de ter acesso aos dados de “${organization.name}”. Para voltar, será preciso um novo convite.`}
+          action={
+            <Button
+              variant="ghost"
+              icon={<DoorOpen className="size-4" />}
+              onClick={() => setLeaving(true)}
+              className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              Sair deste escritório
+            </Button>
+          }
+        />
+      </Card>
+
+      <ConfirmDialog
+        open={leaving}
+        onClose={() => setLeaving(false)}
+        title="Sair deste escritório"
+        description={`Tem certeza de que deseja sair de “${organization.name}”? Você perderá o acesso imediatamente. Se for o último administrador, promova outro membro antes.`}
+        confirmLabel="Sair do escritório"
+        onConfirm={async () => {
+          const name = organization.name
+          await leaveOrganization(organization.id)
+          toast.show(`Você saiu de “${name}”.`)
+        }}
+      />
     </div>
   )
 }

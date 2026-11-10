@@ -8,6 +8,7 @@ import { LoginPage } from '@/pages/auth/LoginPage'
 import { SignupPage } from '@/pages/auth/SignupPage'
 import { ForgotPasswordPage, ResetPasswordPage } from '@/pages/auth/ForgotPasswordPage'
 import { OnboardingPage } from '@/pages/auth/OnboardingPage'
+import { ChooseOrganizationPage } from '@/pages/auth/ChooseOrganizationPage'
 
 // Rotas carregadas sob demanda (code-splitting)
 const DashboardPage = lazy(() => import('@/features/dashboard/DashboardPage').then((x) => ({ default: x.DashboardPage })))
@@ -41,7 +42,7 @@ function ConfigMissing() {
 }
 
 export default function App() {
-  const { session, loading, organization, error, refresh } = useAuth()
+  const { session, loading, organization, memberships, error, refresh } = useAuth()
 
   if (!isSupabaseConfigured) return <ConfigMissing />
   if (loading) return <Spinner className="min-h-dvh" label="Carregando JurisFlow…" />
@@ -63,7 +64,7 @@ export default function App() {
     return (
       <Routes>
         <Route path="/redefinir-senha" element={<ResetPasswordPage />} />
-        <Route path="*" element={<OnboardingPage />} />
+        <Route path="*" element={memberships.length > 1 ? <ChooseOrganizationPage /> : <OnboardingPage />} />
       </Routes>
     )
   }

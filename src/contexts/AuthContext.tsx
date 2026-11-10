@@ -4,6 +4,9 @@ import { useQueryClient } from '@tanstack/react-query'
 import { supabase, friendlyError } from '@/lib/supabase'
 import { can, type Permission } from '@/lib/permissions'
 import type { MemberRole, Organization, Profile } from '@/types/database'
+import { leaveErrorMessage, normalizeInvitations, pickCurrentOrg, type PendingInvitation } from './orgChoice'
+
+export type { PendingInvitation } from './orgChoice'
 
 export interface Membership {
   role: MemberRole
@@ -21,6 +24,13 @@ interface AuthState {
   userId: string | null
   can: (p: Permission) => boolean
   switchOrganization: (id: string) => void
+  /** Convites pendentes para o e-mail confirmado (exigem aceite explícito). */
+  invitations: PendingInvitation[]
+  /** Aceita o convite; devolve o id do escritório. */
+  acceptInvitation: (id: string) => Promise<string | null>
+  declineInvitation: (id: string) => Promise<void>
+  /** Sai do escritório (lança Error amigável, ex.: último administrador). */
+  leaveOrganization: (orgId: string) => Promise<void>
   refresh: () => Promise<void>
   signOut: () => Promise<void>
   error: string | null
@@ -34,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
+  const [invitations, setInvitations] = useState<PendingInvitation[]>([])
   const [currentOrgId, setCurrentOrgId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(ORG_KEY)
@@ -48,18 +59,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!s) {
       setProfile(null)
       setMemberships([])
+      setInvitations([])
       return
     }
     try {
-      // Aceita convites pendentes para o e-mail confirmado do usuário.
-      await supabase.rpc('accept_pending_invitations')
-      const [p, m] = await Promise.all([
+      // Convites NÃO são mais aceitos automaticamente: são listados para o usuário
+      // aceitar ou recusar (consentimento). Falha ao listar não impede o login.
+      const [p, m, inv] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', s.user.id).single(),
         supabase
           .from('organization_members')
           .select('role, organization:organizations(*)')
           .eq('user_id', s.user.id)
           .eq('active', true),
+        supabase.rpc('my_pending_invitations'),
       ])
       if (p.error) throw p.error
       if (m.error) throw m.error
@@ -67,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const list = ((m.data ?? []) as unknown as Membership[]).filter((x) => x.organization)
       list.sort((a, b) => a.organization.name.localeCompare(b.organization.name))
       setMemberships(list)
+      setInvitations(inv.error ? [] : normalizeInvitations(inv.data))
       setError(null)
     } catch (e) {
       setError(friendlyError(e))
@@ -97,10 +111,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [loadUserData, qc])
 
-  const current = useMemo(
-    () => memberships.find((m) => m.organization.id === currentOrgId) ?? memberships[0] ?? null,
-    [memberships, currentOrgId],
-  )
+  // Salvo no navegador; sem salvo e com vários escritórios → null (App mostra o seletor).
+  const current = useMemo(() => pickCurrentOrg(memberships, currentOrgId), [memberships, currentOrgId])
 
   const switchOrganization = useCallback(
     (id: string) => {
@@ -115,6 +127,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [qc],
   )
 
+  const acceptInvitation = useCallback(
+    async (id: string) => {
+      const { data, error: e } = await supabase.rpc('accept_invitation', { p_id: id })
+      if (e) throw new Error(friendlyError(e))
+      await loadUserData(session)
+      return typeof data === 'string' ? data : null
+    },
+    [loadUserData, session],
+  )
+
+  const declineInvitation = useCallback(async (id: string) => {
+    const { error: e } = await supabase.rpc('decline_invitation', { p_id: id })
+    if (e) throw new Error(friendlyError(e))
+    setInvitations((list) => list.filter((i) => i.id !== id))
+  }, [])
+
+  const leaveOrganization = useCallback(
+    async (orgId: string) => {
+      const { error: e } = await supabase.rpc('leave_organization', { p_org: orgId })
+      if (e) throw new Error(leaveErrorMessage(friendlyError(e)))
+      if (orgId === currentOrgId) {
+        setCurrentOrgId(null)
+        try {
+          localStorage.removeItem(ORG_KEY)
+        } catch {
+          /* armazenamento indisponível */
+        }
+      }
+      qc.clear()
+      await loadUserData(session)
+    },
+    [currentOrgId, loadUserData, qc, session],
+  )
+
   const value: AuthState = {
     session,
     loading,
@@ -125,6 +171,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: session?.user.id ?? null,
     can: (p) => can(current?.role, p),
     switchOrganization,
+    invitations,
+    acceptInvitation,
+    declineInvitation,
+    leaveOrganization,
     refresh: () => loadUserData(session),
     signOut: async () => {
       await supabase.auth.signOut()
