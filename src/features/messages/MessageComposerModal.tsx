@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, Copy, Info, Mail, MessageCircle, RotateCcw, Sparkles } from 'lucide-react'
 import { Badge, Button, ErrorState, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui'
 import { useOrg } from '@/contexts/AuthContext'
+import { aiNotConfiguredMessage } from '@/lib/aiStatus'
 import { useCategories, useMemberNames } from '@/hooks/useOrgData'
 import { formatCurrency, formatDate, formatPhone } from '@/lib/format'
 import { cn } from '@/lib/cn'
@@ -50,7 +51,7 @@ export function MessageComposerModal(props: MessageComposerModalProps) {
 const OPEN_STATUSES = new Set(['em_andamento', 'aguardando_cliente', 'suspensa'])
 
 function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageComposerModalProps) {
-  const { orgId, organization } = useOrg()
+  const { orgId, organization, role } = useOrg()
   const toast = useToast()
   const ctx = useComposeContext(clientId)
   const custom = useMessageTemplates()
@@ -312,7 +313,7 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
           </div>
           <p className="mt-1.5 text-[11.5px] text-ink-subtle">
             {aiUnavailable
-              ? 'Ajuste com IA indisponível: o provedor de IA não está configurado neste ambiente.'
+              ? aiNotConfiguredMessage(role === 'admin', 'Ajuste com IA')
               : 'A IA recebe apenas o modelo com as variáveis — sem nomes, valores ou datas do cliente.'}
             {dirty && !aiUnavailable && ' O ajuste parte do modelo e substitui suas edições manuais (é possível desfazer).'}
           </p>

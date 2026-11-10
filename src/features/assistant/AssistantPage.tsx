@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { AlertTriangle, PanelLeft, Plus, SendHorizontal, ShieldCheck, Sparkles, X } from 'lucide-react'
 import { Button, ConfirmDialog, ErrorState, Input, Modal, Spinner, useToast } from '@/components/ui'
 import { useOrg } from '@/contexts/AuthContext'
+import { aiNotConfiguredMessage } from '@/lib/aiStatus'
 import { qk } from '@/hooks/useOrgData'
 import { cn } from '@/lib/cn'
 import {
@@ -20,7 +21,8 @@ import { MessageBubble, ThinkingIndicator } from './MessageBubble'
 import { MAX_MESSAGE_CHARS, PRIVACY_NOTICE, SUGGESTIONS, containsPersonalData } from './constants'
 
 export function AssistantPage() {
-  const { orgId, userId } = useOrg()
+  const { orgId, userId, role } = useOrg()
+  const isAdmin = role === 'admin'
   const qc = useQueryClient()
   const toast = useToast()
 
@@ -188,10 +190,16 @@ export function AssistantPage() {
         {notConfigured && (
           <div role="alert" className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <span>
-              <strong className="font-semibold">Assistente não configurado — veja o README.</strong> Um administrador precisa definir a chave do
-              provedor de IA nos segredos da Edge Function <code className="font-mono text-[12px]">ai-assistant</code>.
-            </span>
+            {isAdmin ? (
+              <span>
+                <strong className="font-semibold">{aiNotConfiguredMessage(true)}</strong> A chave fica nos segredos da Edge Function{' '}
+                <code className="font-mono text-[12px]">ai-assistant</code>.
+              </span>
+            ) : (
+              <span>
+                <strong className="font-semibold">{aiNotConfiguredMessage(false)}</strong>
+              </span>
+            )}
           </div>
         )}
 
@@ -240,7 +248,7 @@ export function AssistantPage() {
             <div className="mx-auto mt-4 max-w-3xl">
               <div role="alert" className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <span className="flex-1">{sendError.message}</span>
+                <span className="flex-1">{sendError.kind === 'not_configured' ? aiNotConfiguredMessage(isAdmin) : sendError.message}</span>
                 <button onClick={() => setSendError(null)} className="text-red-500 hover:text-red-700" aria-label="Fechar erro">
                   <X className="size-3.5" />
                 </button>

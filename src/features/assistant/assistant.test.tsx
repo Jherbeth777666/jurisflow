@@ -65,7 +65,9 @@ describe('<Markdown>', () => {
 describe('mapAssistantError', () => {
   it('503 → não configurado; 429 → limite; 502 mantém a conversa', () => {
     expect(mapAssistantError(503, { code: 'not_configured' }).kind).toBe('not_configured')
-    expect(mapAssistantError(503, { code: 'not_configured' }).message).toBe('Assistente não configurado — veja o README.')
+    expect(mapAssistantError(503, { code: 'not_configured' }).message).toMatch(/indisponível.*administrador/)
+    // 503 sem 'not_configured' é indisponibilidade momentânea, não falta de configuração
+    expect(mapAssistantError(503, {}).kind).toBe('provider_busy')
     expect(mapAssistantError(503, { code: 'provider_busy' }).kind).toBe('provider_busy')
     expect(mapAssistantError(429, { error: 'Limite de 30 mensagens' })).toMatchObject({ kind: 'rate_limited', message: 'Limite de 30 mensagens' })
     expect(mapAssistantError(502, { conversation_id: 'c1' })).toMatchObject({ kind: 'provider', conversationId: 'c1' })

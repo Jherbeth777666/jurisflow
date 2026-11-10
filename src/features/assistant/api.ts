@@ -45,7 +45,11 @@ export function mapAssistantError(status: number, body: unknown): AssistantError
   }
   switch (status) {
     case 503:
-      return new AssistantError('not_configured', 'Assistente não configurado — veja o README.')
+      // 'not_configured': falta a chave do provedor (a tela adapta a mensagem ao papel).
+      // Outros 503: indisponibilidade momentânea.
+      return b.code === 'not_configured'
+        ? new AssistantError('not_configured', 'Assistente indisponível no momento. Avise o administrador do escritório.')
+        : new AssistantError('provider_busy', serverMsg ?? 'Assistente indisponível no momento. Tente novamente em instantes.')
     case 429:
       return new AssistantError('rate_limited', serverMsg ?? 'Limite de mensagens por hora atingido. Tente novamente mais tarde.')
     case 401:
