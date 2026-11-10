@@ -32,11 +32,30 @@ Write-Host "Node.js $(node -v) ok"
 
 # --- 2. Docker Desktop ---------------------------------------------------------
 Passo "Verificando Docker Desktop"
+foreach ($d in @("$env:ProgramFiles\Docker\Docker\resources\bin", "$env:LOCALAPPDATA\Programs\Docker\Docker\resources\bin")) {
+  if ((Test-Path $d) -and ($env:Path -notlike "*$d*")) { $env:Path = "$d;$env:Path" }
+}
 $dockerOk = $false
 try { docker info *> $null; $dockerOk = ($LASTEXITCODE -eq 0) } catch { $dockerOk = $false }
 if (-not $dockerOk) {
-  $exe = Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'
-  if (-not (Test-Path $exe)) { Falha "Docker Desktop nao encontrado. Instale em https://www.docker.com/products/docker-desktop/" }
+  # Procura o Docker Desktop em locais comuns e nos atalhos (instalacoes fora do padrao)
+  $cands = @(
+    (Join-Path $env:ProgramFiles 'Docker\Docker\Docker Desktop.exe'),
+    (Join-Path $env:ProgramW6432 'Docker\Docker\Docker Desktop.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Programs\Docker\Docker\Docker Desktop.exe'),
+    (Join-Path $env:LOCALAPPDATA 'Docker\Docker Desktop.exe')
+  )
+  $sh = New-Object -ComObject WScript.Shell
+  $lnks = @(
+    (Join-Path ([Environment]::GetFolderPath('Desktop')) 'Docker Desktop.lnk'),
+    (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Docker Desktop.lnk'),
+    (Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Docker Desktop.lnk')
+  )
+  foreach ($l in $lnks) { if ($l -and (Test-Path $l)) { $cands += $sh.CreateShortcut($l).TargetPath } }
+  $exe = $cands | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+  if (-not $exe) { Falha "Docker Desktop nao encontrado. Abra o Docker Desktop manualmente, espere ficar 'Running' e rode novamente." }
+  $bin = Join-Path (Split-Path $exe) 'resources\bin'
+  if (Test-Path $bin) { $env:Path = "$bin;$env:Path" }
   Write-Host "Abrindo o Docker Desktop (pode levar 1-2 minutos)..."
   Start-Process $exe
   for ($i = 0; $i -lt 90; $i++) {
