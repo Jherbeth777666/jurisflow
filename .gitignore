@@ -9,3 +9,8 @@ supabase/.temp
 supabase/.branches
 supabase/functions/.env
 .netlify
+
+# Equipe de agentes
+.ai_workspace/
+# Logs brutos dos agentes antigos (caminhos locais, saída de terminal)
+docs/agentes/resultados/*.txt

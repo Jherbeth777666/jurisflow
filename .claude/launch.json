@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "jurisflow",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "local"],
+      "port": 5173
+    }
+  ]
+}

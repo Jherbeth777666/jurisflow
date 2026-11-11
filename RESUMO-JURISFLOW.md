@@ -47,10 +47,10 @@ Substitui Excel, Trello e controles no WhatsApp. **MVP sem armazenamento de docu
 - Build de produção e checagem das funções em Deno passando.
 
 ### Rodando localmente (Windows)
-- `INICIAR-JURISFLOW.bat`: abre o Docker, sobe o Supabase local, aplica o banco, cria um escritório de demonstração (25 clientes, 40 demandas, 60 tarefas, 12 contratos fictícios) e abre o site em http://localhost:5173.
-- `CONFIGURAR-IA.bat`: pede a chave do provedor de IA e liga o assistente.
-- `PUBLICAR.bat`: publica no Supabase na nuvem + Netlify (pede os logins do usuário).
-- `PARAR-JURISFLOW.bat`: desliga mantendo os dados.
+- `npm run local` (ou pedir ao Claude): abre o Docker, sobe o Supabase local, aplica o banco, cria um escritório de demonstração (25 clientes, 40 demandas, 60 tarefas, 12 contratos fictícios) e sobe o site em http://localhost:5173.
+- `scripts/configurar-ia.ps1`: pede a chave do provedor de IA e liga o assistente.
+- `scripts/publicar.ps1`: publica no Supabase na nuvem + Netlify (pede os logins do usuário).
+- `npm run local:parar`: desliga mantendo os dados.
 
 ## 4. Limitações atuais
 - A chamada de ferramentas da IA foi testada com respostas simuladas, ainda não com as APIs reais.

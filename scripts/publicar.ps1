@@ -81,7 +81,7 @@ if (Test-Path $fnEnv) {
   npx @sb secrets set --env-file $tmp --project-ref $ref
   Remove-Item $tmp -Force
 } else {
-  Write-Host "[info] Sem chave de IA configurada (rode CONFIGURAR-IA.bat antes, se quiser o assistente)." -ForegroundColor Yellow
+  Write-Host "[info] Sem chave de IA configurada (rode scripts\configurar-ia.ps1 antes, se quiser o assistente)." -ForegroundColor Yellow
   npx @sb secrets set "ALLOWED_ORIGINS=$siteUrl" --project-ref $ref
 }
 foreach ($f in 'ai-assistant', 'ai-import', 'ai-compose') {
