@@ -385,6 +385,13 @@ begin
   insert into payments (organization_id, contract_id, amount) values (o, v_con, 400);
   insert into contracts (organization_id, client_id, total_amount, status) values (o, v_cli2, 999, 'cancelado');
 
+  -- próximas ações: 1 vencida (Aberta 1), 1 hoje (Aberta 2);
+  -- concluída e cancelada com data vencida NÃO contam.
+  update demands set next_action = 'Prazo vencido', next_action_date = current_date - 2 where title = 'Aberta 1';
+  update demands set next_action = 'Ação hoje',     next_action_date = current_date     where title = 'Aberta 2';
+  update demands set next_action = 'Feita vencida', next_action_date = current_date - 5 where title = 'Concluída';
+  update demands set next_action = 'Cancelada',     next_action_date = current_date - 5 where title = 'Cancelada';
+
   m := public.dashboard_metrics(o);
   perform tstb.eq((m->>'clients_total')::int, 3, 'dashboard: clientes');
   perform tstb.eq((m->>'demands_in_progress')::int, 3, 'dashboard: demandas em andamento');
@@ -392,6 +399,8 @@ begin
   perform tstb.eq((m->>'demands_waiting_docs')::int, 1, 'dashboard: aguardando documentação');
   perform tstb.eq((m->>'tasks_pending')::int, 6, 'dashboard: tarefas pendentes');
   perform tstb.eq((m->>'tasks_overdue')::int, 2, 'dashboard: tarefas vencidas');
+  perform tstb.eq((m->>'next_actions_overdue')::int, 1, 'dashboard: próximas ações vencidas (concluída/cancelada não contam)');
+  perform tstb.eq((m->>'next_actions_today')::int, 1, 'dashboard: próximas ações de hoje');
   perform tstb.eq((m->>'deadlines_upcoming')::int, 2, 'dashboard: prazos nos próximos 7 dias');
   perform tstb.eq((m->>'fees_expected')::numeric, 1000::numeric, 'dashboard: honorários previstos (ativos+quitados)');
   perform tstb.eq((m->>'fees_received')::numeric, 400::numeric, 'dashboard: honorários recebidos');
