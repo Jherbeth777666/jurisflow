@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase, friendlyError } from '@/lib/supabase'
 import { Button, Input, InlineError } from '@/components/ui'
+import { validatePassword } from '@/features/settings/logic'
 import { AuthShell } from './AuthShell'
 
 export function ForgotPasswordPage() {
@@ -41,13 +42,15 @@ export function ForgotPasswordPage() {
 
 export function ResetPasswordPage() {
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    if (password.length < 8) return setError('A senha deve ter pelo menos 8 caracteres.')
+    const invalid = validatePassword(password, confirm)
+    if (invalid) return setError(invalid)
     setLoading(true)
     const { error } = await supabase.auth.updateUser({ password })
     setLoading(false)
@@ -64,6 +67,7 @@ export function ResetPasswordPage() {
       ) : (
         <form onSubmit={submit} className="space-y-4">
           <Input label="Nova senha" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Input label="Confirmar nova senha" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           <InlineError message={error} />
           <Button type="submit" variant="primary" className="w-full justify-center" loading={loading}>
             Salvar senha
