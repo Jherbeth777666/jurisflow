@@ -88,7 +88,11 @@ Deno.serve(async (req: Request) => {
   const { organizationId, template, tone } = parsed.value
 
   // Modelos não devem conter dados pessoais digitados — use variáveis.
-  if (redactPII(template).removed.length) {
+  // Dados de saúde/previdenciários (CID, NB, NIT) são redigidos antes do envio.
+  const identityLeak = redactPII(template).removed.some(
+    (kind) => kind === 'email' || kind === 'cnpj' || kind === 'cpf' || kind === 'telefone',
+  )
+  if (identityLeak) {
     return fail(
       400,
       'pii_in_template',

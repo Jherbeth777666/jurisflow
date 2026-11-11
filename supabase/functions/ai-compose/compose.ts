@@ -4,6 +4,9 @@
 // as variáveis {{...}} ainda NÃO substituídas + a instrução de tom. Nomes, valores
 // e datas reais são preenchidos depois, no navegador. Se o modelo contiver
 // CPF/telefone/e-mail digitados, a requisição é recusada (não há o que "limpar").
+// Dados de saúde/previdenciários (CID, NB, NIT) são redigidos antes do envio.
+
+import { redactPII } from '../ai-assistant/redact.ts'
 
 export const MAX_TEMPLATE_CHARS = 2000
 export const MAX_OUTPUT_CHARS = 2400
@@ -77,7 +80,7 @@ export function buildComposeSystemPrompt(): string {
 }
 
 export function buildComposeUserMessage(template: string, tone: ComposeTone): string {
-  return `${TONE_INSTRUCTIONS[tone]}\n\nModelo:\n<<<\n${template}\n>>>`
+  return `${TONE_INSTRUCTIONS[tone]}\n\nModelo:\n<<<\n${redactPII(template).text}\n>>>`
 }
 
 /** Remove cercas de código/aspas/delimitadores que alguns modelos acrescentam. */

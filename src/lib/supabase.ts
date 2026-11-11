@@ -48,6 +48,18 @@ export function unwrap<T>(res: { data: T | null; error: unknown }): T {
   return res.data as T
 }
 
+/**
+ * Erro de acesso negado: vínculo removido/desativado (42501), sessão inválida
+ * (PGRST301) ou as mensagens amigáveis correspondentes.
+ */
+export function isAccessDeniedError(error: unknown): boolean {
+  if (!error) return false
+  const e = error as { code?: unknown; message?: unknown }
+  if (e.code === '42501' || e.code === 'PGRST301') return true
+  const msg = typeof e.message === 'string' ? e.message : String(error)
+  return msg.includes('Você não tem permissão') || msg.includes('Sem acesso a este escritório')
+}
+
 /** Tamanho de página do PostgREST (padrão max_rows do Supabase). */
 export const PAGE_SIZE = 1000
 
