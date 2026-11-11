@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { Client, Contract, Demand, Installment, MemberWithProfile, Payment, Task } from '@/types/database'
+import type { DemandChecklistItem } from '@/features/checklist/types'
 import {
   ROLE_CAPABILITIES,
   activeAdminCount,
@@ -122,6 +123,71 @@ describe('portabilidade', () => {
     expect(out.contratos[0].pagamentos).toHaveLength(1)
     expect(out.contratos[1].parcelas.map((i) => i.id)).toEqual(['i3'])
     expect(out.contratos[1].pagamentos).toHaveLength(0)
+  })
+
+  const checklistItem = (id: string, demand_id: string, position: number): DemandChecklistItem =>
+    ({
+      id,
+      organization_id: 'org',
+      demand_id,
+      label: 'Documento ' + id,
+      done: false,
+      done_at: null,
+      done_by: null,
+      position,
+      created_at: '2026-11-09T12:00:00.000Z',
+      updated_at: '2026-11-09T12:00:00.000Z',
+    }) as DemandChecklistItem
+
+  const demand = (id: string) => ({ id, organization_id: 'org', client_id: 'c1' }) as Demand
+
+  it('inclui o checklist dentro de cada demanda, ordenado por position e sem campos internos', () => {
+    const out = buildClientExport({
+      organizationName: 'Escritório X',
+      client,
+      demands: [demand('d1'), demand('d2'), demand('d3')],
+      tasks: [],
+      contracts: [],
+      installments: [],
+      payments: [],
+      // d1 recebido fora de ordem: positions 2, 0, 1 → ordenado 0, 1, 2
+      // d2 recebido fora de ordem: positions 5, 4 → ordenado 4, 5
+      checklistItems: [
+        checklistItem('i-c', 'd1', 2),
+        checklistItem('i-a', 'd1', 0),
+        checklistItem('i-b', 'd1', 1),
+        checklistItem('i-d', 'd2', 5),
+        checklistItem('i-e', 'd2', 4),
+        checklistItem('i-fora', 'd-fora-do-cliente', 0),
+      ],
+      generatedAt: '2026-11-09T12:00:00.000Z',
+    })
+    expect(out.versao).toBe(2)
+    expect(out.demandas.map((d) => d.id)).toEqual(['d1', 'd2', 'd3'])
+    expect(out.demandas[0].checklist.map((i) => i.id)).toEqual(['i-a', 'i-b', 'i-c'])
+    expect(out.demandas[0].checklist.map((i) => i.position)).toEqual([0, 1, 2])
+    expect(out.demandas[1].checklist.map((i) => i.id)).toEqual(['i-e', 'i-d'])
+    expect(out.demandas[2].checklist).toEqual([]) // demanda sem itens
+    // item de demanda que não pertence ao cliente não vaza para nenhuma demanda
+    expect(out.demandas.some((d) => d.checklist.some((i) => i.id === 'i-fora'))).toBe(false)
+    expect(out.demandas[0].checklist[0]).not.toHaveProperty('organization_id')
+    expect(out.demandas[0].checklist[0]).not.toHaveProperty('created_by')
+    expect(out.observacao).toMatch(/checklist de documentos/i)
+  })
+
+  it('sem checklistItems informado continua funcionando com checklist vazio', () => {
+    const out = buildClientExport({
+      organizationName: 'Escritório X',
+      client,
+      demands: [demand('d1'), demand('d2')],
+      tasks: [],
+      contracts: [],
+      installments: [],
+      payments: [],
+      generatedAt: '2026-11-09T12:00:00.000Z',
+    })
+    expect(out.versao).toBe(2)
+    expect(out.demandas.every((d) => Array.isArray(d.checklist) && d.checklist.length === 0)).toBe(true)
   })
 
   it('nome de arquivo seguro', () => {
