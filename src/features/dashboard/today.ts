@@ -1,8 +1,11 @@
 // "O que fazer hoje": junta tarefas e próximas ações abertas com prazo até hoje.
 import type { Demand, Task } from '@/types/database'
 
-export type TodayTask = Pick<Task, 'id' | 'title' | 'due_date' | 'status' | 'assignee_id'>
-export type TodayDemand = Pick<Demand, 'id' | 'next_action' | 'next_action_date' | 'status' | 'responsible_id'>
+export type TodayTask = Pick<Task, 'id' | 'title' | 'due_date' | 'status' | 'assignee_id' | 'client_id' | 'demand_id'>
+export type TodayDemand = Pick<
+  Demand,
+  'id' | 'title' | 'next_action' | 'next_action_date' | 'status' | 'responsible_id' | 'client_id'
+>
 
 export type TodayItemKind = 'task' | 'next_action'
 
@@ -14,6 +17,8 @@ export interface TodayItem {
   overdue: boolean
   href: string
   assigneeId: string | null
+  clientId: string | null
+  demandId: string | null
 }
 
 const OPEN_TASK_STATUSES = new Set<Task['status']>(['pendente', 'em_andamento'])
@@ -40,6 +45,8 @@ export function buildTodayItems({
       overdue: t.due_date < today,
       href: '/tarefas',
       assigneeId: t.assignee_id,
+      clientId: t.client_id,
+      demandId: t.demand_id,
     })
   }
 
@@ -53,6 +60,8 @@ export function buildTodayItems({
       overdue: d.next_action_date < today,
       href: `/demandas/${d.id}`,
       assigneeId: d.responsible_id,
+      clientId: d.client_id,
+      demandId: d.id,
     })
   }
 

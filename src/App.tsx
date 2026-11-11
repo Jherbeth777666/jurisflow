@@ -17,6 +17,7 @@ const DemandsPage = lazy(() => import('@/features/demands/DemandsPage').then((x)
 const DemandDetailPage = lazy(() => import('@/features/demands/DemandDetailPage').then((x) => ({ default: x.DemandDetailPage })))
 const WorkflowsPage = lazy(() => import('@/features/workflows/WorkflowsPage').then((x) => ({ default: x.WorkflowsPage })))
 const TasksPage = lazy(() => import('@/features/tasks/TasksPage').then((x) => ({ default: x.TasksPage })))
+const AgendaPage = lazy(() => import('@/features/agenda/AgendaPage').then((x) => ({ default: x.AgendaPage })))
 const ContractsPage = lazy(() => import('@/features/contracts/ContractsPage').then((x) => ({ default: x.ContractsPage })))
 const ContractDetailPage = lazy(() => import('@/features/contracts/ContractDetailPage').then((x) => ({ default: x.ContractDetailPage })))
 const AssistantPage = lazy(() => import('@/features/assistant/AssistantPage').then((x) => ({ default: x.AssistantPage })))
@@ -79,6 +80,7 @@ export default function App() {
         <Route path="demandas/:id" element={<DemandDetailPage />} />
         <Route path="fluxos" element={<WorkflowsPage />} />
         <Route path="tarefas" element={<TasksPage />} />
+        <Route path="agenda" element={<AgendaPage />} />
         <Route path="contratos" element={<ContractsPage />} />
         <Route path="contratos/:id" element={<ContractDetailPage />} />
         <Route path="assistente" element={<AssistantPage />} />

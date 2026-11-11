@@ -11,6 +11,7 @@ import { cn } from '@/lib/cn'
 import { Card, CardHeader, ErrorState, Skeleton } from '@/components/ui'
 import { OPEN_STATUSES as DEMAND_OPEN_STATUSES, STALLED_DAYS } from '@/features/demands/logic'
 import { OPEN_STATUSES as TASK_OPEN_STATUSES, useToggleTask } from '@/features/tasks/api'
+import { fetchClientNames } from '@/features/contracts/api'
 import { buildTodayItems, type TodayDemand, type TodayItem, type TodayTask } from './today'
 
 type Scope = 'mine' | 'all'
@@ -51,7 +52,7 @@ export function TodayPanel() {
       unwrap(
         await supabase
           .from('tasks')
-          .select('id, title, due_date, status, assignee_id')
+          .select('id, title, due_date, status, assignee_id, client_id, demand_id')
           .eq('organization_id', orgId)
           .in('status', TASK_OPEN_STATUSES)
           .lte('due_date', today)
@@ -66,7 +67,7 @@ export function TodayPanel() {
       unwrap(
         await supabase
           .from('demands')
-          .select('id, next_action, next_action_date, status, responsible_id')
+          .select('id, title, next_action, next_action_date, status, responsible_id, client_id')
           .eq('organization_id', orgId)
           .in('status', DEMAND_OPEN_STATUSES)
           .lte('next_action_date', today)
@@ -95,11 +96,52 @@ export function TodayPanel() {
     return scope === 'mine' ? all.filter((i) => i.assigneeId === userId) : all
   }, [tasksQ.data, demandsQ.data, scope, userId, today])
 
+  const demandIds = useMemo(
+    () => [...new Set(items.map((i) => i.demandId).filter((id): id is string => !!id))],
+    [items],
+  )
+  const clientIds = useMemo(
+    () => [...new Set(items.map((i) => i.clientId).filter((id): id is string => !!id))],
+    [items],
+  )
+
+  // Nome do cliente e título da demanda: sem isso vários itens ficam idênticos.
+  const contextQ = useQuery({
+    queryKey: [...qk.dashboard(orgId), 'today-context', today, demandIds.join(','), clientIds.join(',')],
+    enabled: items.length > 0,
+    queryFn: async () => {
+      const demands = demandIds.length
+        ? (unwrap(
+            await supabase
+              .from('demands')
+              .select('id, title, client_id')
+              .eq('organization_id', orgId)
+              .in('id', demandIds),
+          ) as { id: string; title: string; client_id: string | null }[])
+        : []
+      const allClientIds = [...new Set([...clientIds, ...demands.map((d) => d.client_id).filter((id): id is string => !!id)])]
+      const clients = allClientIds.length ? await fetchClientNames(orgId, allClientIds) : new Map<string, string>()
+      return {
+        demands: new Map(demands.map((d) => [d.id, d])),
+        clients,
+      }
+    },
+  })
+
   const overdueCount = items.filter((i) => i.overdue).length
   const todayCount = items.length - overdueCount
   const stalled = stalledQ.data ?? 0
+  const visibleItems = items.slice(0, 8)
+  const moreHref = `/agenda?v=${overdueCount > 0 ? 'atrasados' : 'hoje'}`
 
-  const loading = tasksQ.isLoading || demandsQ.isLoading
+  function contextFor(item: TodayItem): string {
+    const demand = item.demandId ? contextQ.data?.demands.get(item.demandId) : null
+    const clientId = item.clientId ?? demand?.client_id ?? null
+    const clientName = clientId ? contextQ.data?.clients.get(clientId) : null
+    return [clientName, demand?.title].filter(Boolean).join(' · ')
+  }
+
+  const loading = tasksQ.isLoading || demandsQ.isLoading || (items.length > 0 && contextQ.isLoading)
   const error = (tasksQ.error ?? demandsQ.error) as Error | null
 
   function changeScope(next: Scope) {
@@ -162,7 +204,7 @@ export function TodayPanel() {
         </div>
       ) : (
         <ul className="divide-y divide-line">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <li
               key={`${item.kind}-${item.id}`}
               className={cn(
@@ -178,6 +220,7 @@ export function TodayPanel() {
                 ) : (
                   <span className="block truncate text-[13.5px] font-medium text-ink">{item.title}</span>
                 )}
+                <span className="mt-0.5 block truncate text-[12px] text-ink-subtle">{contextFor(item)}</span>
                 <span
                   className={cn(
                     'mt-0.5 block text-[12px] tabular-nums',
@@ -200,6 +243,13 @@ export function TodayPanel() {
             </li>
           ))}
         </ul>
+      )}
+      {!loading && !error && items.length > 8 && (
+        <div className="border-t border-line px-4 py-2 text-center">
+          <Link to={moreHref} className="text-[12.5px] font-medium text-accent-700 hover:underline">
+            Ver todos ({items.length})
+          </Link>
+        </div>
       )}
     </Card>
   )
