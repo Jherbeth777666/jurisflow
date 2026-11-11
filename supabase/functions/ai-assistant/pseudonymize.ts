@@ -66,6 +66,15 @@ export class Pseudonymizer {
     return entry.token
   }
 
+  /**
+   * Pré-atribui tokens a todos os nomes do dicionário. Assim o modelo pode
+   * referenciar alguém por código (ex.: propostas da IA) mesmo sem o nome ter
+   * aparecido no texto desta requisição; `restore` consegue devolver o nome real.
+   */
+  primeTokens(): void {
+    for (const entry of [...this.entries.values()]) this.tokenFor(entry.real, entry.kind)
+  }
+
   private regex(): RegExp | null {
     if (this.pattern) return this.pattern
     const names = [...this.entries.keys()].filter((k) => k.length >= MIN_DICTIONARY_NAME)

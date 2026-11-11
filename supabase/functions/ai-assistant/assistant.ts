@@ -5,6 +5,7 @@
 //  * Só ferramentas da whitelist são executadas; p_org vem da requisição.
 //  * No máximo `maxRounds` rodadas de ferramentas; depois força resposta em texto.
 import { Pseudonymizer } from './pseudonymize.ts'
+import { MAX_PROPOSALS, PROPOSAL_SPECS, isProposalTool, parseProposal, type Proposal } from './proposals.ts'
 import { redactDeep } from './redact.ts'
 import { TOOL_SPECS, executeTool } from './tools.ts'
 import type { ChatMessage, LLMProvider, RpcExecutor } from './types.ts'
@@ -35,6 +36,7 @@ export interface RunAssistantResult {
   text: string
   toolsUsed: string[]
   rounds: number
+  proposals: Proposal[]
 }
 
 /** Remove mensagens iniciais do assistente e une mensagens consecutivas do mesmo papel. */
@@ -60,6 +62,10 @@ export async function runAssistant(input: RunAssistantInput): Promise<RunAssista
   const { provider, system, orgId, rpc, pseudonymizer: p } = input
   const maxRounds = input.maxRounds ?? MAX_TOOL_ROUNDS
 
+  // Códigos estáveis para todos os nomes conhecidos: o modelo pode propor ações
+  // citando "Cliente C3"/"Responsável R1" mesmo sem o nome no texto desta rodada.
+  p.primeTokens()
+
   const messages: ChatMessage[] = normalizeHistory([...input.history, { role: 'user', content: input.userMessage }]).map(
     (m) => ({ role: m.role, content: p.pseudonymizeText(m.content) }),
   )
@@ -69,12 +75,13 @@ export async function runAssistant(input: RunAssistantInput): Promise<RunAssista
   }
 
   const toolsUsed = new Set<string>()
+  const proposals: Proposal[] = []
   let finalText = ''
   let rounds = 0
 
   for (let round = 0; ; round++) {
     const toolChoice = round < maxRounds ? 'auto' : 'none'
-    const resp = await provider.complete({ system, messages, tools: TOOL_SPECS, toolChoice })
+    const resp = await provider.complete({ system, messages, tools: [...TOOL_SPECS, ...PROPOSAL_SPECS], toolChoice })
 
     if (toolChoice === 'none' || resp.toolCalls.length === 0) {
       finalText = resp.text
@@ -95,6 +102,40 @@ export async function runAssistant(input: RunAssistantInput): Promise<RunAssista
         })
         continue
       }
+
+      // Ferramenta de proposta: NUNCA executa RPC. Só valida e guarda para o
+      // usuário confirmar na tela; os nomes reais são restaurados aqui.
+      if (isProposalTool(call.name)) {
+        let proposal: Proposal | null = null
+        let error: string | null = null
+        try {
+          proposal = parseProposal(call.name, call.args, (s) => p.restore(s))
+        } catch (e) {
+          error = e instanceof Error ? e.message : 'Argumentos inválidos'
+        }
+        if (error === null && proposals.length >= MAX_PROPOSALS) {
+          error = `Limite de propostas por resposta atingido (${MAX_PROPOSALS}).`
+        }
+        if (error === null && proposal) {
+          proposals.push(proposal)
+          messages.push({
+            role: 'tool',
+            toolCallId: call.id,
+            name: call.name,
+            content: JSON.stringify({ status: 'proposta_registrada', aguardando_confirmacao_do_usuario: true }),
+          })
+        } else {
+          messages.push({
+            role: 'tool',
+            toolCallId: call.id,
+            name: call.name,
+            isError: true,
+            content: JSON.stringify({ error }),
+          })
+        }
+        continue
+      }
+
       const outcome = await executeTool(call.name, call.args, orgId, rpc)
       if (outcome.ok) {
         toolsUsed.add(outcome.name)
@@ -114,5 +155,5 @@ export async function runAssistant(input: RunAssistantInput): Promise<RunAssista
   let text = p.restore(finalText.trim())
   if (!text) text = 'Não consegui gerar uma resposta agora. Tente reformular a pergunta.'
   if (text.length > MAX_ANSWER_CHARS) text = `${text.slice(0, MAX_ANSWER_CHARS)}\n\n…(resposta truncada)`
-  return { text, toolsUsed: [...toolsUsed], rounds }
+  return { text, toolsUsed: [...toolsUsed], rounds, proposals }
 }

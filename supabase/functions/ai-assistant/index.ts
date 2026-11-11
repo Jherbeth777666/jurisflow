@@ -199,21 +199,28 @@ Deno.serve(async (req: Request) => {
     })
   }
 
-  const { error: insAsstError } = await supabase.from('ai_messages').insert({
-    organization_id: orgId,
-    conversation_id: conversationId,
-    user_id: userId,
-    role: 'assistant',
-    content: result.text,
-    tools_used: result.toolsUsed,
-  })
+  const { data: savedMessage, error: insAsstError } = await supabase
+    .from('ai_messages')
+    .insert({
+      organization_id: orgId,
+      conversation_id: conversationId,
+      user_id: userId,
+      role: 'assistant',
+      content: result.text,
+      tools_used: result.toolsUsed,
+      proposals: result.proposals.length ? result.proposals : null,
+    })
+    .select('id')
+    .single()
   if (insAsstError) console.error('[ai-assistant] falha ao salvar resposta')
   await supabase.from('ai_conversations').update({ updated_at: new Date().toISOString() }).eq('id', conversationId)
 
   return json(200, {
     conversation_id: conversationId,
+    message_id: savedMessage?.id ?? null,
     message: result.text,
     tools_used: result.toolsUsed,
+    proposals: result.proposals,
     redacted: redaction.removed,
   })
 })
