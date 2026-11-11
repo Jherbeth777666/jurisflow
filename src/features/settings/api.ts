@@ -1,6 +1,7 @@
 // Consultas e mutações do módulo de configurações.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase, unwrap, fetchAllRows } from '@/lib/supabase'
+import { downloadBlob } from '@/lib/download'
 import { qk } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
 import type {
@@ -209,13 +210,5 @@ export async function logClientExport(orgId: string, clientId: string, rowCount:
 }
 
 export function downloadJSON(data: unknown, fileName: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = fileName
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(fileName, JSON.stringify(data, null, 2), 'application/json;charset=utf-8')
 }

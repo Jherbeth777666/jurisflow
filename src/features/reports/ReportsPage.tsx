@@ -4,6 +4,7 @@ import { Download, Printer } from 'lucide-react'
 import { formatCurrency, formatDate, formatNumber, todayISO } from '@/lib/format'
 import { CONTRACT_TYPE, PAYMENT_METHOD } from '@/lib/constants'
 import { cn } from '@/lib/cn'
+import { downloadBlob } from '@/lib/download'
 import { useOrg } from '@/contexts/AuthContext'
 import { useCategories, useMemberNames } from '@/hooks/useOrgData'
 import {
@@ -58,18 +59,6 @@ const PRINT_CSS = `
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 `
-
-function downloadCSV(filename: string, headers: string[], rows: CsvCell[][]) {
-  const blob = new Blob([toCSV(headers, rows)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 
 export function ReportsPage() {
   const { organization } = useOrg()
@@ -135,7 +124,7 @@ export function ReportsPage() {
   const periodText = `${formatDate(period.from)} a ${formatDate(period.to)}`
   const fileSuffix = `${period.from}_a_${period.to}`
   const exportCSV = (title: string, headers: string[], rows: CsvCell[][], withPeriod = true) => {
-    downloadCSV(`jurisflow-${slugify(title)}${withPeriod ? `-${fileSuffix}` : `-${today}`}.csv`, headers, rows)
+    downloadBlob(`jurisflow-${slugify(title)}${withPeriod ? `-${fileSuffix}` : `-${today}`}.csv`, toCSV(headers, rows), 'text/csv;charset=utf-8')
     toast.show('Arquivo CSV gerado.')
   }
 

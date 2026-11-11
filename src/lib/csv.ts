@@ -7,6 +7,8 @@
 // Escrita: BOM UTF-8 + ';' (o Excel em PT-BR abre direto), aspas quando
 // necessário e proteção contra CSV/formula injection (OWASP).
 
+import { downloadBlob } from './download'
+
 export type CSVDelimiter = ';' | ',' | '\t'
 export type CSVEncoding = 'utf-8' | 'windows-1252'
 
@@ -175,14 +177,5 @@ export function csvFilename(name: string): string {
 
 /** Gera e baixa um CSV no navegador (nada é enviado a servidor). */
 export function downloadCSV(nome: string, linhas: CSVValue[][]): void {
-  const blob = new Blob([toCSV(linhas)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = csvFilename(nome)
-  a.rel = 'noopener'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(csvFilename(nome), toCSV(linhas), 'text/csv;charset=utf-8')
 }

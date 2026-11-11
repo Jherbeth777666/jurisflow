@@ -5,9 +5,12 @@
 // "Incluir dados pessoais" após ler o aviso de responsabilidade.
 // Auditoria: após gerar o CSV, registra a exportação via RPC log_export (activity_logs).
 // Falha no registro não impede o download (apenas console.warn).
+//
+// Dados: recebe `rows` prontos ou `loadRows` (busca sob demanda, só ao confirmar a
+// exportação — evita carregar tudo assim que a página monta).
 import { useEffect, useRef, useState } from 'react'
 import { ChevronDown, Download, ShieldAlert } from 'lucide-react'
-import { Button, Checkbox, Modal } from '@/components/ui'
+import { Button, Checkbox, Modal, useToast } from '@/components/ui'
 import { useOrg } from '@/contexts/AuthContext'
 import { downloadCSV, type CSVValue } from '@/lib/csv'
 import { supabase } from '@/lib/supabase'
@@ -33,25 +36,35 @@ export function buildExportRows<T>(rows: T[], columns: ExportColumn<T>[], includ
   ]
 }
 
-interface Props<T> {
+interface BaseProps<T> {
   filename: string
   /** recurso para o log de auditoria (^[a-z_]{2,40}$), ex.: 'clients', 'demands', 'data_quality' */
   resource: string
-  rows: T[]
   columns: ExportColumn<T>[]
   allowSensitive?: boolean
   label?: string
   size?: 'sm' | 'md'
 }
 
-export function ExportButton<T>({ filename, resource, rows, columns, allowSensitive = false, label = 'Exportar', size = 'sm' }: Props<T>) {
+type Props<T> = BaseProps<T> & (
+  | { rows: T[]; loadRows?: never }
+  | { loadRows: () => Promise<T[]>; rows?: never }
+)
+
+export function ExportButton<T>(props: Props<T>) {
+  const { filename, resource, columns, allowSensitive = false, label = 'Exportar', size = 'sm' } = props
+  const loadRows = props.loadRows
+  const rows = props.rows
   const { role, orgId } = useOrg()
+  const toast = useToast()
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [include, setInclude] = useState(false)
+  const [loading, setLoading] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
   const hasSensitive = columns.some(isSensitiveColumn)
   const canSensitive = allowSensitive && role === 'admin' && hasSensitive
+  const sensitiveNote = hasSensitive && !canSensitive
 
   useEffect(() => {
     if (!open) return
@@ -65,38 +78,64 @@ export function ExportButton<T>({ filename, resource, rows, columns, allowSensit
     }
   }, [open])
 
-  const exportNow = (withSensitive: boolean) => {
+  const exportNow = async (withSensitive: boolean) => {
     const sensitive = withSensitive && hasSensitive
-    downloadCSV(filename, buildExportRows(rows, columns, sensitive))
-    void supabase
-      .rpc('log_export', { p_org: orgId, p_resource: resource, p_row_count: rows.length, p_sensitive: sensitive })
-      .then(({ error }) => {
-        if (error) console.warn('[export] não foi possível registrar a exportação:', error.message)
-      })
     setOpen(false)
     setConfirm(false)
     setInclude(false)
+
+    let data = rows ?? []
+    if (loadRows) {
+      setLoading(true)
+      try {
+        data = await loadRows()
+      } catch (err) {
+        toast.show(err instanceof Error ? err.message : String(err), 'error')
+        return
+      } finally {
+        setLoading(false)
+      }
+      if (!data.length) {
+        toast.show('Nada para exportar.', 'error')
+        return
+      }
+    }
+
+    downloadCSV(filename, buildExportRows(data, columns, sensitive))
+    void supabase
+      .rpc('log_export', { p_org: orgId, p_resource: resource, p_row_count: data.length, p_sensitive: sensitive })
+      .then(({ error }) => {
+        if (error) console.warn('[export] não foi possível registrar a exportação:', error.message)
+      })
   }
 
   const onExportClick = () => {
     if (canSensitive) {
       setOpen(false)
       setConfirm(true)
-    } else exportNow(false)
+    } else void exportNow(false)
   }
+
+  const menuHint = loadRows
+    ? sensitiveNote
+      ? 'sem dados pessoais'
+      : ''
+    : `${(rows?.length ?? 0).toLocaleString('pt-BR')} linha(s)${sensitiveNote ? ' · sem dados pessoais' : ''}`
 
   return (
     <div ref={wrapRef} className="relative">
       <Button
         size={size}
         icon={<Download className="size-3.5" />}
-        disabled={!rows.length}
+        loading={loading}
+        disabled={loading || (!loadRows && !rows?.length)}
+        aria-busy={loading || undefined}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
       >
-        {label}
-        <ChevronDown className="size-3.5 opacity-60" />
+        {loading ? 'Preparando…' : label}
+        {!loading && <ChevronDown className="size-3.5 opacity-60" />}
       </Button>
       {open && (
         <div role="menu" className="absolute right-0 z-30 mt-1 w-56 rounded-lg bg-surface p-1 shadow-[var(--shadow-pop)]">
@@ -107,9 +146,7 @@ export function ExportButton<T>({ filename, resource, rows, columns, allowSensit
             className="flex w-full flex-col items-start rounded-md px-2.5 py-2 text-left text-[13px] text-ink hover:bg-navy-50 focus:bg-navy-50 focus:outline-none"
           >
             Exportar CSV
-            <span className="text-[11.5px] text-ink-subtle">
-              {rows.length.toLocaleString('pt-BR')} linha(s){hasSensitive && !canSensitive ? ' · sem dados pessoais' : ''}
-            </span>
+            {menuHint && <span className="text-[11.5px] text-ink-subtle">{menuHint}</span>}
           </button>
         </div>
       )}
