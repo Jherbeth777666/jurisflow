@@ -43,6 +43,7 @@ import { fetchClientNames } from '@/features/contracts/api'
 import { ChartTooltip, Legend } from './charts'
 import { axisProps, CHART, compactCurrency, STATUS_COLORS } from './chartTheme'
 import { dueTone, firstName, greeting, sortPriorityTasks } from './logic'
+import { TodayPanel } from './TodayPanel'
 
 const STALLED_DAYS = 15
 
@@ -56,6 +57,8 @@ function normalizeMetrics(m: DashboardMetrics): DashboardMetrics {
     demands_waiting_docs: n(m.demands_waiting_docs),
     tasks_pending: n(m.tasks_pending),
     tasks_overdue: n(m.tasks_overdue),
+    next_actions_overdue: n(m.next_actions_overdue),
+    next_actions_today: n(m.next_actions_today),
     deadlines_upcoming: n(m.deadlines_upcoming),
     fees_expected: n(m.fees_expected),
     fees_received: n(m.fees_received),
@@ -99,6 +102,8 @@ export function DashboardPage() {
         </div>
         <p className="text-[12.5px] text-ink-subtle">{organization.name}</p>
       </header>
+
+      <TodayPanel />
 
       {metrics.isError ? (
         <Card>

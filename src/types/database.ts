@@ -223,6 +223,8 @@ export interface DashboardMetrics {
   demands_waiting_docs: number
   tasks_pending: number
   tasks_overdue: number
+  next_actions_overdue: number
+  next_actions_today: number
   deadlines_upcoming: number
   fees_expected: number
   fees_received: number
