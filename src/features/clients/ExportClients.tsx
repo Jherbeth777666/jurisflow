@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ExportButton, type ExportColumn } from '@/components/ExportButton'
 import { useOrg } from '@/contexts/AuthContext'
 import { qk } from '@/hooks/useOrgData'
-import { supabase, unwrap } from '@/lib/supabase'
+import { supabase, fetchAllRows } from '@/lib/supabase'
 import { CLIENT_STATUS } from '@/lib/constants'
 import { formatCPF, formatDate, formatPhone } from '@/lib/format'
 import type { Client } from '@/types/database'
@@ -25,16 +25,18 @@ export function ExportClients() {
   const { orgId, role } = useOrg()
   const q = useQuery({
     queryKey: qk.clients(orgId, 'export'),
-    queryFn: async () =>
-      unwrap(
-        await supabase
+    // Paginado: "exportar todos" não pode parar no limite de linhas do PostgREST.
+    queryFn: () =>
+      fetchAllRows<Row>((from, to) =>
+        supabase
           .from('clients')
           .select('full_name, cpf, phone, email, birth_date, address, status, created_at')
           .eq('organization_id', orgId)
           .is('anonymized_at', null)
           .order('full_name')
-          .limit(5000),
-      ) as Row[],
+          .order('id')
+          .range(from, to),
+      ),
     staleTime: 60_000,
   })
   if (!q.data?.length) return null

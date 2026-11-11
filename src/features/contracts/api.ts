@@ -23,17 +23,8 @@ export function normalizeInstallment(i: InstallmentOverview): InstallmentOvervie
   return { ...i, amount: num(i.amount), paid_amount: num(i.paid_amount), remaining_amount: num(i.remaining_amount) }
 }
 
-/** Busca todas as linhas (paginando de 1000 em 1000, limite padrão do PostgREST). */
-export async function fetchAllRows<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
-  const out: T[] = []
-  const step = 1000
-  for (let from = 0; ; from += step) {
-    const rows = unwrap(await build(from, from + step - 1)) ?? []
-    out.push(...rows)
-    if (rows.length < step) break
-  }
-  return out
-}
+import { fetchAllRows } from '@/lib/supabase'
+export { fetchAllRows }
 
 /** Mapa id → nome dos clientes informados (somente nome; sem dados pessoais). */
 export async function fetchClientNames(orgId: string, ids: string[]): Promise<Map<string, string>> {

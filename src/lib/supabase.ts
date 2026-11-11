@@ -47,3 +47,29 @@ export function unwrap<T>(res: { data: T | null; error: unknown }): T {
   if (res.error) throw new Error(friendlyError(res.error))
   return res.data as T
 }
+
+/** Tamanho de página do PostgREST (padrão max_rows do Supabase). */
+export const PAGE_SIZE = 1000
+
+/**
+ * Busca todas as linhas de uma consulta, paginando de PAGE_SIZE em PAGE_SIZE.
+ * A consulta montada em `build` precisa de ordenação estável (termine com uma coluna única, ex.: id).
+ */
+export async function fetchAllRows<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const rows = unwrap(await build(from, from + PAGE_SIZE - 1)) ?? []
+    out.push(...rows)
+    if (rows.length < PAGE_SIZE) break
+  }
+  return out
+}
+
+/**
+ * Erro causado por uma linha específica: integridade (classe 23: duplicado, chave estrangeira, check, not null),
+ * dado inválido (classe 22: data/número malformado) ou validação de trigger (P0001).
+ */
+export function isRowConstraintError(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code
+  return typeof code === 'string' && (code.startsWith('23') || code.startsWith('22') || code === 'P0001')
+}

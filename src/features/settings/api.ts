@@ -1,6 +1,6 @@
 // Consultas e mutações do módulo de configurações.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, unwrap } from '@/lib/supabase'
+import { supabase, unwrap, fetchAllRows } from '@/lib/supabase'
 import { qk } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
 import type {
@@ -135,30 +135,40 @@ export async function fetchClientExport(orgId: string, organizationName: string,
   const client = unwrap(
     await supabase.from('clients').select('*').eq('organization_id', orgId).eq('id', clientId).single(),
   ) as Client
-  const [demands, tasksByClient, contracts] = await Promise.all([
-    supabase.from('demands').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('opened_at'),
-    supabase.from('tasks').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('created_at'),
-    supabase.from('contracts').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('signed_at'),
+  // Tudo paginado: a exportação de portabilidade (LGPD) não pode sair truncada no limite do PostgREST.
+  const [demandRows, tasksByClient, contractRows] = await Promise.all([
+    fetchAllRows<Demand>((from, to) =>
+      supabase.from('demands').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('opened_at').order('id').range(from, to),
+    ),
+    fetchAllRows<Task>((from, to) =>
+      supabase.from('tasks').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('created_at').order('id').range(from, to),
+    ),
+    fetchAllRows<Contract>((from, to) =>
+      supabase.from('contracts').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('signed_at').order('id').range(from, to),
+    ),
   ])
-  const demandRows = unwrap(demands) as Demand[]
-  const contractRows = unwrap(contracts) as Contract[]
-  let taskRows = unwrap(tasksByClient) as Task[]
 
   const demandIds = demandRows.map((d) => d.id)
   const contractIds = contractRows.map((c) => c.id)
   const [tasksByDemand, installments, payments] = await Promise.all([
     demandIds.length
-      ? supabase.from('tasks').select('*').eq('organization_id', orgId).in('demand_id', demandIds)
-      : Promise.resolve({ data: [] as Task[], error: null }),
+      ? fetchAllRows<Task>((from, to) =>
+          supabase.from('tasks').select('*').eq('organization_id', orgId).in('demand_id', demandIds).order('created_at').order('id').range(from, to),
+        )
+      : Promise.resolve([] as Task[]),
     contractIds.length
-      ? supabase.from('installments').select('*').eq('organization_id', orgId).in('contract_id', contractIds)
-      : Promise.resolve({ data: [] as Installment[], error: null }),
+      ? fetchAllRows<Installment>((from, to) =>
+          supabase.from('installments').select('*').eq('organization_id', orgId).in('contract_id', contractIds).order('due_date').order('id').range(from, to),
+        )
+      : Promise.resolve([] as Installment[]),
     contractIds.length
-      ? supabase.from('payments').select('*').eq('organization_id', orgId).in('contract_id', contractIds).order('paid_at')
-      : Promise.resolve({ data: [] as Payment[], error: null }),
+      ? fetchAllRows<Payment>((from, to) =>
+          supabase.from('payments').select('*').eq('organization_id', orgId).in('contract_id', contractIds).order('paid_at').order('id').range(from, to),
+        )
+      : Promise.resolve([] as Payment[]),
   ])
-  const seen = new Set(taskRows.map((t) => t.id))
-  taskRows = taskRows.concat((unwrap(tasksByDemand) as Task[]).filter((t) => !seen.has(t.id)))
+  const seen = new Set(tasksByClient.map((t) => t.id))
+  const taskRows = tasksByClient.concat(tasksByDemand.filter((t) => !seen.has(t.id)))
 
   return buildClientExport({
     organizationName,
@@ -166,8 +176,8 @@ export async function fetchClientExport(orgId: string, organizationName: string,
     demands: demandRows,
     tasks: taskRows,
     contracts: contractRows,
-    installments: unwrap(installments) as Installment[],
-    payments: unwrap(payments) as Payment[],
+    installments,
+    payments,
   })
 }
 

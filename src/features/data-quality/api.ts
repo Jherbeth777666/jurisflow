@@ -1,10 +1,9 @@
 // Consultas do painel de qualidade (dados reais do escritório, sob RLS).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, unwrap } from '@/lib/supabase'
+import { supabase, unwrap, fetchAllRows } from '@/lib/supabase'
 import { todayISO } from '@/lib/format'
 import { qk } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
-import { fetchAll } from '@/features/import/api'
 import { analyzeBase, type QClient, type QDemand, type QTask } from './logic'
 
 export function useQualityReport() {
@@ -13,7 +12,7 @@ export function useQualityReport() {
     queryKey: qk.clients(orgId, 'quality'),
     queryFn: async () => {
       const [clients, demands, tasks] = await Promise.all([
-        fetchAll<QClient>((from, to) =>
+        fetchAllRows<QClient>((from, to) =>
           supabase
             .from('clients')
             .select('id, full_name, cpf, phone, birth_date, status, created_at')
@@ -22,7 +21,7 @@ export function useQualityReport() {
             .order('created_at')
             .range(from, to),
         ),
-        fetchAll<QDemand>((from, to) =>
+        fetchAllRows<QDemand>((from, to) =>
           supabase
             .from('demands')
             .select('id, title, client_id, status, responsible_id, next_action, updated_at, closed_at')
@@ -30,7 +29,7 @@ export function useQualityReport() {
             .order('created_at')
             .range(from, to),
         ),
-        fetchAll<QTask>((from, to) =>
+        fetchAllRows<QTask>((from, to) =>
           supabase
             .from('tasks')
             .select('id, title, demand_id, client_id, due_date, status')

@@ -1,31 +1,20 @@
 // Acesso a dados da importação: clientes existentes, IA de mapeamento e gravação em lotes.
 // Toda escrita passa pela RLS do usuário (o banco valida tudo).
-import { supabase, friendlyError, unwrap } from '@/lib/supabase'
+import { supabase, friendlyError, fetchAllRows, isRowConstraintError } from '@/lib/supabase'
 import type { AIImportRequest, ImportField } from './mapping'
 import { demandTitle, updatePatch, type ExistingClient, type ImportRow, type RowAction } from './rows'
 
 export const BATCH_SIZE = 100
 
-/** Lê todas as linhas de uma consulta paginando de 1000 em 1000 (limite do PostgREST). */
-export async function fetchAll<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
-  const out: T[] = []
-  const page = 1000
-  for (let from = 0; ; from += page) {
-    const rows = unwrap(await build(from, from + page - 1)) as T[]
-    out.push(...rows)
-    if (rows.length < page) break
-  }
-  return out
-}
-
 export async function fetchExistingClients(orgId: string): Promise<ExistingClient[]> {
-  return fetchAll<ExistingClient>((from, to) =>
+  return fetchAllRows<ExistingClient>((from, to) =>
     supabase
       .from('clients')
       .select('id, full_name, cpf, phone, birth_date, email, address')
       .eq('organization_id', orgId)
       .is('anonymized_at', null)
       .order('created_at')
+      .order('id')
       .range(from, to),
   )
 }
@@ -109,7 +98,7 @@ export interface ImportContext {
 
 const chunk = <T>(arr: T[], size: number) => Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, (i + 1) * size))
 
-async function insertWithFallback<T extends { id: string }>(
+export async function insertWithFallback<T extends { id: string }>(
   table: 'clients' | 'demands',
   rows: T[],
   onRowError: (row: T, reason: string) => void,
@@ -120,7 +109,14 @@ async function insertWithFallback<T extends { id: string }>(
     rows.forEach((r) => ok.add(r.id))
     return ok
   }
-  // Lote falhou (ex.: um CPF já existente) → isola linha a linha para saber qual.
+  // Erro que não é de uma linha específica (rede, permissão, servidor): repetir linha a linha
+  // só multiplicaria requisições com o mesmo erro. Marca o lote inteiro com o motivo.
+  if (!isRowConstraintError(res.error)) {
+    const reason = friendlyError(res.error)
+    rows.forEach((r) => onRowError(r, reason))
+    return ok
+  }
+  // Lote falhou por uma linha (ex.: um CPF já existente) → isola linha a linha para saber qual.
   for (const r of rows) {
     const one = await supabase.from(table).insert(r)
     if (one.error) onRowError(r, friendlyError(one.error))
