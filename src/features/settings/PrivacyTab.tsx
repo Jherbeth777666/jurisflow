@@ -3,7 +3,7 @@ import { Download, FileX2, Lock, PencilLine, ShieldCheck, Sparkles, ScrollText, 
 import { Button, Card, CardBody, CardHeader, InlineError, useToast } from '@/components/ui'
 import { ClientPicker } from '@/components/ClientPicker'
 import { useOrg } from '@/contexts/AuthContext'
-import { downloadJSON, fetchClientExport } from './api'
+import { downloadJSON, fetchClientExport, logClientExport } from './api'
 import { exportFileName } from './logic'
 
 export function PrivacyTab() {
@@ -94,6 +94,14 @@ function ExportCard() {
     try {
       const data = await fetchClientExport(orgId, organization.name, clientId)
       downloadJSON(data, exportFileName(clientName || data.titular.full_name))
+      const totalRows =
+        1 +
+        data.demandas.length +
+        data.tarefas.length +
+        data.contratos.length +
+        data.demandas.reduce((n, d) => n + d.checklist.length, 0) +
+        data.contratos.reduce((n, c) => n + c.parcelas.length + c.pagamentos.length, 0)
+      void logClientExport(orgId, clientId, totalRows)
       toast.show('Arquivo de exportação gerado.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível exportar os dados.')
@@ -106,7 +114,7 @@ function ExportCard() {
     <Card>
       <CardHeader
         title="Portabilidade (exportação de dados)"
-        description="Gera um arquivo JSON com o cadastro do cliente, demandas, tarefas, contratos, parcelas e pagamentos."
+        description="Gera um arquivo JSON com o cadastro do cliente, demandas, checklist de documentos, tarefas, contratos, parcelas e pagamentos."
       />
       <CardBody className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">

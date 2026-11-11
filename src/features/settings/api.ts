@@ -13,6 +13,7 @@ import type {
   Payment,
   Task,
 } from '@/types/database'
+import type { DemandChecklistItem } from '@/features/checklist/types'
 import { buildClientExport, normalizeEmail } from './logic'
 
 const invitationsKey = (org: string) => ['invitations', org] as const
@@ -150,7 +151,7 @@ export async function fetchClientExport(orgId: string, organizationName: string,
 
   const demandIds = demandRows.map((d) => d.id)
   const contractIds = contractRows.map((c) => c.id)
-  const [tasksByDemand, installments, payments] = await Promise.all([
+  const [tasksByDemand, installments, payments, checklistItems] = await Promise.all([
     demandIds.length
       ? fetchAllRows<Task>((from, to) =>
           supabase.from('tasks').select('*').eq('organization_id', orgId).in('demand_id', demandIds).order('created_at').order('id').range(from, to),
@@ -166,6 +167,19 @@ export async function fetchClientExport(orgId: string, organizationName: string,
           supabase.from('payments').select('*').eq('organization_id', orgId).in('contract_id', contractIds).order('paid_at').order('id').range(from, to),
         )
       : Promise.resolve([] as Payment[]),
+    demandIds.length
+      ? fetchAllRows<DemandChecklistItem>((from, to) =>
+          supabase
+            .from('demand_checklist_items')
+            .select('*')
+            .eq('organization_id', orgId)
+            .in('demand_id', demandIds)
+            .order('demand_id')
+            .order('position')
+            .order('id')
+            .range(from, to),
+        )
+      : Promise.resolve([] as DemandChecklistItem[]),
   ])
   const seen = new Set(tasksByClient.map((t) => t.id))
   const taskRows = tasksByClient.concat(tasksByDemand.filter((t) => !seen.has(t.id)))
@@ -178,7 +192,20 @@ export async function fetchClientExport(orgId: string, organizationName: string,
     contracts: contractRows,
     installments,
     payments,
+    checklistItems,
   })
+}
+
+/** Registra a exportação LGPD nos logs. Falha no registro não impede o download. */
+export async function logClientExport(orgId: string, clientId: string, rowCount: number) {
+  const { error } = await supabase.rpc('log_export', {
+    p_org: orgId,
+    p_resource: 'client_lgpd_export',
+    p_row_count: rowCount,
+    p_sensitive: true,
+    p_entity: clientId,
+  })
+  if (error) console.warn('[export] não foi possível registrar a exportação:', error.message)
 }
 
 export function downloadJSON(data: unknown, fileName: string) {
