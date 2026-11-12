@@ -4,7 +4,7 @@ import { supabase, unwrap } from '@/lib/supabase'
 import { PAGE_SIZE } from '@/lib/constants'
 import { qk } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
-import type { Client, ClientStatus, Demand } from '@/types/database'
+import type { Client, ClientOverview, ClientStatus, Demand } from '@/types/database'
 import { clientFormToPayload, parseClientSearch, type ClientFormValues } from './logic'
 
 export type ClientRow = Client & { open_demands: number }
@@ -59,6 +59,15 @@ export function useClient(id: string | undefined) {
     queryKey: qk.client(orgId, id ?? ''),
     enabled: !!id,
     queryFn: async () => unwrap(await supabase.from('clients').select('*').eq('organization_id', orgId).eq('id', id!).single()) as Client,
+  })
+}
+
+export function useClientOverview(clientId: string | undefined) {
+  const { orgId } = useOrg()
+  return useQuery({
+    queryKey: qk.clients(orgId, 'overview', clientId ?? ''),
+    enabled: !!clientId,
+    queryFn: async () => unwrap(await supabase.rpc('client_overview', { p_client: clientId! })) as ClientOverview,
   })
 }
 

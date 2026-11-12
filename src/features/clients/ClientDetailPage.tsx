@@ -28,6 +28,7 @@ import { formatCPF, formatDate, formatDateTime, formatPhone } from '@/lib/format
 import { cn } from '@/lib/cn'
 import { useAnonymizeClient, useClient, useClientContractsCount, useClientDemands, useDeleteClient } from './api'
 import { ClientFormModal } from './ClientFormModal'
+import { ClientSummary } from './ClientSummary'
 import { buildServiceHistory } from './logic'
 
 type Section = 'demandas' | 'tarefas' | 'atendimentos' | 'historico'
@@ -152,6 +153,8 @@ export function ClientDetailPage() {
           </Info>
         </dl>
       </Card>
+
+      {!anonymized && <ClientSummary clientId={c.id} />}
 
       {!anonymized && <MessageComposerModal open={composing} onClose={() => setComposing(false)} clientId={c.id} />}
 

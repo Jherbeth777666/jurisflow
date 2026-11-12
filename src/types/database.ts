@@ -71,6 +71,37 @@ export interface Client extends Timestamps {
   created_by: UUID | null
 }
 
+/** Demanda resumida retornada por rpc('client_overview'). */
+export interface ClientOverviewDemand {
+  id: UUID
+  title: string
+  status: DemandStatus
+  stage_name: string
+  category_name: string
+  next_action: string | null
+  next_action_date: ISODate | null
+  next_action_overdue: boolean
+  checklist_pending: number
+  checklist_total: number
+  days_in_stage: number
+}
+
+/** Item de checklist pendente retornado por rpc('client_overview'). */
+export interface ClientOverviewChecklistItem {
+  demand_id: UUID
+  demand_title: string
+  label: string
+}
+
+/** Retorno de rpc('client_overview') — ficha 360° do cliente. */
+export interface ClientOverview {
+  open_demands: ClientOverviewDemand[]
+  checklist_pending_items: ClientOverviewChecklistItem[]
+  tasks: { open: number; overdue: number; next_due_date: ISODate | null }
+  finance: { open_amount: number; overdue_amount: number; overdue_count: number; next_due_date: ISODate | null }
+  last_activity_at: ISODateTime | null
+}
+
 export interface DemandCategory extends Timestamps {
   id: UUID
   organization_id: UUID

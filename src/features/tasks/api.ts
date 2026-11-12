@@ -17,6 +17,8 @@ export const OPEN_STATUSES: TaskStatus[] = ['pendente', 'em_andamento']
 export function invalidateTaskData(qc: QueryClient, orgId: string) {
   return Promise.all([
     qc.invalidateQueries({ queryKey: qk.tasks(orgId) }),
+    // A ficha do cliente mostra tarefas atrasadas/abertas.
+    qc.invalidateQueries({ queryKey: qk.clients(orgId) }),
     qc.invalidateQueries({ queryKey: qk.dashboard(orgId) }),
     qc.invalidateQueries({ queryKey: qk.activity(orgId) }),
   ])
