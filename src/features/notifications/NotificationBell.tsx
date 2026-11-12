@@ -28,9 +28,9 @@ function NotificationItem({ item, onOpen }: { item: Notification; onOpen: (item:
       >
         <Icon className="mt-0.5 size-4 shrink-0 text-navy-500" aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block text-[13px] font-medium text-ink">{item.title}</span>
-          {item.body && <span className="mt-0.5 block text-[12.5px] text-ink-muted">{item.body}</span>}
-          <span className="mt-1 block text-[11.5px] text-ink-subtle">{formatRelative(item.created_at)}</span>
+          <span className="block text-body-sm font-medium text-ink">{item.title}</span>
+          {item.body && <span className="mt-0.5 block text-label text-ink-muted">{item.body}</span>}
+          <span className="mt-1 block text-caption text-ink-subtle">{formatRelative(item.created_at)}</span>
         </span>
         {item.read_at == null && <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-accent-600" aria-hidden />}
       </button>
@@ -60,26 +60,26 @@ export function NotificationBell() {
         onClick={() => setOpen((o) => !o)}
         aria-label={`Avisos (${count} não lidos)`}
         aria-expanded={open}
-        className="touch-target relative flex size-11 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-navy-50 hover:text-ink lg:size-9"
+        className="touch-target relative flex size-11 items-center justify-center rounded-md text-ink-muted transition-colors hover:bg-ink/[0.05] hover:text-ink lg:size-8"
       >
         <Bell className="size-[18px]" strokeWidth={1.75} />
         {count > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white">
+          <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-canvas">
             {count > 9 ? '9+' : count}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-1.5 w-[min(340px,calc(100vw-2rem))] overflow-hidden rounded-lg bg-surface shadow-[var(--shadow-pop)] ring-1 ring-line">
+        <div className="absolute right-0 z-50 mt-1.5 w-[min(360px,calc(100vw-2rem))] animate-pop overflow-hidden rounded-[var(--radius-card)] bg-surface shadow-[var(--shadow-pop)]">
           <div className="flex items-center justify-between gap-2 border-b border-line px-3.5 py-2.5">
-            <p className="text-[13px] font-semibold text-ink">Avisos</p>
+            <p className="text-body-sm font-semibold text-ink">Avisos</p>
             {count > 0 && (
               <button
                 type="button"
                 onClick={() => markAll.mutate()}
                 disabled={markAll.isPending}
-                className="flex items-center gap-1 rounded px-1.5 py-1 text-[12px] font-medium text-accent-700 hover:bg-accent-50 disabled:opacity-50"
+                className="flex items-center gap-1 rounded px-1.5 py-1 text-caption font-medium text-accent-700 hover:bg-accent-50 disabled:opacity-50"
               >
                 <CheckCheck className="size-3.5" aria-hidden />
                 Marcar todas como lidas
@@ -88,9 +88,9 @@ export function NotificationBell() {
           </div>
 
           {isLoading ? (
-            <p className="px-3.5 py-6 text-center text-[12.5px] text-ink-muted">Carregando avisos…</p>
+            <p className="px-3.5 py-6 text-center text-label text-ink-muted">Carregando avisos…</p>
           ) : notifications.length === 0 ? (
-            <p className="px-3.5 py-6 text-center text-[12.5px] text-ink-muted">Nenhum aviso por aqui.</p>
+            <p className="px-3.5 py-6 text-center text-label text-ink-muted">Nenhum aviso por aqui.</p>
           ) : (
             <ul className="max-h-[min(420px,60vh)] divide-y divide-line overflow-y-auto">
               {notifications.map((item) => (

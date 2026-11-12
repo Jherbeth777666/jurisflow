@@ -96,7 +96,7 @@ function PaymentForm({ open, onClose, contractId, installmentId, defaultMethod =
       ) : installments.isError ? (
         <InlineError message={(installments.error as Error).message} />
       ) : !open_list.length ? (
-        <p className="text-[13.5px] text-ink-muted">Não há parcelas em aberto neste contrato.</p>
+        <p className="text-body text-ink-muted">Não há parcelas em aberto neste contrato.</p>
       ) : (
         <form id="payment-form" onSubmit={submit} noValidate className="grid gap-4 sm:grid-cols-2">
           <Select
@@ -119,7 +119,7 @@ function PaymentForm({ open, onClose, contractId, installmentId, defaultMethod =
             label="Valor recebido"
             required
             inputMode="decimal"
-            leading={<span className="text-[12.5px]">R$</span>}
+            leading={<span className="text-label">R$</span>}
             value={amount}
             onChange={(ev) => {
               setAmountInput(ev.target.value)

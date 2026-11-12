@@ -166,7 +166,7 @@ export function TodayPanel() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line px-4 py-2.5 text-[12.5px] text-ink-muted">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line px-4 py-2.5 text-label text-ink-muted">
         <span className="inline-flex items-center gap-1.5">
           <AlarmClock className="size-3.5 text-red-600" aria-hidden />
           <strong className="tabular-nums text-red-600">{overdueCount}</strong> atrasados
@@ -192,7 +192,7 @@ export function TodayPanel() {
       ) : !items.length ? (
         <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
           <CheckCircle2 className="mb-3 size-6 text-accent-600" aria-hidden />
-          <p className="text-[14px] font-medium text-ink">Nada para hoje. Tudo em dia.</p>
+          <p className="text-body-lg font-medium text-ink">Nada para hoje. Tudo em dia.</p>
         </div>
       ) : (
         <ul className="divide-y divide-line">
@@ -201,17 +201,17 @@ export function TodayPanel() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   {item.kind === 'next_action' ? (
-                    <Link to={item.href} className="min-h-6 min-w-0 flex-1 truncate py-0.5 text-[13.5px] font-medium text-ink hover:underline">
+                    <Link to={item.href} className="min-h-6 min-w-0 flex-1 truncate py-0.5 text-body font-medium text-ink hover:underline">
                       {item.title}
                     </Link>
                   ) : (
-                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink">{item.title}</span>
+                    <span className="min-w-0 flex-1 truncate text-body font-medium text-ink">{item.title}</span>
                   )}
                   <Badge tone={item.overdue ? 'red' : 'amber'} className="shrink-0 tabular-nums">
                     {dateLabel(item, today)}
                   </Badge>
                 </div>
-                <span className="mt-0.5 block truncate text-[12px] text-ink-subtle">{contextFor(item)}</span>
+                <span className="mt-0.5 block truncate text-caption text-ink-subtle">{contextFor(item)}</span>
               </div>
               {item.kind === 'task' && (
                 <button
@@ -229,7 +229,7 @@ export function TodayPanel() {
       )}
       {!loading && !error && items.length > 8 && (
         <div className="border-t border-line px-4 py-2 text-center">
-          <Link to={moreHref} className="text-[12.5px] font-medium text-accent-700 hover:underline">
+          <Link to={moreHref} className="text-label font-medium text-accent-700 hover:underline">
             Ver todos ({items.length})
           </Link>
         </div>

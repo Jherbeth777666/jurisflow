@@ -330,17 +330,17 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     <section className="rounded-lg border border-line bg-canvas/60 p-3 shadow-[0_1px_1px_rgb(15_23_42/0.03)] sm:p-4" aria-label="Proposta da IA">
       <div className="flex flex-wrap items-center gap-2">
         <Sparkles className="size-4 text-accent-600" />
-        <h3 className="text-[13px] font-semibold text-ink">Proposta da IA — confira antes de gravar</h3>
+        <h3 className="text-body-sm font-semibold text-ink">Proposta da IA — confira antes de gravar</h3>
         <Badge tone={STATUS_TONE[status]} className="ml-auto">
           {STATUS_LABEL[status]}
         </Badge>
       </div>
 
       {status !== 'pendente' ? (
-        <p className="mt-2 text-[13px] text-ink-muted">{proposalSummary(proposal)}</p>
+        <p className="mt-2 text-body-sm text-ink-muted">{proposalSummary(proposal)}</p>
       ) : (
         <>
-          <p className="mt-1.5 text-[12.5px] text-ink-muted">{proposalSummary(proposal)}</p>
+          <p className="mt-1.5 text-label text-ink-muted">{proposalSummary(proposal)}</p>
 
           <fieldset
             disabled={written}
@@ -440,7 +440,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
           {warnings.map((name, index) => (
             <p
               key={`${index}-${name}`}
-              className="mt-2 flex items-start gap-1.5 text-[12px] text-amber-800"
+              className="mt-2 flex items-start gap-1.5 text-caption text-amber-800"
               role="status"
             >
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
@@ -449,7 +449,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
           ))}
 
           {!permitted && (
-            <p className="mt-2 flex items-start gap-1.5 text-[12px] text-amber-800" role="status">
+            <p className="mt-2 flex items-start gap-1.5 text-caption text-amber-800" role="status">
               <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
               <span>Seu perfil não tem permissão para confirmar esta proposta.</span>
             </p>
@@ -461,7 +461,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
             </div>
           )}
 
-          <p className="mt-3 text-[11.5px] text-ink-subtle">
+          <p className="mt-3 text-caption text-ink-subtle">
             {written
               ? 'Dados gravados. Só falta registrar a confirmação.'
               : 'Sugestão gerada por IA. Nada foi gravado ainda.'}

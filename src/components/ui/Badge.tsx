@@ -17,7 +17,7 @@ export function Badge({ tone = 'gray', children, className, dot }: { tone?: Badg
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11.5px] font-medium ring-1 ring-inset whitespace-nowrap',
+        'inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-caption font-medium ring-1 ring-inset whitespace-nowrap',
         tones[tone],
         className,
       )}
@@ -41,7 +41,7 @@ export function StatusBadge<T extends string>({ value, map }: { value: T; map: R
 
 export function CategoryTag({ name, color }: { name: string; color: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-muted whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 text-label text-ink-muted whitespace-nowrap">
       <span className="size-2 rounded-sm" style={{ backgroundColor: color }} />
       {name}
     </span>

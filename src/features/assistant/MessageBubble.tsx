@@ -7,7 +7,7 @@ export function MessageBubble({ role, content, toolsUsed }: { role: 'user' | 'as
   if (role === 'user') {
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-xl rounded-br-sm bg-navy-900 px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-xl rounded-br-sm bg-navy-900 px-3.5 py-2.5 text-body leading-relaxed text-white">
           {content}
         </div>
       </div>
@@ -27,7 +27,7 @@ export function MessageBubble({ role, content, toolsUsed }: { role: 'user' | 'as
             {toolsUsed.map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 rounded-full bg-canvas px-2 py-0.5 text-[11px] text-ink-muted ring-1 ring-inset ring-line"
+                className="inline-flex items-center gap-1 rounded-full bg-canvas px-2 py-0.5 text-2xs text-ink-muted ring-1 ring-inset ring-line"
               >
                 <Database className="size-3" />
                 {toolLabel(t)}
@@ -48,7 +48,7 @@ export function ThinkingIndicator() {
       </div>
       <div className={cn('inline-flex items-center gap-2 rounded-xl rounded-tl-sm border border-line bg-surface px-3.5 py-2.5')}>
         <Loader2 className="size-3.5 animate-spin text-accent-600" />
-        <span className="text-[13px] text-ink-muted">Consultando dados…</span>
+        <span className="text-body-sm text-ink-muted">Consultando dados…</span>
       </div>
     </div>
   )

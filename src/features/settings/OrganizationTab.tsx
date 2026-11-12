@@ -46,13 +46,13 @@ export function OrganizationTab() {
               readOnly={!canManage}
               disabled={!canManage}
             />
-            <dl className="grid grid-cols-2 gap-3 text-[13px]">
+            <dl className="grid grid-cols-2 gap-3 text-body-sm">
               <div>
-                <dt className="text-[12px] text-ink-subtle">Criado em</dt>
+                <dt className="text-caption text-ink-subtle">Criado em</dt>
                 <dd className="text-ink">{formatDate(organization.created_at)}</dd>
               </div>
               <div>
-                <dt className="text-[12px] text-ink-subtle">Tipo</dt>
+                <dt className="text-caption text-ink-subtle">Tipo</dt>
                 <dd className="text-ink">{organization.is_demo ? 'Demonstração' : 'Produção'}</dd>
               </div>
             </dl>
@@ -76,7 +76,7 @@ export function OrganizationTab() {
       {organization.is_demo && (
         <Card>
           <CardHeader title="Ambiente de demonstração" />
-          <CardBody className="flex gap-3 text-[13px] text-ink-muted">
+          <CardBody className="flex gap-3 text-body-sm text-ink-muted">
             <FlaskConical className="mt-0.5 size-4 shrink-0 text-violet-600" />
             <p>
               Este escritório está marcado como <strong className="text-ink">demonstração</strong>: os clientes, demandas, tarefas e

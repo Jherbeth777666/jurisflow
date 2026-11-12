@@ -3,6 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, CalendarClock, CalendarDays, CalendarOff, CheckSquare, Plus, X } from 'lucide-react'
 import {
+  Avatar,
+  Badge,
   Button,
   Card,
   ConfirmDialog,
@@ -10,11 +12,13 @@ import {
   ErrorState,
   PageHeader,
   SearchInput,
+  SegmentedControl,
   Select,
   Spinner,
   TableSkeleton,
   Tabs,
 } from '@/components/ui'
+import { groupByPerson } from './groupByPerson'
 import { qk, useMemberNames } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
 import { friendlyError, supabase, unwrap } from '@/lib/supabase'
@@ -163,6 +167,29 @@ export function TasksPage() {
 
   const rows = useMemo(() => list.data?.pages.flat() ?? [], [list.data])
   const groups = useMemo(() => groupByDueBucket(rows, today), [rows, today])
+  // "Agrupar por pessoa" só faz sentido na aba Todas; fica na URL para poder compartilhar o link.
+  const byPerson = tab === 'all' && params.get('agrupar') === 'pessoa'
+  const personGroups = useMemo(
+    () => (byPerson ? groupByPerson(rows, members.map, today) : []),
+    [byPerson, rows, members.map, today],
+  )
+  const setGrouping = (value: 'prazo' | 'pessoa') => {
+    const next = new URLSearchParams(params)
+    if (value === 'pessoa') next.set('agrupar', 'pessoa')
+    else next.delete('agrupar')
+    setParams(next, { replace: true })
+  }
+  const renderTask = (t: TaskRow) => (
+    <TaskRowItem
+      key={t.id}
+      task={t}
+      today={today}
+      assigneeName={t.assignee_id ? (members.map.get(t.assignee_id) ?? null) : null}
+      onToggle={(done) => toggle.mutate({ id: t.id, done })}
+      onEdit={() => setEditing(t)}
+      onDelete={can('tasks.delete') ? () => setDeleting(t) : undefined}
+    />
+  )
   const hasFilters = !!(assignee || priority || status !== 'open' || search || range)
 
   const clearFilters = () => {
@@ -243,17 +270,17 @@ export function TasksPage() {
               )}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[12.5px] font-medium text-ink-muted">{c.label}</span>
+                <span className="text-label font-medium text-ink-muted">{c.label}</span>
                 <span className={cn('flex size-7 items-center justify-center rounded-md', c.tone)}>{c.icon}</span>
               </div>
-              <div className="tabular mt-1.5 text-[22px] font-semibold tracking-[-0.02em] text-ink">
+              <div className="tabular mt-1.5 text-heading font-semibold tracking-[-0.02em] text-ink">
                 {summary.isLoading ? <span className="text-ink-subtle">…</span> : summary.isError ? '—' : c.value}
               </div>
             </button>
           )
         })}
       </div>
-      {summary.isError && <p className="-mt-2 mb-3 text-[12px] text-red-600">Não foi possível carregar os contadores.</p>}
+      {summary.isError && <p className="-mt-2 mb-3 text-caption text-red-600">Não foi possível carregar os contadores.</p>}
 
       <Card>
         <div className="px-4 pt-2">
@@ -298,7 +325,7 @@ export function TasksPage() {
             wrapperClassName="sm:w-56"
           />
           {range && (
-            <span className="inline-flex items-center gap-1 self-start rounded-full bg-navy-50 py-1 pl-2.5 pr-1 text-[12.5px] text-navy-700 sm:self-auto">
+            <span className="inline-flex items-center gap-1 self-start rounded-full bg-navy-50 py-1 pl-2.5 pr-1 text-label text-navy-700 sm:self-auto">
               {RANGE_LABEL[range]}
               <button type="button" onClick={() => setRange(null)} className="rounded-full p-0.5 hover:bg-navy-100" aria-label="Remover filtro de vencimento">
                 <X className="size-3.5" />
@@ -306,9 +333,23 @@ export function TasksPage() {
             </span>
           )}
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={clearFilters} className="self-start sm:ml-auto sm:self-auto">
+            <Button variant="ghost" size="sm" onClick={clearFilters} className="self-start sm:self-auto">
               Limpar filtros
             </Button>
+          )}
+          {tab === 'all' && (
+            <div className="flex items-center gap-2 self-start sm:ml-auto sm:self-auto">
+              <span className="text-label text-ink-muted">Agrupar por</span>
+              <SegmentedControl<'prazo' | 'pessoa'>
+                aria-label="Agrupar tarefas por"
+                value={byPerson ? 'pessoa' : 'prazo'}
+                onChange={setGrouping}
+                items={[
+                  { value: 'prazo', label: 'Prazo' },
+                  { value: 'pessoa', label: 'Pessoa' },
+                ]}
+              />
+            </div>
           )}
         </div>
 
@@ -335,31 +376,42 @@ export function TasksPage() {
           />
         ) : (
           <div>
-            {groups.map((g) => (
+            {byPerson
+              ? personGroups.map((g) => (
+                  <section key={g.key} aria-labelledby={`pessoa-${g.key}`}>
+                    <h2
+                      id={`pessoa-${g.key}`}
+                      className="flex items-center gap-2.5 border-b border-line bg-surface-muted px-4 py-2 text-body-sm font-semibold text-ink"
+                    >
+                      {g.key === 'none' ? (
+                        <span className="flex size-6 items-center justify-center rounded-full bg-ink/[0.06] text-2xs text-ink-subtle" aria-hidden>
+                          ?
+                        </span>
+                      ) : (
+                        <Avatar name={g.name} />
+                      )}
+                      <span className="min-w-0 flex-1 truncate">{g.name}</span>
+                      {g.overdue > 0 && <Badge tone="red">{g.overdue} vencida{g.overdue === 1 ? '' : 's'}</Badge>}
+                      <span className="tabular text-caption font-medium text-ink-subtle">
+                        {g.items.length} tarefa{g.items.length === 1 ? '' : 's'}
+                      </span>
+                    </h2>
+                    <ul className="divide-y divide-line border-b border-line last:border-b-0">{g.items.map(renderTask)}</ul>
+                  </section>
+                ))
+              : groups.map((g) => (
               <section key={g.bucket} aria-labelledby={`bucket-${g.bucket}`}>
                 <h2
                   id={`bucket-${g.bucket}`}
                   className={cn(
-                    'flex items-center justify-between border-b border-line bg-canvas/70 px-4 py-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-ink-subtle',
+                    'flex items-center justify-between border-b border-line bg-canvas/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-wide text-ink-subtle',
                     bucketTone[g.bucket],
                   )}
                 >
                   {DUE_BUCKET_LABEL[g.bucket]}
                   <span className="tabular font-medium">{g.items.length}</span>
                 </h2>
-                <ul className="divide-y divide-line border-b border-line last:border-b-0">
-                  {g.items.map((t) => (
-                    <TaskRowItem
-                      key={t.id}
-                      task={t}
-                      today={today}
-                      assigneeName={t.assignee_id ? (members.map.get(t.assignee_id) ?? null) : null}
-                      onToggle={(done) => toggle.mutate({ id: t.id, done })}
-                      onEdit={() => setEditing(t)}
-                      onDelete={can('tasks.delete') ? () => setDeleting(t) : undefined}
-                    />
-                  ))}
-                </ul>
+                <ul className="divide-y divide-line border-b border-line last:border-b-0">{g.items.map(renderTask)}</ul>
               </section>
             ))}
             {list.hasNextPage && (
@@ -374,7 +426,7 @@ export function TasksPage() {
         )}
       </Card>
 
-      <p className="mt-4 text-center text-[12px] text-ink-subtle">
+      <p className="mt-4 text-center text-caption text-ink-subtle">
         Os alertas são auxiliares de organização e não substituem o controle oficial de prazos processuais.
       </p>
 

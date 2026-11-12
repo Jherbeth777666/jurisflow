@@ -20,7 +20,7 @@ export function SegmentedControl<T extends string>({
   className?: string
 }) {
   return (
-    <div role="group" aria-label={ariaLabel} className={cn('flex rounded-md border border-line-strong p-0.5', className)}>
+    <div role="group" aria-label={ariaLabel} className={cn('flex rounded-[var(--radius-control)] bg-ink/[0.05] p-0.5', className)}>
       {items.map((it) => {
         const active = it.value === value
         return (
@@ -30,8 +30,8 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(it.value)}
             aria-pressed={active}
             className={cn(
-              'touch-target rounded px-2.5 py-1 text-[12.5px] font-medium transition-colors',
-              active ? 'bg-navy-900 text-white' : 'text-ink-muted hover:text-ink',
+              'touch-target rounded-md px-2.5 py-1 text-label font-medium transition-[color,background-color,box-shadow]',
+              active ? 'bg-surface text-ink shadow-[var(--shadow-card)]' : 'text-ink-muted hover:text-ink',
             )}
           >
             {it.label}

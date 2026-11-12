@@ -261,7 +261,7 @@ function ContractForm({ open, onClose, contract, defaults, onSaved }: ContractFo
         />
 
         {locked && (
-          <div className="sm:col-span-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
+          <div className="sm:col-span-2 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-label text-amber-800">
             <Lock className="mt-0.5 size-3.5 shrink-0" />
             <span>
               Este contrato já possui {paymentCount.data} pagamento{paymentCount.data === 1 ? '' : 's'} registrado
@@ -275,7 +275,7 @@ function ContractForm({ open, onClose, contract, defaults, onSaved }: ContractFo
           label="Valor contratado"
           required
           inputMode="decimal"
-          leading={<span className="text-[12.5px]">R$</span>}
+          leading={<span className="text-label">R$</span>}
           value={form.amount}
           onChange={(e) => set('amount', e.target.value)}
           onBlur={() => Number.isFinite(amount) && amount > 0 && set('amount', formatMoneyInput(amount))}
@@ -327,21 +327,21 @@ function ContractForm({ open, onClose, contract, defaults, onSaved }: ContractFo
         {/* Prévia das parcelas */}
         <div className="sm:col-span-2 rounded-md border border-line">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line bg-canvas/70 px-3 py-2">
-            <span className="text-[12.5px] font-medium text-ink">Prévia das parcelas</span>
+            <span className="text-label font-medium text-ink">Prévia das parcelas</span>
             {preview.length > 0 && (
-              <span className="tabular text-[12px] text-ink-muted">
+              <span className="tabular text-caption text-ink-muted">
                 {preview.length}× · {formatDate(preview[0].due_date)} a {formatDate(lastDue)}
               </span>
             )}
           </div>
           {preview.length === 0 ? (
-            <p className="px-3 py-3 text-[12.5px] text-ink-subtle">Informe valor, parcelas e 1º vencimento para ver o cronograma.</p>
+            <p className="px-3 py-3 text-label text-ink-subtle">Informe valor, parcelas e 1º vencimento para ver o cronograma.</p>
           ) : (
-            <ul className="divide-y divide-line text-[12.5px]">
+            <ul className="divide-y divide-line text-label">
               {visible.map((p, idx) => (
                 <li key={p.number}>
                   {!showAll && idx === 3 && (
-                    <div className="px-3 py-1 text-center text-[11.5px] text-ink-subtle">… {preview.length - 5} parcelas intermediárias …</div>
+                    <div className="px-3 py-1 text-center text-caption text-ink-subtle">… {preview.length - 5} parcelas intermediárias …</div>
                   )}
                   <div className="tabular flex items-center justify-between px-3 py-1.5">
                     <span className="text-ink-muted">
@@ -354,7 +354,7 @@ function ContractForm({ open, onClose, contract, defaults, onSaved }: ContractFo
             </ul>
           )}
           {isEdit && !locked && preview.length > 0 && (
-            <p className="border-t border-line px-3 py-1.5 text-[11.5px] text-ink-subtle">
+            <p className="border-t border-line px-3 py-1.5 text-caption text-ink-subtle">
               Alterar valor, parcelas ou 1º vencimento recria o cronograma.
             </p>
           )}

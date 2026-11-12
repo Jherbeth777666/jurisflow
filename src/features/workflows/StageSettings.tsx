@@ -74,7 +74,7 @@ export function StageSettings({
           }
         />
         {categories.length === 0 ? (
-          <p className="px-4 py-6 text-center text-[13px] text-ink-muted">Nenhuma categoria cadastrada.</p>
+          <p className="px-4 py-6 text-center text-body-sm text-ink-muted">Nenhuma categoria cadastrada.</p>
         ) : (
           <ul className="p-1.5" role="list">
             {categories.map((c) => {
@@ -86,13 +86,13 @@ export function StageSettings({
                     aria-current={selected || undefined}
                     onClick={() => onCategoryChange(c.id)}
                     className={cn(
-                      'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors',
+                      'flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-body-sm transition-colors',
                       selected ? 'bg-navy-50 font-medium text-ink' : 'text-ink-muted hover:bg-navy-50/60 hover:text-ink',
                     )}
                   >
                     <span className="size-2.5 shrink-0 rounded-sm" style={{ backgroundColor: c.color }} aria-hidden />
                     <span className={cn('min-w-0 flex-1 truncate', !c.active && 'line-through decoration-ink-subtle')}>{c.name}</span>
-                    {!c.active ? <Badge>Inativa</Badge> : <span className="tabular text-[11.5px] text-ink-subtle">{c.stages.length}</span>}
+                    {!c.active ? <Badge>Inativa</Badge> : <span className="tabular text-caption text-ink-subtle">{c.stages.length}</span>}
                   </button>
                 </li>
               )
@@ -211,14 +211,14 @@ function CategoryStages({
       />
 
       {!hasFinal && stages.length > 0 && (
-        <div className="mx-4 mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
+        <div className="mx-4 mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-label text-amber-800">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
           Nenhuma etapa marcada como conclusão: as demandas desta categoria não serão concluídas automaticamente ao chegar ao fim do fluxo.
         </div>
       )}
 
       {stages.length === 0 ? (
-        <p className="px-4 py-6 text-center text-[13px] text-ink-muted">Nenhuma etapa cadastrada.</p>
+        <p className="px-4 py-6 text-center text-body-sm text-ink-muted">Nenhuma etapa cadastrada.</p>
       ) : canManage ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={ids} strategy={verticalListSortingStrategy}>
@@ -242,8 +242,8 @@ function CategoryStages({
         <ol className="divide-y divide-line px-1 py-1">
           {stages.map((s, i) => (
             <li key={s.id} className="flex items-center gap-3 px-3 py-2.5">
-              <span className="tabular w-5 text-right text-[12px] text-ink-subtle">{i + 1}.</span>
-              <span className="flex-1 text-[13.5px] text-ink">{s.name}</span>
+              <span className="tabular w-5 text-right text-caption text-ink-subtle">{i + 1}.</span>
+              <span className="flex-1 text-body text-ink">{s.name}</span>
               <StageFlags stage={s} />
             </li>
           ))}
@@ -345,7 +345,7 @@ function SortableStageRow({
         >
           <GripVertical className="size-4" />
         </button>
-        <span className="tabular w-5 text-right text-[12px] text-ink-subtle">{index + 1}.</span>
+        <span className="tabular w-5 text-right text-caption text-ink-subtle">{index + 1}.</span>
 
         <div className="min-w-0 flex-1 basis-40">
           {editing ? (
@@ -365,7 +365,7 @@ function SortableStageRow({
                 }}
                 aria-label="Nome da etapa"
                 aria-invalid={!!error || undefined}
-                className="h-8 w-full rounded-md border border-line-strong px-2 text-[13.5px] focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+                className="h-8 w-full rounded-md border border-line-strong px-2 text-body focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
               />
               <Button type="submit" size="icon" variant="ghost" loading={saving} aria-label="Salvar nome">
                 {!saving && <Check className="size-4" />}
@@ -387,7 +387,7 @@ function SortableStageRow({
             <button
               type="button"
               onClick={() => setEditing(true)}
-              className="group inline-flex max-w-full items-center gap-1.5 text-left text-[13.5px] text-ink"
+              className="group inline-flex max-w-full items-center gap-1.5 text-left text-body text-ink"
               aria-label={`Renomear etapa ${stage.name}`}
             >
               <span className="truncate">{stage.name}</span>
@@ -433,7 +433,7 @@ function SortableStageRow({
           </Button>
         </div>
       </div>
-      {error && editing && <p className="mt-1 pl-14 text-[12px] text-red-600">{error}</p>}
+      {error && editing && <p className="mt-1 pl-14 text-caption text-red-600">{error}</p>}
     </li>
   )
 }
@@ -474,7 +474,7 @@ function NewStageForm({ category }: { category: CategoryWithStages }) {
 
   return (
     <form onSubmit={submit} className="border-t border-line bg-canvas/50 px-4 py-3" noValidate>
-      <p className="mb-2 text-[12.5px] font-medium text-ink">Nova etapa</p>
+      <p className="mb-2 text-label font-medium text-ink">Nova etapa</p>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <Input
           aria-label="Nome da nova etapa"
@@ -568,7 +568,7 @@ function DeleteStageModal({ stage, stages, onClose }: { stage: WorkflowStage | n
       ) : count.isError ? (
         <InlineError message={count.error.message} />
       ) : (
-        <div className="flex flex-col gap-3 text-[13.5px] text-ink-muted">
+        <div className="flex flex-col gap-3 text-body text-ink-muted">
           {needsTarget ? (
             <>
               <p>
@@ -584,7 +584,7 @@ function DeleteStageModal({ stage, stages, onClose }: { stage: WorkflowStage | n
                 placeholder="Selecione…"
               />
               {target?.is_final && (
-                <p className="text-[12.5px] text-amber-800">Atenção: a etapa escolhida é de conclusão — as demandas movidas serão marcadas como concluídas.</p>
+                <p className="text-label text-amber-800">Atenção: a etapa escolhida é de conclusão — as demandas movidas serão marcadas como concluídas.</p>
               )}
             </>
           ) : (
@@ -677,7 +677,7 @@ function CategoryFormModal({
       <form id="category-form" onSubmit={submit} noValidate className="flex flex-col gap-4">
         <Input label="Nome" required value={name} maxLength={80} onChange={(e) => setName(e.target.value)} error={nameError} placeholder="Ex.: Pensão por morte" />
         <fieldset>
-          <legend className="mb-1.5 text-[12.5px] font-medium text-ink">Cor</legend>
+          <legend className="mb-1.5 text-label font-medium text-ink">Cor</legend>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Cor da categoria">
             {CATEGORY_COLORS.map((c) => (
               <button
@@ -699,7 +699,7 @@ function CategoryFormModal({
           </div>
         </fieldset>
         {!editing && (
-          <p className="text-[12.5px] text-ink-muted">
+          <p className="text-label text-ink-muted">
             Serão criadas as etapas iniciais {DEFAULT_STAGES.map((s) => `“${s.name}”`).join(', ')}. Você pode editá-las depois.
           </p>
         )}

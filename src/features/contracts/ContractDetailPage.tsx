@@ -63,7 +63,7 @@ export function ContractDetailPage() {
       <Card>
         <ErrorState message={(detail.error as Error).message} onRetry={() => detail.refetch()} />
         <div className="pb-6 text-center">
-          <Link to="/contratos" className="text-[13px] text-accent-700 hover:underline">
+          <Link to="/contratos" className="text-body-sm text-accent-700 hover:underline">
             Voltar para contratos
           </Link>
         </div>
@@ -80,16 +80,16 @@ export function ContractDetailPage() {
   return (
     <div className="space-y-4">
       <div>
-        <Link to="/contratos" className="mb-2 inline-flex items-center gap-1 text-[12.5px] text-ink-muted hover:text-ink">
+        <Link to="/contratos" className="mb-2 inline-flex items-center gap-1 text-label text-ink-muted hover:text-ink">
           <ArrowLeft className="size-3.5" /> Contratos
         </Link>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate text-[20px] font-semibold tracking-[-0.01em] text-ink">{CONTRACT_TYPE[c.contract_type]}</h1>
+              <h1 className="truncate text-heading font-semibold tracking-[-0.01em] text-ink">{CONTRACT_TYPE[c.contract_type]}</h1>
               <StatusBadge value={c.status} map={CONTRACT_STATUS} />
             </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px] text-ink-muted">
+            <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-body-sm text-ink-muted">
               <Link to={`/clientes/${c.client_id}`} className="inline-flex items-center gap-1 hover:text-ink hover:underline">
                 <User className="size-3.5" /> {clientName}
               </Link>
@@ -139,7 +139,7 @@ export function ContractDetailPage() {
           />
           <Metric label="Próximo vencimento" value={cancelled ? '—' : formatDate(c.next_due_date)} />
           <div className="col-span-full">
-            <div className="mb-1 flex justify-between text-[12px] text-ink-subtle">
+            <div className="mb-1 flex justify-between text-caption text-ink-subtle">
               <span>
                 {c.installments_count}× · {PAYMENT_METHOD[c.payment_method]}
               </span>
@@ -149,16 +149,16 @@ export function ContractDetailPage() {
           </div>
         </CardBody>
         {(c.description || c.notes) && (
-          <div className="grid gap-4 border-t border-line px-4 py-3 text-[13px] sm:grid-cols-2">
+          <div className="grid gap-4 border-t border-line px-4 py-3 text-body-sm sm:grid-cols-2">
             {c.description && (
               <div>
-                <div className="text-[12px] font-medium text-ink-subtle">Descrição</div>
+                <div className="text-caption font-medium text-ink-subtle">Descrição</div>
                 <p className="mt-0.5 whitespace-pre-wrap text-ink">{c.description}</p>
               </div>
             )}
             {c.notes && (
               <div>
-                <div className="text-[12px] font-medium text-ink-subtle">Observações</div>
+                <div className="text-caption font-medium text-ink-subtle">Observações</div>
                 <p className="mt-0.5 whitespace-pre-wrap text-ink">{c.notes}</p>
               </div>
             )}
@@ -262,7 +262,7 @@ export function ContractDetailPage() {
                     <TR key={p.id}>
                       <TD className="tabular whitespace-nowrap">
                         {formatDate(p.paid_at)}
-                        <span className="block text-[11.5px] text-ink-subtle" title={formatDateTime(p.created_at)}>
+                        <span className="block text-caption text-ink-subtle" title={formatDateTime(p.created_at)}>
                           por {p.created_by ? names.map.get(p.created_by) ?? 'usuário' : 'usuário removido'}
                         </span>
                       </TD>
@@ -350,8 +350,8 @@ export function ContractDetailPage() {
 function Metric({ label, value, className }: { label: string; value: ReactNode; className?: string }) {
   return (
     <div className="min-w-0">
-      <div className="text-[12px] font-medium text-ink-subtle">{label}</div>
-      <div className={cn('tabular mt-0.5 truncate text-[17px] font-semibold tracking-[-0.01em] text-ink', className)}>{value}</div>
+      <div className="text-caption font-medium text-ink-subtle">{label}</div>
+      <div className={cn('tabular mt-0.5 truncate text-title font-semibold tracking-[-0.01em] text-ink', className)}>{value}</div>
     </div>
   )
 }

@@ -142,7 +142,7 @@ export function AgendaPage() {
           <div>
             {groups.map((group) => (
               <section key={group.date} aria-label={group.label}>
-                <h2 className="flex items-center justify-between border-b border-line bg-canvas/70 px-4 py-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-ink-subtle">
+                <h2 className="flex items-center justify-between border-b border-line bg-canvas/70 px-4 py-1.5 text-caption font-semibold uppercase tracking-wide text-ink-subtle">
                   {group.date === today ? `${group.label} · ${group.items.length}` : group.label}
                   {group.date !== today && <span className="tabular font-medium">{group.items.length}</span>}
                 </h2>
@@ -163,15 +163,15 @@ export function AgendaPage() {
                           </span>
                           <span className="min-w-0 flex-1">
                             <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                              <span className="min-w-0 truncate text-[13.5px] font-medium text-ink">{item.title}</span>
+                              <span className="min-w-0 truncate text-body font-medium text-ink">{item.title}</span>
                               {item.overdue && <Badge tone="red">Atrasado</Badge>}
                             </span>
-                            <span className="mt-0.5 block truncate text-[12px] text-ink-subtle">
+                            <span className="mt-0.5 block truncate text-caption text-ink-subtle">
                               {context || meta.label}
                             </span>
                           </span>
                           {item.amount != null && (
-                            <span className="tabular-nums shrink-0 text-[13px] font-medium text-ink">
+                            <span className="tabular-nums shrink-0 text-body-sm font-medium text-ink">
                               {formatCurrency(item.amount)}
                             </span>
                           )}

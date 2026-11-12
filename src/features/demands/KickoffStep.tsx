@@ -66,17 +66,17 @@ export function KickoffStep({ demand, checklistCount, suggestions, onDone }: Pro
       size="lg"
       footer={
         <>
-          <Button onClick={onDone} disabled={busy}>
-            Pular
-          </Button>
           <Button variant="primary" onClick={confirm} loading={busy}>
             Criar e abrir demanda
+          </Button>
+          <Button onClick={onDone} disabled={busy}>
+            Pular
           </Button>
         </>
       }
     >
       <div className="space-y-4">
-        <p className="text-[13px] text-ink-muted">
+        <p className="text-body-sm text-ink-muted">
           A demanda “{demand.title}” foi criada. Confira o que o escritório costuma fazer neste tipo de caso.
         </p>
 
@@ -104,20 +104,20 @@ export function KickoffStep({ demand, checklistCount, suggestions, onDone }: Pro
                   maxLength={TASK_TITLE_MAX}
                   onChange={(e) => patch(idx, { title: e.target.value })}
                   aria-label={`Título da tarefa ${idx + 1}`}
-                  className="h-8 min-w-0 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+                  className="h-8 min-w-0 rounded-md border border-line-strong bg-surface px-2.5 text-body-sm focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
                 />
                 <input
                   type="date"
                   value={r.due_date ?? ''}
                   onChange={(e) => patch(idx, { due_date: e.target.value || null })}
                   aria-label={`Data da tarefa ${idx + 1}`}
-                  className="h-8 rounded-md border border-line-strong bg-surface px-2 text-[13px] focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+                  className="h-8 rounded-md border border-line-strong bg-surface px-2 text-body-sm focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
                 />
                 <select
                   value={r.assignee_id}
                   onChange={(e) => patch(idx, { assignee_id: e.target.value })}
                   aria-label={`Responsável pela tarefa ${idx + 1}`}
-                  className="h-8 rounded-md border border-line-strong bg-surface px-2 text-[13px] focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+                  className="h-8 rounded-md border border-line-strong bg-surface px-2 text-body-sm focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
                 >
                   <option value="">Sem responsável</option>
                   {members.options.map((o) => (
@@ -130,7 +130,7 @@ export function KickoffStep({ demand, checklistCount, suggestions, onDone }: Pro
                   value={r.priority}
                   onChange={(e) => patch(idx, { priority: e.target.value as PriorityLevel })}
                   aria-label={`Prioridade da tarefa ${idx + 1}`}
-                  className="h-8 rounded-md border border-line-strong bg-surface px-2 text-[13px] focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+                  className="h-8 rounded-md border border-line-strong bg-surface px-2 text-body-sm focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
                 >
                   {toOptions(PRIORITY).map((o) => (
                     <option key={o.value} value={o.value}>
@@ -143,7 +143,7 @@ export function KickoffStep({ demand, checklistCount, suggestions, onDone }: Pro
           </ul>
         )}
 
-        <p className="flex items-start gap-1.5 text-[12px] text-ink-subtle">
+        <p className="flex items-start gap-1.5 text-caption text-ink-subtle">
           <Info className="mt-px size-3.5 shrink-0" aria-hidden />
           <span>Datas sugeridas para organização interna. Confira os prazos legais do caso.</span>
         </p>

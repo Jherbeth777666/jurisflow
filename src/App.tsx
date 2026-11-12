@@ -31,8 +31,8 @@ function ConfigMissing() {
   return (
     <div className="flex min-h-dvh items-center justify-center p-6">
       <div className="max-w-md rounded-xl bg-surface p-6 shadow-[var(--shadow-card)]">
-        <h1 className="text-[16px] font-semibold">Configuração necessária</h1>
-        <p className="mt-2 text-[13.5px] text-ink-muted">
+        <h1 className="text-title font-semibold">Configuração necessária</h1>
+        <p className="mt-2 text-body text-ink-muted">
           Defina <code className="rounded bg-canvas px-1">VITE_SUPABASE_URL</code> e <code className="rounded bg-canvas px-1">VITE_SUPABASE_ANON_KEY</code>{' '}
           em <code className="rounded bg-canvas px-1">.env.local</code> (veja <code>.env.example</code> e o README).
         </p>

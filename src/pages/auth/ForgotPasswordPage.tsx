@@ -24,7 +24,7 @@ export function ForgotPasswordPage() {
   return (
     <AuthShell title="Recuperar senha" subtitle="Enviaremos um link para redefinir sua senha." footer={<Link to="/login" className="text-accent-700 hover:underline">Voltar ao login</Link>}>
       {sent ? (
-        <p className="rounded-lg border border-line bg-surface p-4 text-[13.5px] text-ink-muted">
+        <p className="rounded-lg border border-line bg-surface p-4 text-body text-ink-muted">
           Se existir uma conta com este e-mail, você receberá o link em instantes.
         </p>
       ) : (
@@ -61,7 +61,7 @@ export function ResetPasswordPage() {
   return (
     <AuthShell title="Definir nova senha">
       {ok ? (
-        <p className="text-[13.5px] text-ink-muted">
+        <p className="text-body text-ink-muted">
           Senha alterada. <Link to="/" className="text-accent-700 hover:underline">Ir para o painel</Link>
         </p>
       ) : (

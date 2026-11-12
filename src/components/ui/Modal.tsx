@@ -63,7 +63,7 @@ export function Modal({ open, onClose, title, description, children, footer, siz
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
-      <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-[2px]" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 animate-fade bg-navy-950/35 backdrop-blur-[3px]" onClick={onClose} aria-hidden />
       <div
         ref={panelRef}
         role="dialog"
@@ -71,23 +71,23 @@ export function Modal({ open, onClose, title, description, children, footer, siz
         aria-labelledby="modal-title"
         tabIndex={-1}
         className={cn(
-          'relative flex max-h-[92vh] w-full flex-col rounded-t-xl bg-surface shadow-[var(--shadow-pop)] sm:rounded-xl',
+          'relative flex max-h-[92vh] w-full animate-pop flex-col rounded-t-[var(--radius-dialog)] bg-surface shadow-[var(--shadow-pop)] sm:rounded-[var(--radius-dialog)]',
           sizes[size],
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
           <div>
-            <h2 id="modal-title" className="text-[15px] font-semibold text-ink">
+            <h2 id="modal-title" className="text-title font-semibold tracking-[-0.01em] text-ink">
               {title}
             </h2>
-            {description && <p className="mt-0.5 text-[13px] text-ink-muted">{description}</p>}
+            {description && <p className="mt-0.5 text-body-sm text-ink-muted">{description}</p>}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
             <X className="size-4" />
           </Button>
         </div>
-        <div className="scrollbar-thin overflow-y-auto px-5 py-4">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-line bg-canvas/60 px-5 py-3 rounded-b-xl">{footer}</div>}
+        <div className="scrollbar-thin overflow-y-auto px-6 py-5">{children}</div>
+        {footer && <div className="flex justify-end gap-2 rounded-b-[var(--radius-dialog)] border-t border-line bg-surface-muted px-6 py-3.5">{footer}</div>}
       </div>
     </div>,
     document.body,

@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -20,6 +20,8 @@ import {
   MessageSquareText,
   FileUp,
   HeartPulse,
+  PanelLeftClose,
+  PanelLeftOpen,
   Plus,
 } from 'lucide-react'
 import { CommandPalette, CommandTrigger } from '@/features/command/CommandPalette'
@@ -72,44 +74,75 @@ const NAV_GROUPS: NavGroup[] = [
 ]
 
 const ALL_NAV = NAV_GROUPS.flatMap((g) => g.items)
+const COLLAPSE_KEY = 'jurisflow:menu-recolhido'
 
-function Sidebar({ onNavigate, showSearch }: { onNavigate?: () => void; showSearch?: boolean }) {
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function Sidebar({
+  onNavigate,
+  showSearch,
+  collapsed = false,
+  onToggleCollapsed,
+}: {
+  onNavigate?: () => void
+  showSearch?: boolean
+  collapsed?: boolean
+  onToggleCollapsed?: () => void
+}) {
   const { organization, memberships, switchOrganization, profile, role, signOut } = useAuth()
   const [orgMenu, setOrgMenu] = useState(false)
   const multi = memberships.length > 1
 
   return (
-    <div className="bg-sidebar flex h-full flex-col text-navy-100">
-      <div className="flex h-16 items-center gap-2.5 px-5">
-        <LogoMark className="size-8" />
-        <span className="text-[15.5px] font-semibold tracking-tight text-white">
-          JurisFlow <span className="font-medium text-accent-200">AI</span>
-        </span>
+    <div className="flex h-full flex-col border-r border-line bg-sidebar">
+      <div className={cn('flex h-14 shrink-0 items-center gap-2.5', collapsed ? 'justify-center' : 'px-4')}>
+        <LogoMark className="size-7" />
+        {!collapsed && (
+          <span className="text-body-lg font-semibold tracking-[-0.01em] text-ink">
+            JurisFlow <span className="font-medium text-ink-subtle">AI</span>
+          </span>
+        )}
       </div>
 
-      <div className="relative px-3 pb-3">
+      <div className={cn('relative pb-2', collapsed ? 'px-2' : 'px-3')}>
         <button
           onClick={() => multi && setOrgMenu((o) => !o)}
+          title={collapsed ? organization?.name : undefined}
+          aria-label={collapsed ? `Escritório: ${organization?.name ?? ''}` : undefined}
           className={cn(
-            'flex w-full items-center gap-2.5 rounded-lg bg-white/[0.06] px-2.5 py-2 text-left ring-1 ring-inset ring-white/10 transition-colors',
-            multi && 'hover:bg-white/10',
+            'flex w-full items-center gap-2.5 rounded-[var(--radius-control)] bg-surface p-1.5 text-left shadow-[var(--shadow-card)] transition-shadow',
+            multi && 'hover:shadow-[var(--shadow-lift)]',
+            collapsed && 'justify-center',
           )}
           aria-haspopup={multi ? 'menu' : undefined}
         >
           <span
             aria-hidden
-            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-navy-700 text-[12px] font-semibold text-white"
+            className="flex size-7 shrink-0 items-center justify-center rounded-md bg-navy-50 text-caption font-semibold text-navy-700"
           >
             {(organization?.name ?? '?').trim().charAt(0).toUpperCase()}
           </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-[13px] font-medium text-white">{organization?.name}</span>
-            <span className="block text-[11.5px] text-navy-300">{role ? ROLE_LABELS[role] : ''}</span>
-          </span>
-          {multi && <ChevronsUpDown className="size-3.5 shrink-0 text-navy-300" />}
+          {!collapsed && (
+            <>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-body-sm font-medium leading-tight text-ink">{organization?.name}</span>
+                <span className="block text-2xs text-ink-subtle">{role ? ROLE_LABELS[role] : ''}</span>
+              </span>
+              {multi && <ChevronsUpDown className="mr-1 size-3.5 shrink-0 text-ink-subtle" />}
+            </>
+          )}
         </button>
         {orgMenu && (
-          <div role="menu" className="absolute left-3 right-3 z-20 mt-1 rounded-lg bg-surface py-1 text-ink shadow-[var(--shadow-pop)]">
+          <div
+            role="menu"
+            className="absolute left-3 right-3 z-20 mt-1 min-w-48 animate-pop rounded-[var(--radius-control)] bg-surface py-1 text-ink shadow-[var(--shadow-pop)]"
+          >
             {memberships.map((m) => (
               <button
                 key={m.organization.id}
@@ -118,67 +151,65 @@ function Sidebar({ onNavigate, showSearch }: { onNavigate?: () => void; showSear
                   switchOrganization(m.organization.id)
                   setOrgMenu(false)
                 }}
-                className="block w-full truncate px-3 py-1.5 text-left text-[13px] hover:bg-navy-50"
+                className="block w-full truncate px-3 py-1.5 text-left text-body-sm hover:bg-surface-muted"
               >
                 {m.organization.name}
               </button>
             ))}
           </div>
         )}
-        {organization?.is_demo && (
-          <div className="mt-2 flex items-center gap-1.5 rounded-lg bg-amber-400/10 px-2.5 py-1.5 text-[11.5px] text-amber-200 ring-1 ring-inset ring-amber-300/20">
-            <FlaskConical className="size-3.5" /> Ambiente de demonstração
+        {organization?.is_demo && !collapsed && (
+          <div className="mt-2 flex items-center gap-1.5 rounded-[var(--radius-control)] bg-amber-50 px-2.5 py-1.5 text-2xs font-medium text-amber-800 ring-1 ring-inset ring-amber-200/70">
+            <FlaskConical className="size-3.5" aria-hidden /> Ambiente de demonstração
           </div>
         )}
       </div>
 
       {showSearch && (
         <div className="px-3 pb-1">
-          <CommandTrigger className="w-full" />
+          <CommandTrigger tone="light" className="w-full" />
         </div>
       )}
 
-      <nav className="scrollbar-thin flex-1 overflow-y-auto px-3 pb-3" aria-label="Menu principal">
+      <nav className={cn('scrollbar-thin flex-1 overflow-y-auto pb-3', collapsed ? 'px-2' : 'px-3')} aria-label="Menu principal">
         {NAV_GROUPS.map((group) => (
-          <div key={group.label ?? 'inicio'} className={group.label ? 'pt-4' : 'pt-1'}>
-            {group.label && (
-              <p className="px-2.5 pb-1.5 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-navy-300">
-                {group.label}
-              </p>
-            )}
-            <div className="space-y-0.5">
+          <div key={group.label ?? 'inicio'} className={group.label ? 'pt-4' : 'pt-2'}>
+            {group.label &&
+              (collapsed ? (
+                <div className="mx-auto mb-2 h-px w-6 bg-line-strong" aria-hidden />
+              ) : (
+                <p className="eyebrow px-2.5 pb-1.5">{group.label}</p>
+              ))}
+            <div className="space-y-px">
               {group.items.map(({ to, label, icon: Icon, end }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
                   onClick={onNavigate}
+                  title={collapsed ? label : undefined}
+                  aria-label={collapsed ? label : undefined}
                   className={({ isActive }) =>
                     cn(
-                      'group relative flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-[13.5px] transition-colors',
+                      'group flex min-h-8 items-center gap-2.5 rounded-[var(--radius-control)] text-body-sm transition-[background-color,color,box-shadow] duration-150',
+                      collapsed ? 'justify-center py-2' : 'px-2.5 py-1.5',
                       isActive
-                        ? 'bg-white/[0.09] font-medium text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.06)]'
-                        : 'text-navy-200 hover:bg-white/[0.05] hover:text-white',
+                        ? 'bg-surface font-medium text-ink shadow-[var(--shadow-card)]'
+                        : 'text-ink-muted hover:bg-ink/[0.045] hover:text-ink',
                     )
                   }
                 >
                   {({ isActive }) => (
                     <>
-                      <span
-                        aria-hidden
-                        className={cn(
-                          'absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-accent-500 transition-opacity',
-                          isActive ? 'opacity-100' : 'opacity-0',
-                        )}
-                      />
                       <Icon
                         className={cn(
-                          'size-4 shrink-0',
-                          isActive ? 'text-accent-200' : 'text-navy-300 group-hover:text-navy-100',
+                          'size-[17px] shrink-0 transition-colors',
+                          isActive ? 'text-accent-600' : 'text-ink-subtle group-hover:text-ink-muted',
                         )}
-                        strokeWidth={1.85}
+                        strokeWidth={1.8}
+                        aria-hidden
                       />
-                      {label}
+                      {!collapsed && <span className="truncate">{label}</span>}
                     </>
                   )}
                 </NavLink>
@@ -188,22 +219,38 @@ function Sidebar({ onNavigate, showSearch }: { onNavigate?: () => void; showSear
         ))}
       </nav>
 
-      <div className="border-t border-white/10 p-3">
-        <div className="flex items-center gap-2.5 px-1.5 py-1">
-          <Avatar name={profile?.full_name || profile?.email} className="size-8 bg-navy-700 text-navy-100 ring-2 ring-white/10" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[13px] font-medium text-white">{profile?.full_name || 'Usuário'}</p>
-            <p className="truncate text-[11.5px] text-navy-300">{profile?.email}</p>
-          </div>
+      <div className={cn('shrink-0 border-t border-line', collapsed ? 'px-2 py-2' : 'p-3')}>
+        <div className={cn('flex items-center gap-2.5', collapsed ? 'flex-col' : 'px-1')}>
+          <Avatar name={profile?.full_name || profile?.email} className="size-8 bg-navy-900 text-white" />
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-body-sm font-medium leading-tight text-ink">{profile?.full_name || 'Usuário'}</p>
+              <p className="truncate text-2xs text-ink-subtle">{profile?.email}</p>
+            </div>
+          )}
           <button
             onClick={signOut}
-            className="touch-target rounded-md p-1.5 text-navy-300 transition-colors hover:bg-white/10 hover:text-white"
+            className="touch-target flex size-8 items-center justify-center rounded-md text-ink-subtle transition-colors hover:bg-ink/[0.06] hover:text-ink"
             aria-label="Sair"
             title="Sair"
           >
             <LogOut className="size-4" />
           </button>
         </div>
+        {onToggleCollapsed && (
+          <button
+            onClick={onToggleCollapsed}
+            className={cn(
+              'mt-2 flex h-8 w-full items-center gap-2 rounded-md text-caption text-ink-subtle transition-colors hover:bg-ink/[0.045] hover:text-ink',
+              collapsed ? 'justify-center' : 'px-2',
+            )}
+            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+          >
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            {!collapsed && 'Recolher menu'}
+          </button>
+        )}
       </div>
     </div>
   )
@@ -211,24 +258,38 @@ function Sidebar({ onNavigate, showSearch }: { onNavigate?: () => void; showSear
 
 export function AppLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(readCollapsed)
   const location = useLocation()
   const { organization } = useAuth()
   const current = ALL_NAV.find((n) => (n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)))
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0')
+    } catch {
+      /* armazenamento indisponível: só não lembra a preferência */
+    }
+  }, [collapsed])
+
   return (
-    <div className="min-h-dvh lg:pl-60">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 border-r border-navy-950 lg:block">
-        <Sidebar />
+    <div className={cn('min-h-dvh transition-[padding] duration-200 ease-out', collapsed ? 'lg:pl-16' : 'lg:pl-60')}>
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-30 hidden transition-[width] duration-200 ease-out lg:block',
+          collapsed ? 'w-16' : 'w-60',
+        )}
+      >
+        <Sidebar collapsed={collapsed} onToggleCollapsed={() => setCollapsed((c) => !c)} />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 lg:hidden">
-          <div className="absolute inset-0 bg-navy-950/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} aria-hidden />
-          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] shadow-2xl">
+          <div className="absolute inset-0 animate-fade bg-navy-950/35 backdrop-blur-[3px]" onClick={() => setMobileOpen(false)} aria-hidden />
+          <aside className="absolute inset-y-0 left-0 w-72 max-w-[85vw] animate-rise shadow-[var(--shadow-pop)]">
             <Sidebar onNavigate={() => setMobileOpen(false)} showSearch />
             <button
               onClick={() => setMobileOpen(false)}
-              className="touch-target absolute right-2 top-3 rounded-md p-1.5 text-navy-200 hover:bg-white/10"
+              className="touch-target absolute right-2 top-3 flex size-8 items-center justify-center rounded-md text-ink-subtle hover:bg-ink/[0.06] hover:text-ink"
               aria-label="Fechar menu"
             >
               <X className="size-4" />
@@ -237,47 +298,47 @@ export function AppLayout() {
         </div>
       )}
 
-      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line/80 bg-surface/80 px-3 backdrop-blur-xl backdrop-saturate-150 lg:hidden">
+      <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-line bg-canvas/85 px-3 backdrop-blur-xl lg:hidden">
         <button
           onClick={() => setMobileOpen(true)}
-          className="touch-target flex items-center justify-center rounded-lg p-1.5 text-ink-muted hover:bg-navy-50"
+          className="touch-target flex items-center justify-center rounded-md p-1.5 text-ink-muted hover:bg-ink/[0.05]"
           aria-label="Abrir menu"
         >
           <Menu className="size-5" />
         </button>
         <LogoMark className="size-6" />
-        <span className="truncate text-[14.5px] font-semibold tracking-tight">{current?.label ?? 'JurisFlow AI'}</span>
-        <div className="ml-auto flex items-center gap-1">
+        <span className="truncate text-body-lg font-semibold tracking-[-0.01em]">{current?.label ?? 'JurisFlow AI'}</span>
+        <div className="ml-auto flex items-center gap-0.5">
           <CommandTrigger tone="icon" />
           <NotificationBell />
         </div>
       </header>
 
-      <header className="sticky top-0 z-20 hidden h-14 items-center gap-4 border-b border-line/80 bg-surface/75 px-6 backdrop-blur-xl backdrop-saturate-150 lg:flex lg:px-8">
-        <nav aria-label="Você está em" className="flex min-w-0 items-center gap-2 text-[13px]">
+      <header className="sticky top-0 z-20 hidden h-14 items-center gap-4 border-b border-line bg-canvas/85 px-6 backdrop-blur-xl lg:flex lg:px-10">
+        <nav aria-label="Você está em" className="flex min-w-0 items-center gap-1.5 text-body-sm">
           <span className="truncate text-ink-subtle">{organization?.name ?? 'JurisFlow'}</span>
-          <ChevronRight className="size-3.5 shrink-0 text-ink-subtle/60" aria-hidden />
+          <ChevronRight className="size-3.5 shrink-0 text-ink-subtle/50" aria-hidden />
           <span className="truncate font-medium text-ink" aria-current="page">
             {current?.label ?? 'JurisFlow AI'}
           </span>
         </nav>
         <div className="ml-auto flex items-center gap-2">
-          <CommandTrigger tone="light" className="h-9 w-64 rounded-lg xl:w-80" />
+          <CommandTrigger tone="light" className="h-8 w-60 xl:w-72" />
           <Link
             to="/demandas?nova=1"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-to-b from-accent-600 to-accent-700 px-3.5 text-[13.5px] font-medium text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.18),0_1px_2px_rgb(29_78_216/0.4)] transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"
+            className="inline-flex h-8 items-center gap-1.5 rounded-[var(--radius-control)] bg-navy-900 px-3 text-body-sm font-medium text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.1),var(--shadow-xs)] transition-[background-color,transform] duration-150 hover:bg-navy-800 active:scale-[0.97]"
           >
             <Plus className="size-4" aria-hidden />
             Nova demanda
           </Link>
-          <span className="mx-1 h-6 w-px bg-line" aria-hidden />
+          <span className="mx-1 h-5 w-px bg-line-strong" aria-hidden />
           <NotificationBell />
         </div>
       </header>
 
       <CommandPalette />
 
-      <main className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+      <main className="mx-auto w-full max-w-[1360px] px-4 py-5 sm:px-6 lg:px-10 lg:py-8">
         <Suspense fallback={<Spinner />}>
           <div key={location.pathname} className="animate-rise">
             <Outlet />

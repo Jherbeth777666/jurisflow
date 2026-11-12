@@ -143,10 +143,10 @@ export function ExportButton<T>(props: Props<T>) {
             role="menuitem"
             autoFocus
             onClick={onExportClick}
-            className="flex w-full flex-col items-start rounded-md px-2.5 py-2 text-left text-[13px] text-ink hover:bg-navy-50 focus:bg-navy-50 focus:outline-none"
+            className="flex w-full flex-col items-start rounded-md px-2.5 py-2 text-left text-body-sm text-ink hover:bg-navy-50 focus:bg-navy-50 focus:outline-none"
           >
             Exportar CSV
-            {menuHint && <span className="text-[11.5px] text-ink-subtle">{menuHint}</span>}
+            {menuHint && <span className="text-caption text-ink-subtle">{menuHint}</span>}
           </button>
         </div>
       )}
@@ -165,14 +165,14 @@ export function ExportButton<T>(props: Props<T>) {
           </>
         }
       >
-        <div className="flex flex-col gap-3 text-[13px] text-ink-muted">
+        <div className="flex flex-col gap-3 text-body-sm text-ink-muted">
           <p>
             Por padrão o arquivo sai <strong className="font-medium text-ink">sem dados pessoais</strong> (CPF, telefone, e-mail, nascimento e
             endereço).
           </p>
           <div className="flex gap-2.5 rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900">
             <ShieldAlert className="mt-0.5 size-4 shrink-0" />
-            <p className="text-[12.5px] leading-relaxed">
+            <p className="text-label leading-relaxed">
               Ao incluir dados pessoais, você se torna responsável pela guarda deste arquivo conforme a LGPD: use apenas para a finalidade do
               atendimento, não compartilhe por canais inseguros e apague-o quando não for mais necessário.
             </p>

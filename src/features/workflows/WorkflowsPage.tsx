@@ -50,7 +50,7 @@ export function WorkflowsPage() {
   return (
     <div>
       <PageHeader title="Fluxos de trabalho" description="Acompanhe as demandas por etapa e personalize os fluxos de cada categoria." />
-      <p className="-mt-2 mb-4 flex items-start gap-1.5 text-[12.5px] text-ink-muted">
+      <p className="-mt-2 mb-4 flex items-start gap-1.5 text-label text-ink-muted">
         <Info className="mt-0.5 size-3.5 shrink-0 text-ink-subtle" aria-hidden />
         Fluxos são controles administrativos do escritório, não determinações jurídicas.
       </p>

@@ -136,8 +136,8 @@ export function ReportsPage() {
     <div>
       <style>{PRINT_CSS}</style>
       <div className="report-print-only mb-4 hidden">
-        <p className="text-[16px] font-semibold">{organization.name} — Relatórios gerenciais</p>
-        <p className="text-[12.5px] text-ink-muted">
+        <p className="text-title font-semibold">{organization.name} — Relatórios gerenciais</p>
+        <p className="text-label text-ink-muted">
           Período: {periodText} · Emitido em {formatDate(today)}
         </p>
       </div>
@@ -163,7 +163,7 @@ export function ReportsPage() {
                   aria-checked={preset === p}
                   onClick={() => setPreset(p)}
                   className={cn(
-                    'rounded px-3 py-1.5 text-[13px] font-medium transition-colors',
+                    'rounded px-3 py-1.5 text-body-sm font-medium transition-colors',
                     preset === p ? 'bg-surface text-ink shadow-[var(--shadow-card)]' : 'text-ink-muted hover:text-ink',
                   )}
                 >
@@ -178,9 +178,9 @@ export function ReportsPage() {
                   <Input label="Até" type="date" value={period.to} min={period.from} onChange={(e) => setCustom('ate', e.target.value)} wrapperClassName="w-40" />
                 </>
               ) : (
-                <span className="tabular text-[13px] text-ink-muted">{periodText}</span>
+                <span className="tabular text-body-sm text-ink-muted">{periodText}</span>
               )}
-              {data.isFetching && !data.isLoading && <span className="text-[12px] text-ink-subtle">Atualizando…</span>}
+              {data.isFetching && !data.isLoading && <span className="text-caption text-ink-subtle">Atualizando…</span>}
             </div>
           </div>
         </Card>
@@ -521,14 +521,14 @@ function OverdueReport({ agg, data }: { agg: ReturnType<typeof overdueSummary>; 
     <div>
       <div className="grid gap-4 border-b border-line p-4 md:grid-cols-[220px_1fr]">
         <div>
-          <div className="text-[12px] font-medium text-ink-subtle">Total vencido</div>
-          <div className="tabular mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-red-600">{formatCurrency(agg.total)}</div>
-          <div className="mt-0.5 text-[12px] text-ink-muted">
+          <div className="text-caption font-medium text-ink-subtle">Total vencido</div>
+          <div className="tabular mt-0.5 text-heading font-semibold tracking-[-0.02em] text-red-600">{formatCurrency(agg.total)}</div>
+          <div className="mt-0.5 text-caption text-ink-muted">
             {agg.count} parcela{agg.count === 1 ? '' : 's'} · {agg.clients} cliente{agg.clients === 1 ? '' : 's'} · {agg.contracts} contrato
             {agg.contracts === 1 ? '' : 's'}
           </div>
         </div>
-        <ul className="space-y-1.5 text-[12.5px]">
+        <ul className="space-y-1.5 text-label">
           {agg.buckets.map((b) => (
             <li key={b.label} className="grid grid-cols-[110px_1fr_auto] items-center gap-3">
               <span className="text-ink-muted">{b.label}</span>

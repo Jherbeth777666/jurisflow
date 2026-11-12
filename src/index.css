@@ -1,13 +1,36 @@
 @import 'tailwindcss';
 
 /* ---------------------------------------------------------------------------
-   JurisFlow design tokens
-   Azul-marinho institucional, azul de destaque, fundo cinza muito claro.
+   JurisFlow — sistema visual "papel e tinta"
+   Fundo de papel levemente quente, tinta azul-marinho, um único azul de destaque.
+   Hierarquia por tipografia e linhas finas, não por cor ou efeito.
+   Guia completo: docs/DESIGN.md
 --------------------------------------------------------------------------- */
 @theme {
   --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Escala tipográfica (tamanho / altura de linha) */
+  --text-2xs: 11px;
+  --text-2xs--line-height: 1.45;
+  --text-caption: 12px;
+  --text-caption--line-height: 1.5;
+  --text-label: 12.5px;
+  --text-label--line-height: 1.5;
+  --text-body-sm: 13px;
+  --text-body-sm--line-height: 1.5;
+  --text-body: 13.5px;
+  --text-body--line-height: 1.55;
+  --text-body-lg: 14.5px;
+  --text-body-lg--line-height: 1.5;
+  --text-title: 16px;
+  --text-title--line-height: 1.4;
+  --text-heading: 22px;
+  --text-heading--line-height: 1.25;
+  --text-display: 28px;
+  --text-display--line-height: 1.15;
+
+  /* Tinta */
   --color-navy-50: #f1f4f9;
   --color-navy-100: #dfe6f1;
   --color-navy-200: #bccbe1;
@@ -20,6 +43,7 @@
   --color-navy-900: #0b1b36;
   --color-navy-950: #061024;
 
+  /* Destaque (links, foco, seleção, dado principal de gráficos) */
   --color-accent-50: #eff5ff;
   --color-accent-100: #dbe8fe;
   --color-accent-200: #bfd6fe;
@@ -27,29 +51,68 @@
   --color-accent-600: #2563eb;
   --color-accent-700: #1d4ed8;
 
-  --color-canvas: #f6f7f9;
+  /* Papel */
+  --color-canvas: #f7f7f5;
+  --color-sidebar: #f1f1ee;
   --color-surface: #ffffff;
-  --color-line: #e6e8ec;
-  --color-line-strong: #d5d9e0;
-  --color-ink: #0f172a;
-  --color-ink-muted: #5b6474;
-  --color-ink-subtle: #687183;
+  --color-surface-muted: #fafaf8;
+  --color-line: #e7e7e3;
+  --color-line-strong: #d6d6d0;
+  --color-ink: #0e1726;
+  --color-ink-muted: #545d6c;
+  --color-ink-subtle: #5d6676;
 
+  /* Raios: controles 8px, cartões 12px, modais 16px */
+  --radius-control: 8px;
   --radius-card: 12px;
-  --shadow-card: 0 0 0 1px rgb(15 23 42 / 0.05), 0 1px 2px rgb(15 23 42 / 0.04), 0 2px 6px -2px rgb(15 23 42 / 0.04);
-  --shadow-lift: 0 0 0 1px rgb(15 23 42 / 0.06), 0 4px 10px -2px rgb(15 23 42 / 0.06), 0 14px 28px -12px rgb(15 23 42 / 0.14);
-  --shadow-pop: 0 0 0 1px rgb(15 23 42 / 0.06), 0 12px 32px -8px rgb(15 23 42 / 0.22);
-  --shadow-glow: 0 0 0 1px rgb(37 99 235 / 0.35), 0 6px 20px -6px rgb(37 99 235 / 0.55);
+  --radius-dialog: 16px;
 
-  --animate-rise: rise 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  /* Sombras discretas */
+  --shadow-xs: 0 1px 1px rgb(14 23 38 / 0.04);
+  --shadow-card: 0 0 0 1px rgb(14 23 38 / 0.06), 0 1px 2px rgb(14 23 38 / 0.04);
+  --shadow-lift: 0 0 0 1px rgb(14 23 38 / 0.07), 0 2px 4px rgb(14 23 38 / 0.04), 0 8px 20px -8px rgb(14 23 38 / 0.12);
+  --shadow-pop: 0 0 0 1px rgb(14 23 38 / 0.07), 0 12px 32px -10px rgb(14 23 38 / 0.22);
+
+  /* Movimento: curto e com desaceleração */
+  --ease-out-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --animate-rise: rise 0.28s var(--ease-out-soft) both;
+  --animate-fade: fade 0.18s ease-out both;
+  --animate-pop: pop 0.2s var(--ease-out-soft) both;
+  --animate-shimmer: shimmer 1.6s linear infinite;
   @keyframes rise {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(4px);
     }
     to {
       opacity: 1;
       transform: none;
+    }
+  }
+  @keyframes fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes pop {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.985);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  @keyframes shimmer {
+    from {
+      background-position: 200% 0;
+    }
+    to {
+      background-position: -200% 0;
     }
   }
 }
@@ -61,12 +124,8 @@
     text-rendering: optimizeLegibility;
   }
   body {
-    @apply bg-canvas text-ink font-sans text-[14px] leading-relaxed;
+    @apply bg-canvas text-ink font-sans text-body;
     font-feature-settings: 'ss01', 'cv11';
-    background-image:
-      radial-gradient(900px 360px at 85% -120px, rgb(59 130 246 / 0.07), transparent 70%),
-      radial-gradient(700px 300px at 10% -140px, rgb(11 27 54 / 0.05), transparent 70%);
-    background-repeat: no-repeat;
   }
   h1,
   h2,
@@ -79,11 +138,21 @@
   :focus-visible {
     @apply outline-2 outline-offset-2 outline-accent-500;
   }
+  input[type='checkbox'] {
+    accent-color: var(--color-navy-900);
+  }
 }
 
 @layer utilities {
   .tabular {
     font-variant-numeric: tabular-nums;
+  }
+  .eyebrow {
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--color-ink-subtle);
   }
   .scrollbar-thin {
     scrollbar-width: thin;
@@ -91,21 +160,6 @@
   }
   .touch-target {
     touch-action: manipulation;
-  }
-  .bg-sidebar {
-    background:
-      radial-gradient(420px 260px at 0% 0%, rgb(59 130 246 / 0.16), transparent 70%),
-      linear-gradient(180deg, var(--color-navy-900) 0%, var(--color-navy-950) 100%);
-  }
-  .bg-hero {
-    background:
-      radial-gradient(520px 240px at 100% 0%, rgb(59 130 246 / 0.28), transparent 70%),
-      radial-gradient(380px 200px at 0% 100%, rgb(99 102 241 / 0.18), transparent 70%),
-      linear-gradient(135deg, var(--color-navy-900) 0%, var(--color-navy-800) 100%);
-  }
-  .bg-dots {
-    background-image: radial-gradient(rgb(255 255 255 / 0.09) 1px, transparent 1px);
-    background-size: 18px 18px;
   }
   @media (pointer: coarse) {
     .touch-target {
@@ -120,6 +174,7 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

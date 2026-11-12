@@ -59,7 +59,7 @@ export function ClientPicker({
             aria-haspopup="listbox"
             aria-expanded={open}
             aria-invalid={!!error || undefined}
-            className="flex h-9 w-full items-center justify-between rounded-md border border-line-strong bg-surface px-3 text-left text-[13.5px] focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100 disabled:bg-canvas aria-[invalid=true]:border-red-400"
+            className="flex h-9 w-full items-center justify-between rounded-md border border-line-strong bg-surface px-3 text-left text-body focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100 disabled:bg-canvas aria-[invalid=true]:border-red-400"
           >
             <span className={cn('truncate', !value && 'text-ink-subtle')}>{value ? selected.data || 'Carregando…' : 'Selecione um cliente'}</span>
             <ChevronsUpDown className="size-4 text-ink-subtle" />
@@ -73,12 +73,12 @@ export function ClientPicker({
                   value={term}
                   onChange={(e) => setTerm(e.target.value)}
                   placeholder="Buscar por nome ou CPF"
-                  className="h-9 w-full rounded-t-md pl-8 pr-3 text-[13.5px] focus:outline-none"
+                  className="h-9 w-full rounded-t-md pl-8 pr-3 text-body focus:outline-none"
                 />
               </div>
               <ul role="listbox" className="scrollbar-thin max-h-60 overflow-y-auto py-1">
-                {list.isLoading && <li className="px-3 py-2 text-[13px] text-ink-muted">Buscando…</li>}
-                {list.data?.length === 0 && <li className="px-3 py-2 text-[13px] text-ink-muted">Nenhum cliente encontrado.</li>}
+                {list.isLoading && <li className="px-3 py-2 text-body-sm text-ink-muted">Buscando…</li>}
+                {list.data?.length === 0 && <li className="px-3 py-2 text-body-sm text-ink-muted">Nenhum cliente encontrado.</li>}
                 {list.data?.map((c) => (
                   <li key={c.id}>
                     <button
@@ -89,10 +89,10 @@ export function ClientPicker({
                         onChange(c.id, c.full_name)
                         setOpen(false)
                       }}
-                      className="flex w-full items-center justify-between px-3 py-1.5 text-left text-[13px] hover:bg-navy-50"
+                      className="flex w-full items-center justify-between px-3 py-1.5 text-left text-body-sm hover:bg-navy-50"
                     >
                       <span className="truncate">{c.full_name}</span>
-                      <span className="flex items-center gap-2 text-[11.5px] text-ink-subtle tabular">
+                      <span className="flex items-center gap-2 text-caption text-ink-subtle tabular">
                         {c.cpf ? maskCPF(c.cpf) : ''}
                         {c.id === value && <Check className="size-3.5 text-accent-600" />}
                       </span>

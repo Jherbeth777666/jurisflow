@@ -56,13 +56,13 @@ export function TaskRowItem({
           type="button"
           onClick={onEdit}
           className={cn(
-            'block max-w-full truncate text-left text-[13.5px] font-medium text-ink hover:underline',
+            'block max-w-full truncate text-left text-body font-medium text-ink hover:underline',
             !open && 'text-ink-muted line-through decoration-ink-subtle',
           )}
         >
           {task.title}
         </button>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-muted">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-muted">
           <span className={cn('tabular', dueTone[bucket])}>{open ? dueLabel(task.due_date, today) : task.status === 'cancelada' ? 'Cancelada' : 'Concluída'}</span>
           {(task.priority === 'alta' || task.priority === 'urgente') && (
             <Badge tone={PRIORITY[task.priority].tone}>{PRIORITY[task.priority].label}</Badge>
@@ -82,7 +82,7 @@ export function TaskRowItem({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        {assigneeName ? <Avatar name={assigneeName} /> : <span className="text-[11.5px] text-ink-subtle">Sem resp.</span>}
+        {assigneeName ? <Avatar name={assigneeName} /> : <span className="text-caption text-ink-subtle">Sem resp.</span>}
         {!compact && (
           <Button variant="ghost" size="icon" onClick={onEdit} aria-label={`Editar tarefa: ${task.title}`}>
             <Pencil className="size-4" />

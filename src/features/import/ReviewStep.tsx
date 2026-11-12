@@ -47,9 +47,9 @@ function EditableCell({ row, field, onEdit }: { row: ImportRow; field: ImportFie
         onKeyDown={(e) => e.key === 'Enter' && commit()}
         aria-label={`${FIELD_LABELS[field]} da linha ${row.line}`}
         aria-invalid
-        className="h-7 w-full rounded border border-red-300 bg-red-50/40 px-2 text-[12.5px] focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-100"
+        className="h-7 w-full rounded border border-red-300 bg-red-50/40 px-2 text-label focus:border-accent-500 focus:outline-none focus:ring-2 focus:ring-accent-100"
       />
-      <p className="mt-0.5 text-[11.5px] text-red-600">{error}</p>
+      <p className="mt-0.5 text-caption text-red-600">{error}</p>
     </div>
   )
 }
@@ -142,7 +142,7 @@ export function ReviewStep(p: Props) {
                       <Badge tone={TONE[r.status]} dot>
                         {r.status === 'erro' ? `Erro: ${Object.values(r.errors)[0]}` : ROW_STATUS_LABEL[r.status]}
                       </Badge>
-                      {r.match && <p className="mt-1 max-w-[240px] truncate text-[11.5px] text-ink-subtle" title={r.match.label}>{r.match.label}</p>}
+                      {r.match && <p className="mt-1 max-w-[240px] truncate text-caption text-ink-subtle" title={r.match.label}>{r.match.label}</p>}
                     </TD>
                     {fields.map((f) => (
                       <TD key={f} className="align-top">
@@ -155,7 +155,7 @@ export function ReviewStep(p: Props) {
                         value={action}
                         disabled={allowed.length < 2}
                         onChange={(e) => p.onOverride([r.id], e.target.value as RowAction)}
-                        className="h-7 w-full rounded border border-line-strong bg-surface px-1.5 text-[12.5px] disabled:bg-canvas disabled:text-ink-subtle"
+                        className="h-7 w-full rounded border border-line-strong bg-surface px-1.5 text-label disabled:bg-canvas disabled:text-ink-subtle"
                       >
                         {allowed.map((a) => (
                           <option key={a} value={a}>
@@ -181,14 +181,14 @@ export function ReviewStep(p: Props) {
             onChange={(e) => p.onCreateDemands(e.target.checked)}
             label="Criar uma demanda para cada linha com categoria"
           />
-          <p className="mt-1 pl-6 text-[12px] text-ink-subtle">
+          <p className="mt-1 pl-6 text-caption text-ink-subtle">
             {p.canCreateDemands
               ? `Título padrão “<Categoria> — <Nome>”, na 1ª etapa do fluxo. ${p.createDemands ? `${s.demandas} demanda(s).` : ''}`
               : 'Mapeie a coluna “Tipo de demanda” e associe categorias para usar esta opção.'}
           </p>
         </div>
         {s.byStatus.erro > 0 && (
-          <p className="flex items-center gap-1.5 text-[12.5px] text-amber-800">
+          <p className="flex items-center gap-1.5 text-label text-amber-800">
             <AlertTriangle className="size-3.5" /> {s.byStatus.erro} linha(s) com erro serão ignoradas se não forem corrigidas.
           </p>
         )}
@@ -209,9 +209,9 @@ export function ReviewStep(p: Props) {
 function Counter({ label, value, tone, hint }: { label: string; value: number; tone: string; hint?: string }) {
   return (
     <Card className="p-3.5">
-      <p className="text-[12px] font-medium text-ink-muted">{label}</p>
-      <p className={cn('tabular mt-1 text-[20px] font-semibold tracking-[-0.02em]', tone)}>{value.toLocaleString('pt-BR')}</p>
-      {hint && <p className="text-[11.5px] text-ink-subtle">{hint}</p>}
+      <p className="text-caption font-medium text-ink-muted">{label}</p>
+      <p className={cn('tabular mt-1 text-heading font-semibold tracking-[-0.02em]', tone)}>{value.toLocaleString('pt-BR')}</p>
+      {hint && <p className="text-caption text-ink-subtle">{hint}</p>}
     </Card>
   )
 }

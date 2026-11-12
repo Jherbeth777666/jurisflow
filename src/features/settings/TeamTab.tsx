@@ -222,7 +222,7 @@ function InvitationsCard() {
     <Card>
       <CardHeader title="Convites" description="Adicione advogados e assistentes ao escritório." />
       <CardBody className="flex flex-col gap-4">
-        <div role="note" className="flex items-start gap-2 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-[13px] text-accent-700">
+        <div role="note" className="flex items-start gap-2 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-body-sm text-accent-700">
           <Info className="mt-0.5 size-4 shrink-0" />
           <span>
             Envie o link para a pessoa. Ela cria a conta com o e-mail convidado e entra direto no escritório. O link vale 14 dias.
@@ -252,7 +252,7 @@ function InvitationsCard() {
         ) : invitations.isError ? (
           <ErrorState message={(invitations.error as Error).message} onRetry={() => invitations.refetch()} />
         ) : !invitations.data?.length ? (
-          <p className="px-4 py-5 text-center text-[13px] text-ink-muted">Nenhum convite pendente.</p>
+          <p className="px-4 py-5 text-center text-body-sm text-ink-muted">Nenhum convite pendente.</p>
         ) : (
           <Table label="Convites pendentes">
             <THead>

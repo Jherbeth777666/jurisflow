@@ -111,7 +111,7 @@ export function TemplateFormModal({
               maxLength={MAX_BODY}
               error={unknown.length ? `Variáveis desconhecidas: ${unknown.map((v) => `{{${v}}}`).join(', ')}` : null}
             />
-            <p className="mt-1 text-right text-[12px] text-ink-subtle tabular">
+            <p className="mt-1 text-right text-caption text-ink-subtle tabular">
               {body.length}/{MAX_BODY}
             </p>
           </div>
@@ -119,7 +119,7 @@ export function TemplateFormModal({
         </div>
         <div className="space-y-4">
           <div>
-            <p className="mb-1.5 text-[12.5px] font-medium text-ink">Inserir variável</p>
+            <p className="mb-1.5 text-label font-medium text-ink">Inserir variável</p>
             <div className="flex flex-wrap gap-1.5">
               {MESSAGE_VARIABLES.map((v) => (
                 <button
@@ -127,7 +127,7 @@ export function TemplateFormModal({
                   type="button"
                   title={v.label}
                   onClick={() => insertVariable(v.name)}
-                  className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[11.5px] text-accent-700 hover:border-accent-200 hover:bg-accent-50"
+                  className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-caption text-accent-700 hover:border-accent-200 hover:bg-accent-50"
                 >
                   {v.name}
                 </button>
@@ -135,9 +135,9 @@ export function TemplateFormModal({
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-[12.5px] font-medium text-ink">Prévia com dados de exemplo</p>
+            <p className="mb-1.5 text-label font-medium text-ink">Prévia com dados de exemplo</p>
             <div
-              className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-canvas/60 p-3 text-[12.5px] leading-relaxed text-ink scrollbar-thin"
+              className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-canvas/60 p-3 text-label leading-relaxed text-ink scrollbar-thin"
               role="region"
               aria-label="Prévia da mensagem"
               tabIndex={0}

@@ -48,7 +48,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, description, co
         </>
       }
     >
-      <p className="text-[13.5px] text-ink-muted">{description}</p>
+      <p className="text-body text-ink-muted">{description}</p>
       {error && (
         <div className="mt-3">
           <InlineError message={error} />

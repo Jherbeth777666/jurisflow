@@ -72,11 +72,11 @@ export function StageTasksPrompt({ demand, stage, templates, onClose }: Props) {
       size="lg"
       footer={
         <>
-          <Button onClick={onClose} disabled={busy}>
-            Agora não
-          </Button>
           <Button variant="primary" onClick={confirm} loading={busy}>
             Criar tarefas
+          </Button>
+          <Button onClick={onClose} disabled={busy}>
+            Agora não
           </Button>
         </>
       }

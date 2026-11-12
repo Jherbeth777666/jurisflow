@@ -214,7 +214,7 @@ export function ImportPage() {
       />
       <Stepper steps={STEPS} current={step} />
       {sheet && step > 0 && step < 3 && (
-        <p className="-mt-2 mb-4 flex items-center gap-1.5 text-[12.5px] text-ink-muted">
+        <p className="-mt-2 mb-4 flex items-center gap-1.5 text-label text-ink-muted">
           <FileSpreadsheet className="size-3.5" /> {sheet.fileName}
           {sheet.sheetName && ` · aba “${sheet.sheetName}”`} · lido apenas no seu navegador
         </p>
@@ -298,8 +298,8 @@ function ResultView({
   if (!report && !error) {
     return (
       <Card className="p-6">
-        <p className="text-[14px] font-medium text-ink">Importando…</p>
-        <p className="mt-1 text-[13px] text-ink-muted">Não feche esta página. Os registros são gravados em lotes de 100.</p>
+        <p className="text-body-lg font-medium text-ink">Importando…</p>
+        <p className="mt-1 text-body-sm text-ink-muted">Não feche esta página. Os registros são gravados em lotes de 100.</p>
         <div
           className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"
           role="progressbar"
@@ -310,7 +310,7 @@ function ResultView({
         >
           <div className="h-full rounded-full bg-navy-900 transition-[width] duration-300" style={{ width: `${pct}%` }} />
         </div>
-        <p className="tabular mt-2 text-[12.5px] text-ink-muted">
+        <p className="tabular mt-2 text-label text-ink-muted">
           {progress?.done ?? 0} de {progress?.total ?? 0} operações · {pct}%
         </p>
       </Card>
@@ -327,8 +327,8 @@ function ResultView({
         <Card className="flex items-start gap-3 p-5">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
           <div>
-            <p className="text-[14.5px] font-medium text-ink">Importação concluída</p>
-            <p className="mt-0.5 text-[13px] text-ink-muted">Seu cadastro já está organizado no JurisFlow. Os indicadores do painel foram atualizados.</p>
+            <p className="text-body-lg font-medium text-ink">Importação concluída</p>
+            <p className="mt-0.5 text-body-sm text-ink-muted">Seu cadastro já está organizado no JurisFlow. Os indicadores do painel foram atualizados.</p>
           </div>
         </Card>
       )}
@@ -375,7 +375,7 @@ function ResultView({
         </Button>
         <Link
           to="/clientes"
-          className="inline-flex h-9 items-center rounded-md bg-navy-900 px-3.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-navy-800"
+          className="inline-flex h-9 items-center rounded-md bg-navy-900 px-3.5 text-body font-medium text-white shadow-sm hover:bg-navy-800"
         >
           Ver clientes
         </Link>

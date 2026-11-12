@@ -216,14 +216,14 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
                 <Link to={`/contratos/${c.id}`} className="block truncate py-1 font-medium text-ink hover:underline">
                   {c.client_name}
                 </Link>
-                <p className="text-[12px] text-ink-subtle">
+                <p className="text-caption text-ink-subtle">
                   {c.installments_count}× · desde {formatDate(c.signed_at)}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   <StatusBadge value={c.status} map={CONTRACT_STATUS} />
-                  <span className="text-[12px] text-ink-muted">{CONTRACT_TYPE[c.contract_type]}</span>
+                  <span className="text-caption text-ink-muted">{CONTRACT_TYPE[c.contract_type]}</span>
                 </div>
-                <dl className="mt-2 grid grid-cols-3 gap-2 text-[12px]">
+                <dl className="mt-2 grid grid-cols-3 gap-2 text-caption">
                   <div>
                     <dt className="text-ink-subtle">Valor</dt>
                     <dd className="tabular">{formatCurrency(c.total_amount)}</dd>
@@ -240,7 +240,7 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
                 <div className="mt-2 flex items-center gap-2">
                   <ProgressBar value={c.received_amount} total={c.total_amount} />
                 </div>
-                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-muted">
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-muted">
                   <span className={cn('tabular', c.overdue_count > 0 && 'font-medium text-red-600')}>
                     {c.overdue_count} vencida{c.overdue_count === 1 ? '' : 's'}
                   </span>
@@ -273,7 +273,7 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
                     <Link to={`/contratos/${c.id}`} onClick={(e) => e.stopPropagation()} className="block truncate py-1 font-medium text-ink hover:underline">
                       {c.client_name}
                     </Link>
-                    <span className="block truncate text-[12px] text-ink-subtle">
+                    <span className="block truncate text-caption text-ink-subtle">
                       {c.installments_count}× · desde {formatDate(c.signed_at)}
                     </span>
                   </TD>
@@ -400,7 +400,7 @@ function ReceivableSection({
                 <TR key={r.id}>
                   <TD className="tabular whitespace-nowrap">
                     <span className={cn(overdue && 'font-medium text-red-600')}>{formatDate(r.due_date)}</span>
-                    <span className="block text-[11.5px] text-ink-subtle">
+                    <span className="block text-caption text-ink-subtle">
                       {days < 0 ? `há ${-days} dia${days === -1 ? '' : 's'}` : days === 0 ? 'hoje' : `em ${days} dia${days === 1 ? '' : 's'}`}
                     </span>
                   </TD>
@@ -408,7 +408,7 @@ function ReceivableSection({
                     <Link to={`/contratos/${r.contract_id}`} className="block truncate py-1 font-medium hover:underline">
                       {r.client_name}
                     </Link>
-                    <span className="block truncate text-[12px] text-ink-subtle">{CONTRACT_TYPE[r.contract_type]}</span>
+                    <span className="block truncate text-caption text-ink-subtle">{CONTRACT_TYPE[r.contract_type]}</span>
                   </TD>
                   <TD className="tabular whitespace-nowrap text-ink-muted">
                     {r.number}/{r.installments_count || '—'}

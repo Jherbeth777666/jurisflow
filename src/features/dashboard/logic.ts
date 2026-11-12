@@ -33,3 +33,18 @@ export function dueTone(due: string | null, today: string, soonDays = 3, diff: (
   if (due === today) return 'today'
   return diff(today, due) <= soonDays ? 'soon' : 'later'
 }
+
+export interface MonthDelta {
+  current: number
+  previous: number
+  diff: number
+}
+
+/** Compara o último mês da série com o anterior (série em ordem cronológica). Null se faltar mês. */
+export function monthDelta<T extends { month: string }>(series: T[], pick: (row: T) => number): MonthDelta | null {
+  if (series.length < 2) return null
+  const sorted = [...series].sort((a, b) => (a.month < b.month ? -1 : a.month > b.month ? 1 : 0))
+  const current = pick(sorted[sorted.length - 1])
+  const previous = pick(sorted[sorted.length - 2])
+  return { current, previous, diff: current - previous }
+}

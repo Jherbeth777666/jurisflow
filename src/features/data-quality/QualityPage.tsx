@@ -48,15 +48,15 @@ function Dashboard({ r }: { r: QualityReport }) {
     <div className="grid items-start gap-4 lg:grid-cols-[320px_1fr]">
       <Card className="lg:sticky lg:top-4">
         <div className="p-5">
-          <p className="text-[12.5px] font-medium text-ink-muted">Pontuação da base</p>
+          <p className="text-label font-medium text-ink-muted">Pontuação da base</p>
           <div className="mt-1 flex items-baseline gap-1.5">
             <span className="tabular text-[44px] font-semibold leading-none tracking-[-0.03em] text-ink">{r.score}</span>
-            <span className="text-[14px] text-ink-subtle">/ 100</span>
+            <span className="text-body-lg text-ink-subtle">/ 100</span>
           </div>
           <Badge className="mt-2" tone={s.tone === 'success' ? 'green' : s.tone === 'warning' ? 'amber' : 'red'} dot>
             {s.label}
           </Badge>
-          <p className="mt-3 text-[12px] text-ink-subtle">
+          <p className="mt-3 text-caption text-ink-subtle">
             {formatNumber(r.totals.clients)} clientes · {formatNumber(r.totals.openDemands)} demandas abertas · {formatNumber(r.totals.openTasks)} tarefas abertas
           </p>
         </div>
@@ -66,7 +66,7 @@ function Dashboard({ r }: { r: QualityReport }) {
             const pct = Math.round(ind.value * 100)
             return (
               <li key={k} className="py-1.5">
-                <div className="flex items-center justify-between text-[12.5px]">
+                <div className="flex items-center justify-between text-label">
                   <span className="text-ink">{INDICATOR_LABEL[k]}</span>
                   <span className="tabular text-ink-muted">
                     {ind.points.toFixed(0)}/{WEIGHTS[k]}
@@ -82,7 +82,7 @@ function Dashboard({ r }: { r: QualityReport }) {
             )
           })}
         </ul>
-        <p className="border-t border-line px-5 py-3 text-[11.5px] leading-relaxed text-ink-subtle">
+        <p className="border-t border-line px-5 py-3 text-caption leading-relaxed text-ink-subtle">
           Cada indicador vale a fração de registros sem o problema, multiplicada pelo peso. Calculado agora com os dados do escritório.
         </p>
       </Card>
@@ -91,7 +91,7 @@ function Dashboard({ r }: { r: QualityReport }) {
         {allClear && (
           <Card className="flex items-center gap-3 p-5 xl:col-span-2">
             <CheckCircle2 className="size-5 text-emerald-600" />
-            <p className="text-[13.5px] text-ink">Nenhum problema encontrado. Sua base está impecável.</p>
+            <p className="text-body text-ink">Nenhum problema encontrado. Sua base está impecável.</p>
           </Card>
         )}
         <DuplicatesCard r={r} />
@@ -144,7 +144,7 @@ function Section({
               {icon}
             </span>
             {title}
-            <span className={cn('tabular rounded-full px-1.5 text-[11px]', count ? 'bg-navy-900 text-white' : 'bg-slate-100 text-ink-muted')}>{count}</span>
+            <span className={cn('tabular rounded-full px-1.5 text-2xs', count ? 'bg-navy-900 text-white' : 'bg-slate-100 text-ink-muted')}>{count}</span>
           </span>
         }
         description={description}
@@ -160,7 +160,7 @@ function useExpand<T>(items: T[]) {
   const shown = all ? items : items.slice(0, PREVIEW)
   const toggle =
     items.length > PREVIEW ? (
-      <button onClick={() => setAll((a) => !a)} className="w-full border-t border-line py-2 text-[12.5px] font-medium text-accent-700 hover:bg-navy-50/60">
+      <button onClick={() => setAll((a) => !a)} className="w-full border-t border-line py-2 text-label font-medium text-accent-700 hover:bg-navy-50/60">
         {all ? 'Mostrar menos' : `Ver todos (${items.length})`}
       </button>
     ) : null
@@ -168,7 +168,7 @@ function useExpand<T>(items: T[]) {
 }
 
 const Empty = ({ text }: { text: string }) => (
-  <p className="flex items-center gap-2 px-4 py-5 text-[13px] text-ink-muted">
+  <p className="flex items-center gap-2 px-4 py-5 text-body-sm text-ink-muted">
     <CheckCircle2 className="size-4 text-emerald-600" /> {text}
   </p>
 )
@@ -206,17 +206,17 @@ function DuplicatesCard({ r }: { r: QualityReport }) {
         <ul className="divide-y divide-line">
           {shown.map((p) => (
             <li key={`${p.a}-${p.b}`} className="flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0 text-[13px]">
+              <div className="min-w-0 text-body-sm">
                 <span className="font-medium text-ink">{p.aName}</span>
                 <span className="mx-1.5 text-ink-subtle">e</span>
                 <span className="font-medium text-ink">{p.bName}</span>
                 <div className="mt-0.5 flex items-center gap-1.5">
                   <Badge tone={p.certain ? 'red' : 'amber'}>{MATCH_REASON_LABEL[p.reason]}</Badge>
-                  {!p.certain && <span className="tabular text-[11.5px] text-ink-subtle">{Math.round(p.score * 100)}% parecido</span>}
+                  {!p.certain && <span className="tabular text-caption text-ink-subtle">{Math.round(p.score * 100)}% parecido</span>}
                 </div>
               </div>
               <div className="flex shrink-0 gap-1.5">
-                <Link to={`/clientes/${p.a}`} className="inline-flex h-8 items-center rounded-md px-2.5 text-[13px] font-medium text-ink-muted hover:bg-navy-50 hover:text-ink">
+                <Link to={`/clientes/${p.a}`} className="inline-flex h-8 items-center rounded-md px-2.5 text-body-sm font-medium text-ink-muted hover:bg-navy-50 hover:text-ink">
                   Ver
                 </Link>
                 <Button size="sm" onClick={() => openBoth(p.a, p.b)}>
@@ -259,7 +259,7 @@ function IncompleteCard({ r }: { r: QualityReport }) {
           {shown.map(({ client, issues }) => (
             <li key={client.id}>
               <Link to={`/clientes/${client.id}`} className="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-navy-50/60">
-                <span className="truncate text-[13px] font-medium text-ink">{client.full_name}</span>
+                <span className="truncate text-body-sm font-medium text-ink">{client.full_name}</span>
                 <span className="flex shrink-0 gap-1">
                   {issues.map((i) => (
                     <Badge key={i} tone={i === 'cpf_invalido' ? 'red' : 'gray'}>
@@ -316,7 +316,7 @@ function StaleClientsCard({ r }: { r: QualityReport }) {
       ) : (
         <>
           <div className="flex items-center justify-between gap-2 border-b border-line bg-canvas/60 px-4 py-2">
-            <label className="inline-flex items-center gap-2 text-[12.5px] text-ink-muted">
+            <label className="inline-flex items-center gap-2 text-label text-ink-muted">
               <input
                 type="checkbox"
                 className="size-4 accent-navy-900"
@@ -339,10 +339,10 @@ function StaleClientsCard({ r }: { r: QualityReport }) {
                   checked={selected.has(client.id)}
                   onChange={() => toggleOne(client.id)}
                 />
-                <Link to={`/clientes/${client.id}`} className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink hover:underline">
+                <Link to={`/clientes/${client.id}`} className="min-w-0 flex-1 truncate text-body-sm font-medium text-ink hover:underline">
                   {client.full_name}
                 </Link>
-                <span className="tabular shrink-0 text-[12px] text-ink-subtle" title={`Última movimentação: ${formatDate(lastActivity)}`}>
+                <span className="tabular shrink-0 text-caption text-ink-subtle" title={`Última movimentação: ${formatDate(lastActivity)}`}>
                   {days} dias
                 </span>
               </li>
@@ -398,7 +398,7 @@ function DemandListCard({
         <ul className="divide-y divide-line">
           {shown.map((d) => (
             <li key={d.id}>
-              <Link to={`/demandas/${d.id}`} className="block truncate px-4 py-2.5 text-[13px] font-medium text-ink hover:bg-navy-50/60">
+              <Link to={`/demandas/${d.id}`} className="block truncate px-4 py-2.5 text-body-sm font-medium text-ink hover:bg-navy-50/60">
                 {d.title}
               </Link>
             </li>
@@ -441,8 +441,8 @@ function OverdueTasksCard({ r }: { r: QualityReport }) {
                 to={t.demand_id ? `/demandas/${t.demand_id}` : t.client_id ? `/clientes/${t.client_id}` : '/tarefas'}
                 className="flex items-center justify-between gap-2 px-4 py-2.5 hover:bg-navy-50/60"
               >
-                <span className="truncate text-[13px] font-medium text-ink">{t.title}</span>
-                <span className="tabular shrink-0 text-[12px] text-red-600">
+                <span className="truncate text-body-sm font-medium text-ink">{t.title}</span>
+                <span className="tabular shrink-0 text-caption text-red-600">
                   venceu {formatDate(t.due_date)} · {t.daysLate} dias
                 </span>
               </Link>

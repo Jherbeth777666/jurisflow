@@ -186,7 +186,7 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
   if (ctx.isLoading || !client) return <ComposerSkeleton />
   if (client.anonymized_at) {
     return (
-      <div className="flex items-start gap-2 rounded-md border border-line bg-canvas px-3 py-3 text-[13px] text-ink-muted">
+      <div className="flex items-start gap-2 rounded-md border border-line bg-canvas px-3 py-3 text-body-sm text-ink-muted">
         <Info className="mt-0.5 size-4 shrink-0" /> Este cliente foi anonimizado e não possui dados de contato.
       </div>
     )
@@ -210,12 +210,12 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
             onPick={setTemplateId}
           />
         )}
-        {custom.isError && <p className="mt-2 text-[12px] text-red-600">Não foi possível carregar os modelos do escritório.</p>}
+        {custom.isError && <p className="mt-2 text-caption text-red-600">Não foi possível carregar os modelos do escritório.</p>}
       </nav>
 
       <div className="min-w-0 space-y-4">
         {/* Destinatário */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12.5px] text-ink-muted">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-label text-ink-muted">
           <span className="font-medium text-ink">{client.full_name}</span>
           <span className="inline-flex items-center gap-1">
             <MessageCircle className="size-3.5" />
@@ -257,7 +257,7 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
             }}
             maxLength={4000}
           />
-          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-[12px] text-ink-subtle">
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-caption text-ink-subtle">
             <span className="tabular" aria-live="polite">
               {text.length} caracteres
             </span>
@@ -277,7 +277,7 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
         </div>
 
         {missing.length > 0 && (
-          <div role="status" className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] text-amber-900">
+          <div role="status" className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-label text-amber-900">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
               Sem dado cadastrado para: <strong>{missing.map(variableLabel).join(', ')}</strong>. Edite o texto e substitua os
@@ -289,7 +289,7 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
         {/* IA */}
         <div className="rounded-lg border border-line bg-canvas/60 px-3 py-2.5">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="mr-1 inline-flex items-center gap-1.5 text-[12.5px] font-medium text-ink">
+            <span className="mr-1 inline-flex items-center gap-1.5 text-label font-medium text-ink">
               <Sparkles className="size-3.5 text-accent-600" /> Ajustar com IA
             </span>
             {(Object.keys(TONE_LABELS) as ComposeTone[]).map((tone) => (
@@ -310,18 +310,18 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
               </Button>
             )}
           </div>
-          <p className="mt-1.5 text-[11.5px] text-ink-subtle">
+          <p className="mt-1.5 text-caption text-ink-subtle">
             {aiUnavailable
               ? 'Ajuste com IA indisponível: o provedor de IA não está configurado neste ambiente.'
               : 'A IA recebe apenas o modelo com as variáveis — sem nomes, valores ou datas do cliente.'}
             {dirty && !aiUnavailable && ' O ajuste parte do modelo e substitui suas edições manuais (é possível desfazer).'}
           </p>
-          {aiError && <p className="mt-1 text-[12px] text-red-600" role="alert">{aiError}</p>}
+          {aiError && <p className="mt-1 text-caption text-red-600" role="alert">{aiError}</p>}
         </div>
 
         {/* Ações */}
         <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[11.5px] text-ink-subtle">Nada é enviado automaticamente — você revisa e envia no app.</p>
+          <p className="text-caption text-ink-subtle">Nada é enviado automaticamente — você revisa e envia no app.</p>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={copy} disabled={!text.trim()} icon={copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}>
               {copied ? 'Copiado' : 'Copiar'}
@@ -354,7 +354,7 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
           </div>
         </div>
         {(!waLink || !mailLink) && (
-          <p className="text-right text-[11.5px] text-ink-subtle">
+          <p className="text-right text-caption text-ink-subtle">
             {!waLink && `WhatsApp indisponível: ${phone.ok ? 'texto vazio' : phone.reason} `}
             {!mailLink && 'E-mail indisponível: cliente sem e-mail válido.'}
           </p>
@@ -377,7 +377,7 @@ function TemplateGroup({
 }) {
   return (
     <div className="mb-3">
-      <p className="mb-1 px-2 text-[11px] font-medium uppercase tracking-wide text-ink-subtle">{title}</p>
+      <p className="mb-1 px-2 text-2xs font-medium uppercase tracking-wide text-ink-subtle">{title}</p>
       <ul className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
         {items.map((t) => (
           <li key={t.id} className="shrink-0">
@@ -386,7 +386,7 @@ function TemplateGroup({
               onClick={() => onPick(t.id)}
               aria-pressed={t.id === active}
               className={cn(
-                'w-full rounded-md px-2 py-1.5 text-left text-[13px] transition-colors',
+                'w-full rounded-md px-2 py-1.5 text-left text-body-sm transition-colors',
                 t.id === active ? 'bg-navy-900 text-white' : 'text-ink hover:bg-navy-50',
               )}
             >

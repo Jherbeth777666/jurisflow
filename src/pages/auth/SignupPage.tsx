@@ -82,12 +82,12 @@ export function SignupPage() {
       <AuthShell title="Confirme seu e-mail">
         <div className="flex items-start gap-3 rounded-lg border border-line bg-surface p-4">
           <MailCheck className="mt-0.5 size-5 text-accent-600" />
-          <p className="text-[13.5px] text-ink-muted">
+          <p className="text-body text-ink-muted">
             Enviamos um link de confirmação para <strong className="text-ink">{form.email}</strong>. Após confirmar, faça login para criar seu
             escritório ou entrar em um escritório que convidou você.
           </p>
         </div>
-        <Link to="/login" className="mt-4 inline-block text-[13px] font-medium text-accent-700 hover:underline">
+        <Link to="/login" className="mt-4 inline-block text-body-sm font-medium text-accent-700 hover:underline">
           Ir para o login
         </Link>
       </AuthShell>
@@ -110,24 +110,24 @@ export function SignupPage() {
       <form onSubmit={submit} className="space-y-4" noValidate>
         {inviteError && <InlineError message={inviteError} />}
         {invite?.status === 'pendente' && (
-          <div role="note" className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-[13px] text-accent-700">
+          <div role="note" className="rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-body-sm text-accent-700">
             Convite para <strong>{invite.organization_name}</strong> (
             {invite.role ? (ROLE_LABELS[invite.role as keyof typeof ROLE_LABELS] ?? invite.role) : 'membro'}). Crie a conta com o
             e-mail convidado para entrar direto no escritório.
           </div>
         )}
         {invite?.status === 'expirado' && (
-          <div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+          <div role="note" className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-body-sm text-amber-800">
             Este convite expirou. Peça um novo link ao administrador do escritório e crie sua conta normalmente.
           </div>
         )}
         {invite?.status === 'aceito' && (
-          <div role="note" className="rounded-md border border-line bg-surface px-3 py-2 text-[13px] text-ink-muted">
+          <div role="note" className="rounded-md border border-line bg-surface px-3 py-2 text-body-sm text-ink-muted">
             Este convite já foi aceito. Entre com sua conta para acessar o escritório.
           </div>
         )}
         {invite?.status === 'invalido' && (
-          <div role="note" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+          <div role="note" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-body-sm text-red-700">
             Convite inválido. Verifique o link ou crie sua conta normalmente.
           </div>
         )}
@@ -147,7 +147,7 @@ export function SignupPage() {
         <Checkbox
           checked={accept}
           onChange={(e) => setAccept(e.target.checked)}
-          label={<span className="text-[12.5px] text-ink-muted">Li e aceito os termos de uso e a política de privacidade.</span>}
+          label={<span className="text-label text-ink-muted">Li e aceito os termos de uso e a política de privacidade.</span>}
         />
         <InlineError message={error} />
         <Button type="submit" variant="primary" className="w-full justify-center" loading={loading}>

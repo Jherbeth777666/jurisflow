@@ -43,7 +43,7 @@ export function PrivacyTab() {
 
       <Card>
         <CardHeader title="Direitos do titular (LGPD, art. 18)" />
-        <CardBody className="flex flex-col gap-4 text-[13px] text-ink-muted">
+        <CardBody className="flex flex-col gap-4 text-body-sm text-ink-muted">
           <div className="flex gap-3">
             <PencilLine className="mt-0.5 size-4 shrink-0 text-navy-500" />
             <div>
@@ -72,7 +72,7 @@ export function PrivacyTab() {
       ) : (
         <Card>
           <CardHeader title="Portabilidade (exportação de dados)" />
-          <CardBody className="text-[13px] text-ink-muted">Somente administradores podem exportar os dados de um cliente.</CardBody>
+          <CardBody className="text-body-sm text-ink-muted">Somente administradores podem exportar os dados de um cliente.</CardBody>
         </Card>
       )}
     </div>
@@ -133,7 +133,7 @@ function ExportCard() {
           </Button>
         </div>
         <InlineError message={error} />
-        <p className="text-[12px] text-ink-subtle">
+        <p className="text-caption text-ink-subtle">
           Entregue o arquivo somente ao próprio titular (ou representante legal), por canal seguro. O arquivo contém dados pessoais.
         </p>
       </CardBody>
@@ -146,8 +146,8 @@ function Item({ icon, title, children }: { icon: ReactNode; title: string; child
     <li className="flex gap-3">
       <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-navy-50 text-navy-600">{icon}</span>
       <div>
-        <p className="text-[13.5px] font-medium text-ink">{title}</p>
-        <p className="mt-0.5 text-[13px] text-ink-muted">{children}</p>
+        <p className="text-body font-medium text-ink">{title}</p>
+        <p className="mt-0.5 text-body-sm text-ink-muted">{children}</p>
       </div>
     </li>
   )

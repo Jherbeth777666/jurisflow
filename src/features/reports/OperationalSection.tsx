@@ -108,7 +108,7 @@ export function OperationalSection() {
           (hasHistory ? (
             <>
               {highlights.length > 0 && (
-                <ul className="space-y-1.5 border-b border-line px-4 py-3 text-[13px] text-ink">
+                <ul className="space-y-1.5 border-b border-line px-4 py-3 text-body-sm text-ink">
                   {highlights.map((stage) => {
                     const avg =
                       stage.avg_age_open_days === null
@@ -141,7 +141,7 @@ export function OperationalSection() {
                     <TR key={`${stage.category_name}-${stage.name}-${stage.position}`}>
                       <TD>
                         <span className="font-medium">{stage.name}</span>
-                        <span className="mt-0.5 block text-[12px] text-ink-muted">{stage.category_name}</span>
+                        <span className="mt-0.5 block text-caption text-ink-muted">{stage.category_name}</span>
                       </TD>
                       <TD className="tabular-nums text-right">{stage.open_now}</TD>
                       <TD className={cn('tabular-nums whitespace-nowrap text-right', stage.avg_age_open_days === null && 'text-ink-muted')}>

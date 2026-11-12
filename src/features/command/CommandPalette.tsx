@@ -53,7 +53,7 @@ export function CommandTrigger({ tone = 'dark', className }: { tone?: 'dark' | '
         type="button"
         onClick={openCommandPalette}
         aria-label="Buscar ou executar comando"
-        className={cn('touch-target flex items-center justify-center rounded-lg p-1.5 text-ink-muted hover:bg-navy-50', className)}
+        className={cn('touch-target flex items-center justify-center rounded-md p-1.5 text-ink-muted hover:bg-ink/[0.05]', className)}
       >
         <Search className="size-5" />
       </button>
@@ -66,10 +66,10 @@ export function CommandTrigger({ tone = 'dark', className }: { tone?: 'dark' | '
       aria-keyshortcuts={mac ? 'Meta+K' : 'Control+K'}
       aria-label="Buscar ou executar comando"
       className={cn(
-        'group flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-[13px] transition-colors',
+        'group flex h-8 w-full items-center gap-2 rounded-[var(--radius-control)] px-2.5 text-body-sm transition-[border-color,color,box-shadow]',
         tone === 'dark'
           ? 'bg-navy-800/70 text-navy-300 hover:bg-navy-800 hover:text-white'
-          : 'border border-line-strong bg-surface text-ink-subtle hover:border-navy-200 hover:text-ink',
+          : 'border border-line-strong bg-surface text-ink-subtle shadow-[var(--shadow-xs)] hover:border-ink-subtle/40 hover:text-ink',
         className,
       )}
     >
@@ -77,8 +77,8 @@ export function CommandTrigger({ tone = 'dark', className }: { tone?: 'dark' | '
       <span className="flex-1 truncate text-left">Buscar…</span>
       <kbd
         className={cn(
-          'rounded px-1.5 py-px font-sans text-[10.5px] font-medium',
-          tone === 'dark' ? 'bg-navy-900/80 text-navy-300' : 'bg-canvas text-ink-subtle ring-1 ring-line',
+          'rounded px-1.5 py-px font-sans text-2xs font-medium',
+          tone === 'dark' ? 'bg-navy-900/80 text-navy-300' : 'bg-surface-muted text-ink-subtle ring-1 ring-line',
         )}
       >
         {mac ? '⌘K' : 'Ctrl K'}
@@ -349,12 +349,12 @@ function Palette({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-start justify-center px-3 pt-[10vh] sm:pt-[14vh]">
-      <div className="absolute inset-0 bg-navy-950/30 backdrop-blur-[1.5px]" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 animate-fade bg-navy-950/30 backdrop-blur-[3px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Busca e comandos"
-        className="relative flex max-h-[min(72vh,560px)] w-full max-w-[640px] flex-col overflow-hidden rounded-xl bg-surface shadow-[0_24px_60px_-12px_rgb(6_16_36/0.35),0_0_0_1px_rgb(15_23_42/0.08)]"
+        className="relative flex max-h-[min(72vh,560px)] w-full max-w-[640px] flex-col overflow-hidden animate-pop rounded-[var(--radius-dialog)] bg-surface shadow-[var(--shadow-pop)]"
       >
         <div className="flex items-center gap-3 border-b border-line px-4">
           {loading ? (
@@ -377,9 +377,9 @@ function Palette({ onClose }: { onClose: () => void }) {
             maxLength={2000}
             spellCheck={false}
             autoComplete="off"
-            className="h-[52px] min-w-0 flex-1 bg-transparent text-[15px] text-ink placeholder:text-ink-subtle focus:outline-none"
+            className="h-[52px] min-w-0 flex-1 bg-transparent text-body-lg text-ink placeholder:text-ink-subtle focus:outline-none"
           />
-          <kbd className="hidden rounded bg-canvas px-1.5 py-0.5 text-[10.5px] font-medium text-ink-subtle ring-1 ring-line sm:inline">Esc</kbd>
+          <kbd className="hidden rounded bg-canvas px-1.5 py-0.5 text-2xs font-medium text-ink-subtle ring-1 ring-line sm:inline">Esc</kbd>
         </div>
 
         <div ref={listRef} id={listId} role="listbox" aria-label="Resultados" className="scrollbar-thin flex-1 overflow-y-auto p-1.5">
@@ -387,7 +387,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             const headId = `${listId}-g-${g.name.replace(/\W+/g, '')}`
             return (
               <div key={g.name} role="group" aria-labelledby={headId} className="mb-1 last:mb-0">
-                <div id={headId} className="px-2.5 pb-1 pt-2 text-[11px] font-medium text-ink-subtle">
+                <div id={headId} className="px-2.5 pb-1 pt-2 eyebrow">
                   {g.name}
                 </div>
                 {g.items.map(({ item, index }) => {
@@ -403,7 +403,7 @@ function Palette({ onClose }: { onClose: () => void }) {
                       onMouseMove={() => !isActive && setActive(index)}
                       onClick={() => run(item)}
                       className={cn(
-                        'flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-[13.5px]',
+                        'flex cursor-pointer items-center gap-3 rounded-lg px-2.5 py-2 text-body',
                         isActive ? 'bg-navy-50 text-ink' : 'text-ink/90',
                       )}
                     >
@@ -418,12 +418,12 @@ function Palette({ onClose }: { onClose: () => void }) {
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate">{item.label}</span>
-                        {item.sublabel && <span className="block truncate text-[12px] text-ink-subtle">{item.sublabel}</span>}
+                        {item.sublabel && <span className="block truncate text-caption text-ink-subtle">{item.sublabel}</span>}
                       </span>
                       {isActive ? (
                         <CornerDownLeft className="size-3.5 shrink-0 text-ink-subtle" aria-hidden />
                       ) : (
-                        item.hint && <span className="shrink-0 text-[11.5px] text-ink-subtle">{item.hint}</span>
+                        item.hint && <span className="shrink-0 text-caption text-ink-subtle">{item.hint}</span>
                       )}
                     </div>
                   )
@@ -433,22 +433,22 @@ function Palette({ onClose }: { onClose: () => void }) {
           })}
 
           {search.isError && searchEnabled && (
-            <p className="px-3 py-2 text-[12.5px] text-red-600" role="alert">
+            <p className="px-3 py-2 text-label text-red-600" role="alert">
               Não foi possível buscar agora. {(search.error as Error).message}
             </p>
           )}
           {searchEnabled && !loading && !search.isError && search.data && !search.data.clients.length && !search.data.demands.length && !search.data.tasks.length && (
-            <p className="px-3 pb-1 pt-2 text-[12.5px] text-ink-subtle">Nenhum cliente, demanda ou tarefa encontrado para “{q}”.</p>
+            <p className="px-3 pb-1 pt-2 text-label text-ink-subtle">Nenhum cliente, demanda ou tarefa encontrado para “{q}”.</p>
           )}
-          {!items.length && !loading && <p className="px-3 py-8 text-center text-[13px] text-ink-muted">Nada encontrado.</p>}
+          {!items.length && !loading && <p className="px-3 py-8 text-center text-body-sm text-ink-muted">Nada encontrado.</p>}
           {!q && !recents.length && (
-            <p className="flex items-center gap-1.5 px-3 pb-1 pt-1 text-[12px] text-ink-subtle">
+            <p className="flex items-center gap-1.5 px-3 pb-1 pt-1 text-caption text-ink-subtle">
               <Clock className="size-3" /> Itens que você abrir pela busca aparecerão aqui.
             </p>
           )}
         </div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-line bg-canvas/70 px-4 py-2 text-[11.5px] text-ink-subtle">
+        <div className="flex items-center justify-between gap-3 border-t border-line bg-surface-muted px-4 py-2 text-caption text-ink-subtle">
           <span className="hidden items-center gap-3 sm:flex">
             <span className="inline-flex items-center gap-1">
               <Kbd>↑</Kbd>
@@ -469,7 +469,7 @@ function Palette({ onClose }: { onClose: () => void }) {
 }
 
 function Kbd({ children }: { children: string }) {
-  return <kbd className="rounded bg-surface px-1 py-px font-sans text-[10.5px] font-medium text-ink-muted ring-1 ring-line">{children}</kbd>
+  return <kbd className="rounded bg-surface px-1 py-px font-sans text-2xs font-medium text-ink-muted ring-1 ring-line">{children}</kbd>
 }
 
 const labelKind = (k: RecentKind) => ({ cliente: 'Cliente', demanda: 'Demanda', tarefa: 'Tarefa', pagina: 'Página' })[k]

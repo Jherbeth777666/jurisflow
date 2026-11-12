@@ -171,7 +171,7 @@ export function DemandsPage() {
       </div>
 
       {(filters.waitingDocs || filters.stalled > 0 || active) && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-label">
           {filters.waitingDocs && (
             <FilterChip onRemove={() => apply({ waitingDocs: false })}>Aguardando documentação</FilterChip>
           )}
@@ -232,13 +232,13 @@ export function DemandsPage() {
                     <Link to={`/demandas/${d.id}`} className="block truncate py-1 font-medium text-ink hover:underline">
                       {d.title}
                     </Link>
-                    <p className="truncate text-[12px] text-ink-subtle">{d.client?.full_name ?? '—'}</p>
+                    <p className="truncate text-caption text-ink-subtle">{d.client?.full_name ?? '—'}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
                       <StatusBadge value={d.priority} map={PRIORITY} />
                       {d.status !== 'em_andamento' && <StatusBadge value={d.status} map={DEMAND_STATUS} />}
-                      {stage && <span className="text-[12px] text-ink-muted">{stage.name}</span>}
+                      {stage && <span className="text-caption text-ink-muted">{stage.name}</span>}
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-muted">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-muted">
                       {cat && <CategoryTag name={cat.name} color={cat.color} />}
                       {responsible && (
                         <span className="inline-flex items-center gap-1.5">
@@ -294,7 +294,7 @@ export function DemandsPage() {
                         >
                           {d.title}
                         </Link>
-                        <span className="block truncate text-[12px] text-ink-subtle">{d.client?.full_name ?? '—'}</span>
+                        <span className="block truncate text-caption text-ink-subtle">{d.client?.full_name ?? '—'}</span>
                       </TD>
                       <TD>{cat ? <CategoryTag name={cat.name} color={cat.color} /> : '—'}</TD>
                       <TD>
@@ -332,7 +332,7 @@ export function DemandsPage() {
                               {d.next_action_date ? formatDate(d.next_action_date) : 'Sem data'}
                               {overdue && ' · vencida'}
                             </span>
-                            {d.next_action && <span className="block truncate text-[12px] text-ink-subtle">{d.next_action}</span>}
+                            {d.next_action && <span className="block truncate text-caption text-ink-subtle">{d.next_action}</span>}
                           </>
                         ) : (
                           <span className="text-ink-subtle">—</span>

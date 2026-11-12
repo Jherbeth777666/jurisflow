@@ -96,11 +96,11 @@ export function ActivityFeed({ entityType, entityId, limit = 30 }: { entityType?
   return (
     <ol className="relative space-y-3 pl-4 before:absolute before:left-[3px] before:top-1.5 before:bottom-1.5 before:w-px before:bg-line">
       {q.data.map((log) => (
-        <li key={log.id} className="relative text-[13px]">
+        <li key={log.id} className="relative text-body-sm">
           <span className="absolute -left-4 top-1.5 size-[7px] rounded-full border border-surface bg-navy-300" />
           <span className="font-medium text-ink">{log.actor_id ? names.map.get(log.actor_id) ?? 'Usuário' : 'Sistema'}</span>{' '}
           <span className="text-ink-muted">{describe(log)}</span>
-          <span className="ml-1.5 text-[11.5px] text-ink-subtle">· {formatRelative(log.created_at)}</span>
+          <span className="ml-1.5 text-caption text-ink-subtle">· {formatRelative(log.created_at)}</span>
         </li>
       ))}
     </ol>
