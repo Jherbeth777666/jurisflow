@@ -76,6 +76,8 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   const [demandDecided, setDemandDecided] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Id já gravado na tabela normal; a partir daí só falta registrar a confirmação.
+  const [writtenId, setWrittenId] = useState<string | null>(null)
 
   const demands = useQuery({
     queryKey: qk.demands(orgId, 'proposal-card', proposal.id),
@@ -106,23 +108,34 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     if ('id' in result) setForm((s) => (s.clientId ? s : { ...s, clientId: result.id }))
   }, [clients.data, fields.client])
 
-  // A resolução por título considera só as demandas do cliente resolvido/selecionado e pode
-  // ser refeita quando o cliente muda, desde que o usuário ainda não tenha escolhido a demanda.
+  // A resolução por título pode ser refeita enquanto o usuário não tiver escolhido a demanda.
+  // Em criar_tarefa (há seletor de cliente) o cliente filtra as opções; nos demais tipos o
+  // cliente citado só desempata títulos iguais entre demandas de clientes diferentes.
   useEffect(() => {
     if (!demands.data || demandDecided) return
     if (!fields.demand_title) return
-    // Se a IA citou um cliente, espera a busca para restringir as demandas ao cliente certo.
+    // Se a IA citou um cliente, espera a busca para poder desempatar pelo cliente.
     if (fields.client && clients.data === undefined) return
-    const pool = form.clientId ? demands.data.filter((d) => d.client_id === form.clientId) : demands.data
-    const result = matchByName(
+    const filterByClient = proposal.kind === 'criar_tarefa'
+    const pool = filterByClient && form.clientId ? demands.data.filter((d) => d.client_id === form.clientId) : demands.data
+    let result = matchByName(
       fields.demand_title,
       pool.map((d) => ({ id: d.id, name: d.title })),
     )
+    if (!filterByClient && 'candidates' in result && form.clientId) {
+      // Desempata pelo cliente apenas entre títulos de igualdade exata (parciais nunca decidem sozinhas).
+      const preferred = result.candidates.filter(
+        (c) =>
+          demands.data?.find((d) => d.id === c.id)?.client_id === form.clientId &&
+          'id' in matchByName(fields.demand_title, [c]),
+      )
+      if (preferred.length === 1) result = { id: preferred[0].id }
+    }
     setForm((s) => {
       if ('id' in result) return s.demandId === result.id ? s : { ...s, demandId: result.id }
       return s.demandId ? { ...s, demandId: '' } : s
     })
-  }, [demands.data, fields.demand_title, fields.client, clients.data, form.clientId, demandDecided])
+  }, [demands.data, fields.demand_title, fields.client, clients.data, form.clientId, demandDecided, proposal.kind])
 
   const assigneeResolved = useRef(false)
   useEffect(() => {
@@ -140,20 +153,25 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   const selectedCategory = categories.data?.find((c) => c.id === selectedDemand?.category_id)
   const stageFor = useRef<string | null>(null)
   useEffect(() => {
-    if (proposal.kind !== 'mover_etapa' || !form.demandId || !categories.data) return
-    if (stageFor.current === form.demandId && form.stageId) return
-    const demand = demands.data?.find((d) => d.id === form.demandId)
-    const category = categories.data.find((c) => c.id === demand?.category_id)
-    if (!category || !fields.stage_name) return
+    if (proposal.kind !== 'mover_etapa' || !form.demandId || !categories.data || !demands.data) return
+    if (stageFor.current === form.demandId) return
+    const demand = demands.data.find((d) => d.id === form.demandId)
+    if (!demand) return
+    stageFor.current = form.demandId
+    const category = categories.data.find((c) => c.id === demand.category_id)
+    if (!category || !fields.stage_name) {
+      setForm((s) => (s.stageId ? { ...s, stageId: '' } : s))
+      return
+    }
     const result = matchByName(
       fields.stage_name,
       category.stages.map((s) => ({ id: s.id, name: s.name })),
     )
-    if ('id' in result) {
-      setForm((s) => ({ ...s, stageId: result.id }))
-      stageFor.current = form.demandId
-    }
-  }, [proposal.kind, form.demandId, form.stageId, categories.data, demands.data, fields.stage_name])
+    setForm((s) => {
+      if ('id' in result) return s.stageId === result.id ? s : { ...s, stageId: result.id }
+      return s.stageId ? { ...s, stageId: '' } : s
+    })
+  }, [proposal.kind, form.demandId, categories.data, demands.data, fields.stage_name])
 
   // Cliente e demanda só são exigidos em criar_tarefa, e apenas até o usuário decidir o campo
   // citado (inclusive escolhendo "Sem cliente"/"Sem demanda"). Nos demais tipos não há seletor
@@ -166,17 +184,18 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   const stageRequired = proposal.kind === 'mover_etapa' && !form.stageId
   const titleMissing = proposal.kind === 'criar_tarefa' && !form.title.trim()
   const actionMissing = proposal.kind === 'definir_proxima_acao' && !form.nextAction.trim()
-  // Criar/editar tarefas e demandas é permitido a todos os membros (RLS 'all'); o banco decide.
-  const permitted = !!userId
-  const canConfirm =
-    permitted &&
-    !saving &&
+  // Enquanto só falta registrar a confirmação, os campos ficam travados com o que já foi gravado.
+  const written = writtenId !== null
+  const fieldsValid =
     !(clientUnresolved && !clientDecided) &&
     !demandPending &&
     !demandRequired &&
     !stageRequired &&
     !titleMissing &&
     !actionMissing
+  // Criar/editar tarefas e demandas é permitido a todos os membros (RLS 'all'); o banco decide.
+  const permitted = !!userId
+  const canConfirm = permitted && !saving && (written || fieldsValid)
 
   const registrar = async (nextStatus: 'confirmada' | 'descartada', entity?: string) => {
     const args = entity
@@ -196,9 +215,6 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     ])
   }
 
-  // Guarda o id já gravado para que uma nova tentativa após falha só repita o registro da proposta.
-  const writtenEntity = useRef<string | null>(null)
-
   const changeClient = (value: string) => {
     const current = demands.data?.find((d) => d.id === form.demandId)
     const keepDemand = !!current && (!value || current.client_id === value)
@@ -208,8 +224,9 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   }
 
   const changeDemand = (value: string) => {
-    setForm((s) => ({ ...s, demandId: value }))
+    setForm((s) => ({ ...s, demandId: value, ...(proposal.kind === 'mover_etapa' ? { stageId: '' } : {}) }))
     setDemandDecided(true)
+    if (proposal.kind === 'mover_etapa') stageFor.current = null
   }
 
   const confirm = async () => {
@@ -217,7 +234,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     setSaving(true)
     setError(null)
     try {
-      let entity = writtenEntity.current
+      let entity = writtenId
       if (!entity) {
         if (proposal.kind === 'criar_tarefa') {
           const saved = unwrap(
@@ -256,7 +273,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
             | undefined
           entity = updated?.id ?? form.demandId
         }
-        writtenEntity.current = entity
+        setWrittenId(entity)
       }
       await registrar('confirmada', entity)
       setStatus('confirmada')
@@ -285,8 +302,10 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     }
   }
 
+  // Só criar_tarefa filtra as opções pelo cliente (há seletor); nos demais tipos todas as
+  // demandas abertas ficam disponíveis e o cliente citado serve apenas para desempatar.
   const demandOptions = (demands.data ?? [])
-    .filter((d) => !form.clientId || d.client_id === form.clientId)
+    .filter((d) => proposal.kind !== 'criar_tarefa' || !form.clientId || d.client_id === form.clientId)
     .map((d) => ({ value: d.id, label: d.title }))
   const stageOptions = (selectedCategory?.stages ?? []).map((s) => ({ value: s.id, label: s.name }))
   const memberOptions = members.data
@@ -314,7 +333,10 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
         <>
           <p className="mt-1.5 text-[12.5px] text-ink-muted">{proposalSummary(proposal)}</p>
 
-          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <fieldset
+            disabled={written}
+            className="mt-3 grid min-w-0 grid-cols-1 gap-3 border-0 p-0 sm:grid-cols-2"
+          >
             {proposal.kind === 'criar_tarefa' && (
               <>
                 <Input label="Título" required maxLength={160} value={form.title} onChange={(e) => set('title', e.target.value)} />
@@ -404,7 +426,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
                 />
               </>
             )}
-          </div>
+          </fieldset>
 
           {warnings.map((name, index) => (
             <p
@@ -430,7 +452,11 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
             </div>
           )}
 
-          <p className="mt-3 text-[11.5px] text-ink-subtle">Sugestão gerada por IA. Nada foi gravado ainda.</p>
+          <p className="mt-3 text-[11.5px] text-ink-subtle">
+            {written
+              ? 'Dados gravados. Só falta registrar a confirmação.'
+              : 'Sugestão gerada por IA. Nada foi gravado ainda.'}
+          </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
@@ -440,11 +466,13 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
               loading={saving}
               className="h-11 min-w-28 sm:h-9"
             >
-              Confirmar
+              {written ? 'Tentar registrar de novo' : 'Confirmar'}
             </Button>
-            <Button onClick={discard} disabled={saving} className="h-11 min-w-28 sm:h-9">
-              Descartar
-            </Button>
+            {!written && (
+              <Button onClick={discard} disabled={saving} className="h-11 min-w-28 sm:h-9">
+                Descartar
+              </Button>
+            )}
           </div>
         </>
       )}
