@@ -1,14 +1,21 @@
 import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js'
 import { supabase, unwrap } from '@/lib/supabase'
 import type { AiConversation, AiMessage } from '@/types/database'
+import type { Proposal } from './proposals'
 
 export type ConversationSummary = Pick<AiConversation, 'id' | 'title' | 'updated_at' | 'created_at'>
-export type ChatMessageRow = Pick<AiMessage, 'id' | 'role' | 'content' | 'tools_used' | 'created_at'>
+export type ChatMessageRow = Pick<AiMessage, 'id' | 'role' | 'content' | 'tools_used' | 'created_at'> & {
+  proposals?: Proposal[] | null
+}
 
 export interface AssistantReply {
   conversation_id: string
   message: string
   tools_used: string[]
+  /** Id da mensagem do assistente salva no histórico (para as propostas). */
+  message_id?: string | null
+  /** Ações propostas pela IA, pendentes de confirmação do usuário. */
+  proposals?: Proposal[]
   /** Tipos de dado removidos da pergunta antes do envio (cpf, telefone, email, cnpj) */
   redacted?: string[]
 }
@@ -107,7 +114,7 @@ export async function listMessages(orgId: string, conversationId: string): Promi
   const rows = unwrap(
     await supabase
       .from('ai_messages')
-      .select('id, role, content, tools_used, created_at')
+      .select('id, role, content, tools_used, created_at, proposals')
       .eq('organization_id', orgId)
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })

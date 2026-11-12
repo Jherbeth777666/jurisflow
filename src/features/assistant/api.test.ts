@@ -37,6 +37,7 @@ describe('listMessages', () => {
     const rows = await listMessages('org', 'conv')
     // ordem cronológica; no empate de horário, a pergunta (user) antes da resposta
     expect(rows.map((r) => r.id)).toEqual(['a', 'b', 'c'])
+    expect(calls).toContainEqual(['select', ['id, role, content, tools_used, created_at, proposals']])
     expect(calls).toContainEqual(['order', ['created_at', { ascending: false }]])
     expect(calls).toContainEqual(['limit', [MESSAGES_LIMIT]])
   })

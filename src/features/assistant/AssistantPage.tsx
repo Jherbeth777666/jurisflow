@@ -17,6 +17,7 @@ import {
 } from './api'
 import { ConversationList } from './ConversationList'
 import { MessageBubble, ThinkingIndicator } from './MessageBubble'
+import { ProposalCard } from './ProposalCard'
 import { MAX_MESSAGE_CHARS, PRIVACY_NOTICE, SUGGESTIONS, containsPersonalData } from './constants'
 
 export function AssistantPage() {
@@ -225,7 +226,16 @@ export function AssistantPage() {
           ) : (
             <div className="mx-auto flex max-w-3xl flex-col gap-4">
               {msgs.map((m) => (
-                <MessageBubble key={m.id} role={m.role} content={m.content} toolsUsed={m.tools_used} />
+                <div key={m.id} className="flex flex-col gap-2">
+                  <MessageBubble role={m.role} content={m.content} toolsUsed={m.tools_used} />
+                  {m.role === 'assistant' && m.proposals && m.proposals.length > 0 && (
+                    <div className="flex flex-col gap-2 sm:pl-9">
+                      {m.proposals.map((p) => (
+                        <ProposalCard key={p.id} proposal={p} messageId={m.id} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
               {pending && (
                 <>
