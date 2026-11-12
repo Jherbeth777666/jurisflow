@@ -57,6 +57,14 @@ function initialForm(proposal: Proposal): FormState {
   }
 }
 
+/** Maior trecho do nome sem símbolos (a busca do servidor troca símbolos por espaço). */
+function lookupTerm(name: string): string {
+  return name
+    .split(/[^\p{L}\p{N}\s]/u)
+    .map((part) => part.trim())
+    .reduce((best, part) => (part.length > best.length ? part : best), '')
+}
+
 /** Cartão de confirmação de uma proposta da IA, abaixo da mensagem do assistente. */
 export function ProposalCard({ proposal, messageId }: { proposal: Proposal; messageId: string }) {
   const { orgId, userId } = useOrg()
@@ -66,9 +74,9 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   const members = useMembers()
   const categories = useCategories()
   const fields = proposal.fields ?? {}
-  // A busca do servidor descarta símbolos como parênteses; busca pelo trecho antes do primeiro símbolo
+  // A busca do servidor descarta símbolos como parênteses; busca pelo maior trecho sem símbolos
   // e deixa a igualdade exata para o matchByName (nome completo).
-  const [clientTerm, setClientTerm] = useState(() => (fields.client ?? '').split(/[^\p{L}\p{N}\s]/u)[0].trim())
+  const [clientTerm, setClientTerm] = useState(() => lookupTerm(fields.client ?? ''))
   const clients = useClientLookup(clientTerm)
   const [status, setStatus] = useState<ProposalStatus>(proposal.status)
   const [form, setForm] = useState<FormState>(() => initialForm(proposal))
@@ -243,7 +251,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
               .insert({
                 title: form.title.trim(),
                 description: null,
-                client_id: form.clientId || null,
+                client_id: form.clientId || selectedDemand?.client_id || null,
                 demand_id: form.demandId || null,
                 assignee_id: form.assigneeId || null,
                 due_date: form.dueDate || null,
@@ -316,6 +324,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   if (clientUnresolved && fields.client) warnings.push(fields.client)
   if ((demandUnresolved || demandRequired) && fields.demand_title) warnings.push(fields.demand_title)
   if (stageRequired && fields.stage_name) warnings.push(fields.stage_name)
+  if (proposal.kind === 'criar_tarefa' && fields.assignee && !form.assigneeId) warnings.push(fields.assignee)
 
   return (
     <section className="rounded-lg border border-line bg-canvas/60 p-3 shadow-[0_1px_1px_rgb(15_23_42/0.03)] sm:p-4" aria-label="Proposta da IA">
