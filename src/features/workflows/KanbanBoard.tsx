@@ -28,6 +28,7 @@ import { cn } from '@/lib/cn'
 import { PRIORITY, toOptions } from '@/lib/constants'
 import { daysSince, formatDate, todayISO } from '@/lib/format'
 import type { PriorityLevel, WorkflowStage } from '@/types/database'
+import { useStageEntryPrompt } from './stageRules'
 import { boardKey, invalidateWorkflow, useBoardDemands, useMoveDemand } from './api'
 import { filterBoard, groupByStage, isClosed, STALE_DAYS, type BoardDemand, type BoardFilters } from './board'
 
@@ -85,6 +86,18 @@ export function KanbanBoard({
 
   const board = useBoardDemands(category?.id ?? null)
   const move = useMoveDemand(category?.id ?? null, stages)
+  const stagePrompt = useStageEntryPrompt()
+  // Move e, só se der certo, oferece as tarefas sugeridas da etapa de destino.
+  const moveTo = (d: BoardDemand, stageId: string) =>
+    move.mutate(
+      { demandId: d.id, stageId },
+      {
+        onSuccess: () => {
+          const target = stages.find((s) => s.id === stageId)
+          if (target) void stagePrompt.promptFor(d, target)
+        },
+      },
+    )
 
   const visible = useMemo(() => filterBoard(board.data ?? [], filters), [board.data, filters])
   const columns = useMemo(() => groupByStage(visible, stages), [visible, stages])
@@ -114,7 +127,7 @@ export function KanbanBoard({
     setDragging(null)
     const d = findDemand(e.active.id)
     const to = e.over?.id
-    if (d && typeof to === 'string' && to !== d.stage_id) move.mutate({ demandId: d.id, stageId: to })
+    if (d && typeof to === 'string' && to !== d.stage_id) moveTo(d, to)
   }
 
   if (!active.length) {
@@ -181,7 +194,7 @@ export function KanbanBoard({
             Limpar filtros
           </Button>
         )}
-        <span className="tabular text-[12.5px] text-ink-muted sm:ml-auto">
+        <span className="tabular text-label text-ink-muted sm:ml-auto">
           {board.isSuccess ? `${openTotal} ${openTotal === 1 ? 'demanda aberta' : 'demandas abertas'}` : ''}
         </span>
       </div>
@@ -247,10 +260,12 @@ export function KanbanBoard({
         stages={stages}
         onClose={closeMove}
         onSelect={(stageId) => {
-          if (moving) move.mutate({ demandId: moving.id, stageId })
+          if (moving) moveTo(moving, stageId)
           setMoving(null)
         }}
       />
+
+      {stagePrompt.element}
 
       {category && (
         <DemandFormModal
@@ -291,10 +306,10 @@ function Column({
       <header className="flex items-center gap-1.5 px-3 pb-1 pt-2.5">
         {stage.is_final && <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" aria-label="Etapa de conclusão" />}
         {stage.is_waiting_docs && <FileClock className="size-3.5 shrink-0 text-amber-600" aria-label="Aguardando documentos" />}
-        <h3 className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-ink" title={stage.name}>
+        <h3 className="min-w-0 flex-1 truncate text-label font-semibold text-ink" title={stage.name}>
           {stage.name}
         </h3>
-        <span className="tabular rounded-full bg-white px-1.5 text-[11px] font-medium text-ink-muted ring-1 ring-line">{open.length}</span>
+        <span className="tabular rounded-full bg-white px-1.5 text-2xs font-medium text-ink-muted ring-1 ring-line">{open.length}</span>
         <Button variant="ghost" size="icon" onClick={onCreate} aria-label={`Nova demanda em ${stage.name}`} title="Nova demanda">
           <Plus className="size-4" />
         </Button>
@@ -314,10 +329,10 @@ function Column({
         ) : (
           <>
             {open.map(children)}
-            {open.length === 0 && closed.length === 0 && <p className="px-1 py-4 text-center text-[12px] text-ink-muted">Nenhuma demanda</p>}
+            {open.length === 0 && closed.length === 0 && <p className="px-1 py-4 text-center text-caption text-ink-muted">Nenhuma demanda</p>}
             {closed.length > 0 && (
               <>
-                <p className="mt-1 px-1 text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
+                <p className="mt-1 px-1 text-2xs font-medium uppercase tracking-wide text-ink-subtle">
                   Concluídas recentemente ({closed.length})
                 </p>
                 {closed.map(children)}
@@ -400,7 +415,7 @@ function CardBody({
         <Link
           to={`/demandas/${d.id}`}
           {...stop}
-          className="line-clamp-2 min-w-0 flex-1 text-[13px] font-medium leading-snug text-ink hover:underline"
+          className="line-clamp-2 min-w-0 flex-1 text-body-sm font-medium leading-snug text-ink hover:underline"
         >
           {d.title}
         </Link>
@@ -421,16 +436,16 @@ function CardBody({
           </button>
         )}
       </div>
-      {d.client && <p className="mt-0.5 truncate text-[12px] text-ink-muted">{d.client.full_name}</p>}
+      {d.client && <p className="mt-0.5 truncate text-caption text-ink-muted">{d.client.full_name}</p>}
 
       <div className="mt-2 flex items-center gap-1.5">
         {d.priority !== 'media' && <Badge tone={PRIORITY[d.priority].tone}>{PRIORITY[d.priority].label}</Badge>}
         {closed ? (
-          <span className="text-[11.5px] text-emerald-700">Concluída {d.closed_at ? `em ${formatDate(d.closed_at)}` : ''}</span>
+          <span className="text-caption text-emerald-700">Concluída {d.closed_at ? `em ${formatDate(d.closed_at)}` : ''}</span>
         ) : (
           <span
             className={cn(
-              'tabular inline-flex items-center gap-1 text-[11.5px]',
+              'tabular inline-flex items-center gap-1 text-caption',
               days >= STALE_DAYS * 2 ? 'font-medium text-red-700' : days >= STALE_DAYS ? 'font-medium text-amber-700' : 'text-ink-subtle',
             )}
             title={`${days} ${days === 1 ? 'dia' : 'dias'} nesta etapa`}
@@ -440,12 +455,12 @@ function CardBody({
           </span>
         )}
         <span className="ml-auto">
-          {responsible ? <Avatar name={responsible} /> : <span className="text-[11px] text-ink-subtle">Sem resp.</span>}
+          {responsible ? <Avatar name={responsible} /> : <span className="text-2xs text-ink-subtle">Sem resp.</span>}
         </span>
       </div>
 
       {!closed && (d.next_action || d.next_action_date) && (
-        <p className={cn('mt-1.5 truncate border-t border-line pt-1.5 text-[11.5px]', nextLate ? 'text-red-700' : 'text-ink-muted')}>
+        <p className={cn('mt-1.5 truncate border-t border-line pt-1.5 text-caption', nextLate ? 'text-red-700' : 'text-ink-muted')}>
           <span className="text-ink-subtle">Próx.: </span>
           {d.next_action ?? 'Atividade'}
           {d.next_action_date && <span className="tabular"> · {formatDate(d.next_action_date)}</span>}
@@ -477,11 +492,11 @@ function MoveToModal({
                 type="button"
                 disabled={current}
                 onClick={() => onSelect(s.id)}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-[13.5px] text-ink hover:bg-navy-50 disabled:cursor-default disabled:text-ink-subtle disabled:hover:bg-transparent"
+                className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-body text-ink hover:bg-navy-50 disabled:cursor-default disabled:text-ink-subtle disabled:hover:bg-transparent"
               >
-                <span className="tabular w-5 text-[12px] text-ink-subtle">{i + 1}.</span>
+                <span className="tabular w-5 text-caption text-ink-subtle">{i + 1}.</span>
                 <span className="flex-1 truncate">{s.name}</span>
-                {current && <span className="text-[11.5px]">atual</span>}
+                {current && <span className="text-caption">atual</span>}
                 {!current && s.is_final && <Badge tone="green">Conclui</Badge>}
               </button>
             </li>

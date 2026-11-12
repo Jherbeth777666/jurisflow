@@ -31,9 +31,11 @@ interface Draft {
   /** texto do campo; vazio = sem data */
   offset: string
   priority: PriorityLevel
+  /** vazio = ao criar a demanda */
+  stageId: string
 }
 
-const emptyDraft = (): Draft => ({ id: null, title: '', offset: '', priority: 'media' })
+const emptyDraft = (): Draft => ({ id: null, title: '', offset: '', priority: 'media', stageId: '' })
 
 function parseDraft(d: Draft): { ok: true; input: TaskTemplateInput } | { ok: false; error: string } {
   const title = d.title.trim().replace(/\s+/g, ' ')
@@ -45,7 +47,7 @@ function parseDraft(d: Draft): { ok: true; input: TaskTemplateInput } | { ok: fa
     if (!Number.isInteger(n) || n < 0 || n > OFFSET_MAX) return { ok: false, error: `Os dias devem ser um número inteiro de 0 a ${OFFSET_MAX}.` }
     offset_days = n
   }
-  return { ok: true, input: { title, offset_days, priority: d.priority } }
+  return { ok: true, input: { title, offset_days, priority: d.priority, stage_id: d.stageId || null } }
 }
 
 const offsetLabel = (n: number | null) => (n == null ? 'sem data' : `D+${n} dias`)
@@ -64,7 +66,19 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
 
   const [categoryId, setCategoryId] = useState(initialCategoryId ?? '')
   const activeCategory = categoryId || cats.data?.[0]?.id || ''
-  const list = (templates.data ?? []).filter((t) => t.category_id === activeCategory)
+  const activeStages = (cats.data?.find((c) => c.id === activeCategory)?.stages ?? []).slice().sort((a, b) => a.position - b.position)
+  // Agrupado pelo gatilho: primeiro "Ao criar a demanda", depois as etapas na ordem de position.
+  const groups: TaskTemplateRow[][] = [
+    ...[null, ...activeStages.map((s) => s.id)].map((sid) =>
+      (templates.data ?? []).filter((t) => t.category_id === activeCategory && (t.stage_id ?? null) === sid).sort((a, b) => a.position - b.position),
+    ),
+  ]
+  const list = groups.flat()
+  const triggerLabel = (stageId: string | null) => {
+    if (!stageId) return 'Ao criar a demanda'
+    const st = activeStages.find((s) => s.id === stageId)
+    return st ? `Ao entrar em ${st.name}` : 'Etapa removida'
+  }
 
   const [draft, setDraft] = useState<Draft>(emptyDraft)
   const [error, setError] = useState<string | null>(null)
@@ -73,6 +87,7 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
   const counts = new Map<string, number>()
   templates.data?.forEach((t) => counts.set(t.category_id, (counts.get(t.category_id) ?? 0) + 1))
 
+  const groupOf = (t: TaskTemplateRow) => groups.find((g) => g.includes(t)) ?? [t]
   const editing = draft.id !== null
   const resetDraft = () => {
     setDraft(emptyDraft())
@@ -103,10 +118,13 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
   }
 
   const move = (id: string, delta: -1 | 1) => {
-    const next = moveItem(list, id, delta)
-    if (!next) return
+    const gi = groups.findIndex((g) => g.some((t) => t.id === id))
+    if (gi < 0) return
+    const moved = moveItem(groups[gi], id, delta)
+    if (!moved) return
+    const ids = groups.flatMap((g, i) => (i === gi ? moved : g)).map((t) => t.id)
     actions.reorder.mutate(
-      { categoryId: activeCategory, ids: next.map((t) => t.id) },
+      { categoryId: activeCategory, ids },
       { onError: (err) => toast.show(errMsg(err), 'error') },
     )
   }
@@ -132,7 +150,7 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
             <CalendarClock className="size-4 text-ink-subtle" /> Tarefas sugeridas por categoria
           </span>
         }
-        description="Sugeridas ao criar uma demanda, com datas calculadas a partir da criação. São lembretes internos de organização, não prazos legais."
+        description="Sugeridas ao criar uma demanda ou ao entrar numa etapa, com datas calculadas a partir da criação. São lembretes internos de organização, não prazos legais."
       />
       <div className="border-b border-line px-4 py-3">
         {cats.isLoading ? (
@@ -174,23 +192,24 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
         <ol className="divide-y divide-line px-1 py-1.5">
           {list.map((t, idx) => (
             <li key={t.id} className="group flex items-center gap-3 rounded-md px-3 py-1.5 hover:bg-canvas">
-              <span className="w-5 shrink-0 text-right text-[12px] text-ink-subtle tabular">{idx + 1}</span>
-              <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">{t.title}</span>
-              <span className="shrink-0 text-[12px] text-ink-muted">{offsetLabel(t.offset_days)}</span>
+              <span className="w-5 shrink-0 text-right text-caption text-ink-subtle tabular">{idx + 1}</span>
+              <span className="min-w-0 flex-1 truncate text-body text-ink">{t.title}</span>
+              <span className="shrink-0 text-caption text-ink-muted">{offsetLabel(t.offset_days)}</span>
+              <Badge tone="gray">{triggerLabel(t.stage_id)}</Badge>
               <Badge tone={PRIORITY[t.priority].tone}>{PRIORITY[t.priority].label}</Badge>
               {canEdit && (
                 <div className="flex shrink-0 items-center sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
-                  <Icon label={`Subir ${t.title}`} disabled={idx === 0} onClick={() => move(t.id, -1)}>
+                  <Icon label={`Subir ${t.title}`} disabled={groupOf(t).indexOf(t) === 0} onClick={() => move(t.id, -1)}>
                     <ArrowUp className="size-3.5" />
                   </Icon>
-                  <Icon label={`Descer ${t.title}`} disabled={idx === list.length - 1} onClick={() => move(t.id, 1)}>
+                  <Icon label={`Descer ${t.title}`} disabled={groupOf(t).indexOf(t) === groupOf(t).length - 1} onClick={() => move(t.id, 1)}>
                     <ArrowDown className="size-3.5" />
                   </Icon>
                   <Icon
                     label={`Editar ${t.title}`}
                     onClick={() => {
                       setError(null)
-                      setDraft({ id: t.id, title: t.title, offset: t.offset_days == null ? '' : String(t.offset_days), priority: t.priority })
+                      setDraft({ id: t.id, title: t.title, offset: t.offset_days == null ? '' : String(t.offset_days), priority: t.priority, stageId: t.stage_id ?? '' })
                     }}
                   >
                     <Pencil className="size-3.5" />
@@ -217,7 +236,7 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
               maxLength={TASK_TITLE_MAX}
               placeholder={editing ? 'Título da tarefa' : 'Nova tarefa sugerida'}
               aria-label="Título da tarefa sugerida"
-              className="h-8 min-w-0 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+              className="h-8 min-w-0 rounded-md border border-line-strong bg-surface px-2.5 text-body-sm placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
             />
             <input
               type="number"
@@ -230,17 +249,30 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
               }}
               placeholder="Sem data"
               aria-label="Dias após a criação (vazio = sem data)"
-              className="h-8 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+              className="h-8 rounded-md border border-line-strong bg-surface px-2.5 text-body-sm placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
             />
             <select
               value={draft.priority}
               onChange={(e) => setDraft({ ...draft, priority: e.target.value as PriorityLevel })}
               aria-label="Prioridade da tarefa sugerida"
-              className="h-8 rounded-md border border-line-strong bg-surface px-2 text-[13px] focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+              className="h-8 rounded-md border border-line-strong bg-surface px-2 text-body-sm focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
             >
               {toOptions(PRIORITY).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={draft.stageId}
+              onChange={(e) => setDraft({ ...draft, stageId: e.target.value })}
+              aria-label="Quando sugerir"
+              className="h-8 rounded-[var(--radius-control)] border border-line-strong bg-surface px-2 text-body-sm focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100 sm:col-span-3"
+            >
+              <option value="">Ao criar a demanda</option>
+              {activeStages.map((st) => (
+                <option key={st.id} value={st.id}>
+                  Ao entrar em {st.name}
                 </option>
               ))}
             </select>
@@ -262,17 +294,17 @@ export function TaskTemplatesEditor({ initialCategoryId }: { initialCategoryId?:
             </div>
           </div>
           {error && (
-            <p className="mt-1 text-[12px] text-red-600" role="alert">
+            <p className="mt-1 text-caption text-red-600" role="alert">
               {error}
             </p>
           )}
-          <p className="mt-2 flex items-start gap-1.5 text-[11.5px] text-ink-subtle">
+          <p className="mt-2 flex items-start gap-1.5 text-caption text-ink-subtle">
             <Info className="mt-px size-3 shrink-0" />
             Datas que caem no fim de semana passam para a segunda-feira. Alterações valem para as próximas demandas.
           </p>
         </form>
       ) : (
-        !canEdit && <p className="border-t border-line px-4 py-3 text-[12px] text-ink-subtle">Somente leitura para o seu perfil.</p>
+        !canEdit && <p className="border-t border-line px-4 py-3 text-caption text-ink-subtle">Somente leitura para o seu perfil.</p>
       )}
 
       <ConfirmDialog

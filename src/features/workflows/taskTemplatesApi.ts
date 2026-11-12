@@ -4,10 +4,12 @@ import { supabase, unwrap } from '@/lib/supabase'
 import { useOrg } from '@/contexts/AuthContext'
 import type { ISODate, ISODateTime, PriorityLevel, UUID } from '@/types/database'
 
-export interface TaskTemplateRow {
+export type TaskTemplateRow = {
   id: UUID
   organization_id: UUID
   category_id: UUID
+  /** nulo = modelo de criação da demanda; preenchido = sugerido ao entrar nessa etapa */
+  stage_id: UUID | null
   title: string
   offset_days: number | null
   priority: PriorityLevel
@@ -27,11 +29,26 @@ export const taskTemplateKeys = {
 const sortByPosition = <T extends { position: number; created_at: string }>(list: T[]) =>
   list.slice().sort((a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at))
 
-/** Busca os modelos de uma categoria (usada no passo "Preparar a demanda"). */
+/** Busca os modelos de criação de uma categoria (passo "Preparar a demanda"); modelos de etapa ficam de fora. */
 export async function fetchCategoryTaskTemplates(orgId: string, categoryId: string): Promise<TaskTemplateRow[]> {
   return sortByPosition(
     unwrap(
-      await supabase.from('task_templates').select('*').eq('organization_id', orgId).eq('category_id', categoryId).order('position'),
+      await supabase
+        .from('task_templates')
+        .select('*')
+        .eq('organization_id', orgId)
+        .eq('category_id', categoryId)
+        .is('stage_id', null)
+        .order('position'),
+    ) as TaskTemplateRow[],
+  )
+}
+
+/** Busca os modelos sugeridos ao entrar numa etapa. */
+export async function fetchStageTaskTemplates(orgId: string, stageId: string): Promise<TaskTemplateRow[]> {
+  return sortByPosition(
+    unwrap(
+      await supabase.from('task_templates').select('*').eq('organization_id', orgId).eq('stage_id', stageId).order('position'),
     ) as TaskTemplateRow[],
   )
 }
@@ -60,6 +77,8 @@ export interface TaskTemplateInput {
   title: string
   offset_days: number | null
   priority: PriorityLevel
+  /** nulo/ausente = ao criar a demanda */
+  stage_id?: string | null
 }
 
 export function useTaskTemplateActions() {

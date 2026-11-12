@@ -279,6 +279,7 @@ function seedTaskTemplate(over: Partial<Record<string, unknown>> = {}) {
     offset_days: 0,
     priority: 'media',
     position: 0,
+    stage_id: null,
     created_at: NOW,
     updated_at: NOW,
     ...over,

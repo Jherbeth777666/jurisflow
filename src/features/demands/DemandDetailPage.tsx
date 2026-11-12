@@ -29,6 +29,7 @@ import { cn } from '@/lib/cn'
 import type { DemandStatus } from '@/types/database'
 import { useDeleteDemand, useDemand, useDemandContracts, usePatchDemand } from './api'
 import { DemandFormModal } from './DemandFormModal'
+import { useStageEntryPrompt } from '@/features/workflows/stageRules'
 import { StageStepper } from './StageStepper'
 import { STALLED_DAYS, formatDaysStalled, isNextActionOverdue, isOpenStatus } from './logic'
 
@@ -45,6 +46,7 @@ export function DemandDetailPage() {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [composing, setComposing] = useState(false)
+  const stagePrompt = useStageEntryPrompt()
 
   if (q.isLoading) return <DetailSkeleton />
   if (q.isError || !q.data)
@@ -70,6 +72,8 @@ export function DemandDetailPage() {
     try {
       const saved = await patch.mutateAsync({ id: d.id, patch: p })
       toast.show(saved.status === 'concluida' && p.stage_id ? `${msg} A demanda foi concluída.` : msg)
+      const entered = p.stage_id ? stages.find((s) => s.id === p.stage_id) : undefined
+      if (entered) void stagePrompt.promptFor(d, entered)
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Não foi possível atualizar.', 'error')
     }
@@ -85,8 +89,8 @@ export function DemandDetailPage() {
             <StatusBadge value={d.status} map={DEMAND_STATUS} />
             <StatusBadge value={d.priority} map={PRIORITY} />
           </div>
-          <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-ink">{d.title}</h1>
-          <p className="mt-0.5 text-[13.5px] text-ink-muted">
+          <h1 className="text-heading font-semibold tracking-[-0.01em] text-ink">{d.title}</h1>
+          <p className="mt-0.5 text-body text-ink-muted">
             Cliente:{' '}
             {d.client ? (
               <Link to={`/clientes/${d.client.id}`} className="font-medium text-ink hover:underline">
@@ -163,20 +167,20 @@ export function DemandDetailPage() {
             <CardBody className="space-y-4">
               <TextBlock label="Descrição" value={d.description} empty="Sem descrição." />
               <div>
-                <p className="mb-1 text-[12px] font-medium text-ink-subtle">Próxima atividade</p>
+                <p className="mb-1 text-caption font-medium text-ink-subtle">Próxima atividade</p>
                 {d.next_action || d.next_action_date ? (
-                  <div className="flex items-start gap-2 text-[13.5px]">
+                  <div className="flex items-start gap-2 text-body">
                     <CalendarClock className={cn('mt-0.5 size-4 shrink-0', overdue ? 'text-red-600' : 'text-ink-subtle')} />
                     <div>
                       <p className="text-ink">{d.next_action || 'Atividade sem descrição'}</p>
-                      <p className={cn('tabular text-[12.5px]', overdue ? 'font-medium text-red-600' : 'text-ink-muted')}>
+                      <p className={cn('tabular text-label', overdue ? 'font-medium text-red-600' : 'text-ink-muted')}>
                         {d.next_action_date ? formatDate(d.next_action_date) : 'Sem data definida'}
                         {overdue && ' · vencida'}
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[13.5px] text-ink-subtle">Nenhuma atividade agendada.</p>
+                  <p className="text-body text-ink-subtle">Nenhuma atividade agendada.</p>
                 )}
               </div>
               <TextBlock label="Observações" value={d.notes} empty="Sem observações." />
@@ -199,7 +203,7 @@ export function DemandDetailPage() {
           <Card>
             <CardHeader title="Resumo" />
             <CardBody>
-              <dl className="space-y-3 text-[13px]">
+              <dl className="space-y-3 text-body-sm">
                 <Info label="Etapa atual">{stage?.name ?? '—'}</Info>
                 <Info label="Responsável">
                   {responsible ? (
@@ -228,6 +232,7 @@ export function DemandDetailPage() {
         </div>
       </div>
 
+      {stagePrompt.element}
       <DemandFormModal open={editing} onClose={() => setEditing(false)} demand={d} />
       <ConfirmDialog
         open={confirmDelete}
@@ -267,14 +272,14 @@ function ContractsCard({ demandId }: { demandId: string }) {
             <li key={c.id}>
               <Link to={`/contratos/${c.id}`} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-navy-50/60">
                 <div className="min-w-0">
-                  <p className="truncate text-[13.5px] font-medium text-ink">{c.description || CONTRACT_TYPE[c.contract_type]}</p>
-                  <p className="text-[12px] text-ink-subtle">
+                  <p className="truncate text-body font-medium text-ink">{c.description || CONTRACT_TYPE[c.contract_type]}</p>
+                  <p className="text-caption text-ink-subtle">
                     {CONTRACT_TYPE[c.contract_type]} · assinado em {formatDate(c.signed_at)}
                     {Number(c.overdue_count) > 0 && <span className="text-red-600"> · {c.overdue_count} parcela(s) vencida(s)</span>}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
-                  <span className="tabular text-[13px] text-ink">{formatCurrency(c.total_amount)}</span>
+                  <span className="tabular text-body-sm text-ink">{formatCurrency(c.total_amount)}</span>
                   <StatusBadge value={c.status} map={CONTRACT_STATUS} />
                 </div>
               </Link>
@@ -288,7 +293,7 @@ function ContractsCard({ demandId }: { demandId: string }) {
 
 function BackLink() {
   return (
-    <Link to="/demandas" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-ink-muted hover:text-ink">
+    <Link to="/demandas" className="mb-3 inline-flex items-center gap-1.5 text-body-sm text-ink-muted hover:text-ink">
       <ArrowLeft className="size-4" />
       Demandas
     </Link>
@@ -307,11 +312,11 @@ function Info({ label, children }: { label: string; children: ReactNode }) {
 function TextBlock({ label, value, empty }: { label: string; value: string | null; empty: string }) {
   return (
     <div>
-      <p className="mb-1 text-[12px] font-medium text-ink-subtle">{label}</p>
+      <p className="mb-1 text-caption font-medium text-ink-subtle">{label}</p>
       {value ? (
-        <p className="whitespace-pre-wrap text-[13.5px] text-ink">{value}</p>
+        <p className="whitespace-pre-wrap text-body text-ink">{value}</p>
       ) : (
-        <p className="text-[13.5px] text-ink-subtle">{empty}</p>
+        <p className="text-body text-ink-subtle">{empty}</p>
       )}
     </div>
   )
