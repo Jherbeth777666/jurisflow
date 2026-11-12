@@ -481,7 +481,7 @@ describe('<DemandFormModal> — preparação da demanda após criar', () => {
 
   it('editar uma demanda existente não mostra o passo de preparação', async () => {
     const demand = makeDemand()
-    mockDb.demands.push(demand)
+    mockDb.demands.push(demand as unknown as Record<string, unknown>)
 
     const { onClose } = renderModal({ demand })
     fireEvent.change(await screen.findByLabelText(/^Título/), { target: { value: 'Demanda atualizada' } })

@@ -6,6 +6,7 @@ import { useCategories } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
 import { KanbanBoard } from './KanbanBoard'
 import { StageSettings } from './StageSettings'
+import { TaskTemplatesEditor } from './TaskTemplatesEditor'
 import { ChecklistTemplatesEditor } from '@/features/checklist/ChecklistTemplatesEditor'
 
 type Tab = 'quadro' | 'etapas'
@@ -83,6 +84,7 @@ export function WorkflowsPage() {
         <div className="space-y-6">
           <StageSettings categories={categories.data ?? []} categoryId={categoryId} onCategoryChange={changeCategory} />
           <ChecklistTemplatesEditor initialCategoryId={categoryId ?? undefined} />
+          <TaskTemplatesEditor initialCategoryId={categoryId ?? undefined} />
         </div>
       )}
     </div>

@@ -31,7 +31,7 @@ function templates(list: {
   })) as unknown as TemplatesArg
 }
 
-function runSuggest(list: TemplatesArg, today: string): Suggestion[] {
+export function runSuggest(list: TemplatesArg, today: string): Suggestion[] {
   return suggestTasks(list, today) as unknown as Suggestion[]
 }
 
