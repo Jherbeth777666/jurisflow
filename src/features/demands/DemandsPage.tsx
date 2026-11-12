@@ -253,6 +253,7 @@ export function DemandsPage() {
                       )}
                       {(d.next_action || d.next_action_date) && (
                         <span className={cn('tabular', overdue ? 'font-medium text-red-600' : 'text-ink-muted')}>
+                          {d.next_action && <span className="text-ink-muted">{d.next_action} · </span>}
                           {d.next_action_date ? formatDate(d.next_action_date) : 'Sem data'}
                           {overdue && ' · vencida'}
                         </span>

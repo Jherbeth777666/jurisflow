@@ -352,7 +352,8 @@ function DraggableCard({
             {...listeners}
             {...attributes}
             onClick={(e) => e.stopPropagation()}
-            aria-label={`Arrastar demanda ${demand.title}`}
+            aria-roledescription="demanda arrastável"
+            aria-label={`Arrastar demanda ${demand.title}${demand.client ? ` — ${demand.client.full_name}` : ''}`}
             title="Arrastar"
             className="touch-target -mt-0.5 flex h-8 w-8 shrink-0 cursor-grab items-center justify-center rounded text-ink-subtle hover:bg-navy-50 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-500 active:cursor-grabbing"
           >
