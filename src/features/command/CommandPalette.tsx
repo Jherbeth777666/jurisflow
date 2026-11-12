@@ -44,9 +44,21 @@ export function openCommandPalette() {
 const isMac = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent)
 
 /** Botão compacto "Buscar… ⌘K" para o topo do menu lateral (tema escuro) ou barras claras. */
-export function CommandTrigger({ tone = 'dark', className }: { tone?: 'dark' | 'light'; className?: string }) {
+export function CommandTrigger({ tone = 'dark', className }: { tone?: 'dark' | 'light' | 'icon'; className?: string }) {
   const [mac, setMac] = useState(false)
   useEffect(() => setMac(isMac()), [])
+  if (tone === 'icon') {
+    return (
+      <button
+        type="button"
+        onClick={openCommandPalette}
+        aria-label="Buscar ou executar comando"
+        className={cn('touch-target flex items-center justify-center rounded-lg p-1.5 text-ink-muted hover:bg-navy-50', className)}
+      >
+        <Search className="size-5" />
+      </button>
+    )
+  }
   return (
     <button
       type="button"

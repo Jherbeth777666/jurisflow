@@ -201,7 +201,7 @@ export function TodayPanel() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   {item.kind === 'next_action' ? (
-                    <Link to={item.href} className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink hover:underline">
+                    <Link to={item.href} className="min-h-6 min-w-0 flex-1 truncate py-0.5 text-[13.5px] font-medium text-ink hover:underline">
                       {item.title}
                     </Link>
                   ) : (

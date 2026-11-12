@@ -13,11 +13,14 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variants: Record<Variant, string> = {
-  primary: 'bg-navy-900 text-white hover:bg-navy-800 shadow-sm',
-  secondary: 'bg-surface text-ink border border-line-strong hover:bg-navy-50 shadow-[0_1px_1px_rgb(15_23_42/0.04)]',
+  primary:
+    'bg-gradient-to-b from-navy-800 to-navy-900 text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_1px_2px_rgb(11_27_54/0.3)] hover:from-navy-700 hover:to-navy-800',
+  secondary:
+    'bg-surface text-ink border border-line-strong hover:border-navy-200 hover:bg-navy-50/60 shadow-[0_1px_2px_rgb(15_23_42/0.05)]',
   ghost: 'text-ink-muted hover:text-ink hover:bg-navy-50',
   subtle: 'bg-accent-50 text-accent-700 hover:bg-accent-100',
-  danger: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
+  danger:
+    'bg-gradient-to-b from-red-500 to-red-600 text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.15),0_1px_2px_rgb(127_29_29/0.3)] hover:from-red-600 hover:to-red-700',
 }
 
 const sizes: Record<Size, string> = {
@@ -36,7 +39,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type={type}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center rounded-md font-medium whitespace-nowrap transition-colors',
+        'inline-flex items-center rounded-lg font-medium whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-150 active:scale-[0.98]',
         'disabled:opacity-50 disabled:pointer-events-none',
         variants[variant],
         sizes[size],

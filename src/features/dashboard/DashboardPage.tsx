@@ -47,6 +47,13 @@ import { TodayPanel } from './TodayPanel'
 
 const STALLED_DAYS = 15
 
+const QUICK_ACTIONS = [
+  { to: '/demandas?nova=1', label: 'Nova demanda', icon: Plus, primary: true },
+  { to: '/tarefas?nova=1', label: 'Nova tarefa', icon: ListTodo, primary: false },
+  { to: '/clientes?novo=1', label: 'Novo cliente', icon: Users, primary: false },
+  { to: '/agenda', label: 'Agenda', icon: CalendarClock, primary: false },
+]
+
 function normalizeMetrics(m: DashboardMetrics): DashboardMetrics {
   const n = (v: unknown) => Number(v ?? 0)
   return {
@@ -92,15 +99,35 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-ink">
-            {greeting(now.getHours())}
-            {name ? `, ${name}` : ''}
-          </h1>
-          <p className="mt-0.5 text-[13.5px] text-ink-muted first-letter:uppercase">{dateLabel}</p>
+      <header className="bg-hero relative overflow-hidden rounded-2xl px-5 py-6 text-white shadow-[var(--shadow-lift)] sm:px-7 sm:py-7">
+        <div className="bg-dots pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_right,black,transparent_65%)]" aria-hidden />
+        <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="min-w-0">
+            <p className="text-[12.5px] font-medium text-accent-200 first-letter:uppercase">{dateLabel}</p>
+            <h1 className="mt-1 text-[24px] font-semibold leading-tight tracking-[-0.02em] sm:text-[28px]">
+              {greeting(now.getHours())}
+              {name ? `, ${name}` : ''}
+            </h1>
+            <p className="mt-1 truncate text-[13.5px] text-navy-200">{organization.name}</p>
+          </div>
+          <nav aria-label="Atalhos rápidos" className="flex flex-wrap gap-2">
+            {QUICK_ACTIONS.map(({ to, label, icon: Icon, primary }) => (
+              <Link
+                key={to}
+                to={to}
+                className={cn(
+                  'touch-target inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium transition-[background-color,transform] active:scale-[0.98]',
+                  primary
+                    ? 'bg-white text-navy-900 shadow-sm hover:bg-accent-50'
+                    : 'bg-white/10 text-white ring-1 ring-inset ring-white/15 hover:bg-white/15',
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+                {label}
+              </Link>
+            ))}
+          </nav>
         </div>
-        <p className="text-[12.5px] text-ink-subtle">{organization.name}</p>
       </header>
 
       <TodayPanel />
@@ -169,7 +196,7 @@ function StatGrid({ m }: { m: DashboardMetrics | undefined }) {
     )
   const pct = m.fees_expected > 0 ? Math.round((m.fees_received / m.fees_expected) * 100) : 0
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
       <StatCard label="Clientes" value={formatNumber(m.clients_total)} icon={<Users className="size-4" />} to="/clientes" />
       <StatCard label="Demandas em andamento" value={formatNumber(m.demands_in_progress)} icon={<Briefcase className="size-4" />} to="/demandas" />
       <StatCard label="Demandas concluídas" value={formatNumber(m.demands_done)} icon={<CheckCircle2 className="size-4" />} to="/demandas?status=concluida" tone="success" />
