@@ -173,8 +173,8 @@ export function MessagesPage() {
             <CardBody className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
               {MESSAGE_VARIABLES.map((v) => (
                 <div key={v.name} className="flex items-baseline justify-between gap-3 text-label">
-                  <code className="font-mono text-accent-700">{`{{${v.name}}}`}</code>
-                  <span className="text-right text-ink-muted">{v.label}</span>
+                  <span className="font-medium text-ink">{v.label}</span>
+                  <span className="truncate text-right text-ink-muted">Ex.: {v.example.split('\n')[0]}</span>
                 </div>
               ))}
             </CardBody>

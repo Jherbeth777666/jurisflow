@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Check, Copy, Info, Mail, MessageCircle, RotateCcw, Sparkles } from 'lucide-react'
-import { Badge, Button, ErrorState, Input, Modal, Select, Skeleton, Textarea, useToast } from '@/components/ui'
+import { Badge, Button, ErrorState, Input, Modal, Select, Skeleton, useToast } from '@/components/ui'
 import { useOrg } from '@/contexts/AuthContext'
 import { useCategories, useMemberNames } from '@/hooks/useOrgData'
 import { formatCurrency, formatDate, formatPhone } from '@/lib/format'
@@ -17,6 +17,7 @@ import {
   useNextDemandTask,
 } from './api'
 import { TONE_LABELS, type ComposeTone, type MessageTemplate } from './types'
+import { VariableEditor } from './VariableEditor'
 import { fillTemplate, firstName, formatPendingList, unresolvedVariables, validateRewrite, variableLabel, type VariableValues } from './variables'
 import { buildMailtoLink, buildWhatsAppLink, normalizeBrPhone } from './whatsapp'
 
@@ -247,12 +248,13 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
         />
 
         <div>
-          <Textarea
+          <VariableEditor
+            mode="compose"
             label="Mensagem"
-            rows={11}
+            minRows={11}
             value={text}
-            onChange={(e) => {
-              setText(e.target.value)
+            onChange={(t) => {
+              setText(t)
               setDirty(true)
             }}
             maxLength={4000}
@@ -279,10 +281,7 @@ function Composer({ clientId, demandId, initialTemplateId, onClose }: MessageCom
         {missing.length > 0 && (
           <div role="status" className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-label text-amber-900">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <span>
-              Sem dado cadastrado para: <strong>{missing.map(variableLabel).join(', ')}</strong>. Edite o texto e substitua os
-              trechos entre {'{{ }}'} antes de enviar.
-            </span>
+            <span>Alguns dados não estão cadastrados. Clique nas etiquetas em amarelo para preencher antes de enviar.</span>
           </div>
         )}
 
