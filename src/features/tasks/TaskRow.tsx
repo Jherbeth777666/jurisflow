@@ -41,14 +41,16 @@ export function TaskRowItem({
   const bucket = dueBucket(task.due_date, task.status, today)
   return (
     <li className={cn('group flex items-start gap-3 px-4', compact ? 'py-2.5' : 'py-3')}>
-      <input
-        type="checkbox"
-        checked={done}
-        disabled={task.status === 'cancelada'}
-        onChange={(e) => onToggle(e.target.checked)}
-        aria-label={done ? `Reabrir tarefa: ${task.title}` : `Concluir tarefa: ${task.title}`}
-        className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-line-strong accent-navy-900 disabled:cursor-not-allowed"
-      />
+      <label className="touch-target mt-0.5 flex size-6 shrink-0 cursor-pointer items-center justify-center">
+        <input
+          type="checkbox"
+          checked={done}
+          disabled={task.status === 'cancelada'}
+          onChange={(e) => onToggle(e.target.checked)}
+          aria-label={done ? `Reabrir tarefa: ${task.title}` : `Concluir tarefa: ${task.title}`}
+          className="size-4 cursor-pointer rounded border-line-strong accent-navy-900 disabled:cursor-not-allowed"
+        />
+      </label>
       <div className="min-w-0 flex-1">
         <button
           type="button"
@@ -66,13 +68,13 @@ export function TaskRowItem({
             <Badge tone={PRIORITY[task.priority].tone}>{PRIORITY[task.priority].label}</Badge>
           )}
           {showLinks && task.client && (
-            <Link to={`/clientes/${task.client.id}`} className="inline-flex max-w-[220px] items-center gap-1 truncate hover:text-ink hover:underline">
+            <Link to={`/clientes/${task.client.id}`} className="inline-flex min-h-6 max-w-[220px] items-center gap-1 truncate hover:text-ink hover:underline">
               <User className="size-3 shrink-0" aria-hidden />
               <span className="truncate">{task.client.full_name}</span>
             </Link>
           )}
           {showLinks && task.demand && (
-            <Link to={`/demandas/${task.demand.id}`} className="inline-flex max-w-[260px] items-center gap-1 truncate hover:text-ink hover:underline">
+            <Link to={`/demandas/${task.demand.id}`} className="inline-flex min-h-6 max-w-[260px] items-center gap-1 truncate hover:text-ink hover:underline">
               <Briefcase className="size-3 shrink-0" aria-hidden />
               <span className="truncate">{task.demand.title}</span>
             </Link>

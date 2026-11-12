@@ -33,7 +33,7 @@
   --color-line-strong: #d5d9e0;
   --color-ink: #0f172a;
   --color-ink-muted: #5b6474;
-  --color-ink-subtle: #8a93a3;
+  --color-ink-subtle: #687183;
 
   --radius-card: 10px;
   --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 0 0 1px rgb(15 23 42 / 0.04);
@@ -65,6 +65,15 @@
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--color-line-strong) transparent;
+  }
+  .touch-target {
+    touch-action: manipulation;
+  }
+  @media (pointer: coarse) {
+    .touch-target {
+      min-height: 44px;
+      min-width: 44px;
+    }
   }
 }
 

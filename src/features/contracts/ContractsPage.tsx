@@ -146,19 +146,45 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
   const list = useContractList({ status, search, page })
   const today = todayISO()
   const filtered = !!status || !!search
+  const [showFilters, setShowFilters] = useState(false)
 
   return (
     <Card>
-      <div className="flex flex-col gap-2 border-b border-line p-3 sm:flex-row sm:items-center">
-        <SearchInput value={search} onChange={(v) => update({ q: v })} placeholder="Buscar por cliente" className="sm:w-72" />
-        <Select
-          aria-label="Filtrar por status"
-          wrapperClassName="sm:w-48"
-          value={status}
-          onChange={(e) => update({ status: e.target.value })}
-          options={toOptions(CONTRACT_STATUS)}
-          placeholder="Todos os status"
-        />
+      <div className="border-b border-line p-3">
+        <div className="flex items-center gap-2 sm:hidden">
+          <SearchInput value={search} onChange={(v) => update({ q: v })} placeholder="Buscar por cliente" className="min-w-0 flex-1" />
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters((s) => !s)}
+            className="shrink-0"
+          >
+            Filtros ({status ? 1 : 0})
+          </Button>
+        </div>
+        {showFilters && (
+          <div className="mt-2 sm:hidden">
+            <Select
+              aria-label="Filtrar por status"
+              value={status}
+              onChange={(e) => update({ status: e.target.value })}
+              options={toOptions(CONTRACT_STATUS)}
+              placeholder="Todos os status"
+            />
+          </div>
+        )}
+        <div className="hidden sm:flex sm:flex-row sm:items-center sm:gap-2">
+          <SearchInput value={search} onChange={(v) => update({ q: v })} placeholder="Buscar por cliente" className="sm:w-72" />
+          <Select
+            aria-label="Filtrar por status"
+            wrapperClassName="sm:w-48"
+            value={status}
+            onChange={(e) => update({ status: e.target.value })}
+            options={toOptions(CONTRACT_STATUS)}
+            placeholder="Todos os status"
+          />
+        </div>
       </div>
 
       {list.isLoading ? (
@@ -184,7 +210,49 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
         )
       ) : (
         <>
-          <Table>
+          <ul className="divide-y divide-line sm:hidden">
+            {list.data.rows.map((c) => (
+              <li key={c.id} className="px-4 py-3">
+                <Link to={`/contratos/${c.id}`} className="block truncate py-1 font-medium text-ink hover:underline">
+                  {c.client_name}
+                </Link>
+                <p className="text-[12px] text-ink-subtle">
+                  {c.installments_count}× · desde {formatDate(c.signed_at)}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <StatusBadge value={c.status} map={CONTRACT_STATUS} />
+                  <span className="text-[12px] text-ink-muted">{CONTRACT_TYPE[c.contract_type]}</span>
+                </div>
+                <dl className="mt-2 grid grid-cols-3 gap-2 text-[12px]">
+                  <div>
+                    <dt className="text-ink-subtle">Valor</dt>
+                    <dd className="tabular">{formatCurrency(c.total_amount)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-subtle">Recebido</dt>
+                    <dd className="tabular text-ink-muted">{formatCurrency(c.received_amount)}</dd>
+                  </div>
+                  <div>
+                    <dt className="text-ink-subtle">Saldo</dt>
+                    <dd className="tabular font-medium">{c.status === 'cancelado' ? '—' : formatCurrency(c.balance_amount)}</dd>
+                  </div>
+                </dl>
+                <div className="mt-2 flex items-center gap-2">
+                  <ProgressBar value={c.received_amount} total={c.total_amount} />
+                </div>
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-muted">
+                  <span className={cn('tabular', c.overdue_count > 0 && 'font-medium text-red-600')}>
+                    {c.overdue_count} vencida{c.overdue_count === 1 ? '' : 's'}
+                  </span>
+                  <span className={cn('tabular', c.next_due_date && c.next_due_date < today && 'font-medium text-red-600')}>
+                    Próx.: {c.status === 'cancelado' ? '—' : formatDate(c.next_due_date)}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden sm:block">
+          <Table label="Contratos">
             <THead>
               <tr>
                 <TH>Cliente</TH>
@@ -202,7 +270,7 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
               {list.data.rows.map((c) => (
                 <TR key={c.id} onClick={() => navigate(`/contratos/${c.id}`)}>
                   <TD className="max-w-[220px]">
-                    <Link to={`/contratos/${c.id}`} onClick={(e) => e.stopPropagation()} className="block truncate font-medium text-ink hover:underline">
+                    <Link to={`/contratos/${c.id}`} onClick={(e) => e.stopPropagation()} className="block truncate py-1 font-medium text-ink hover:underline">
                       {c.client_name}
                     </Link>
                     <span className="block truncate text-[12px] text-ink-subtle">
@@ -229,6 +297,7 @@ function ContractsTab({ onCreate }: { onCreate: () => void }) {
               ))}
             </TBody>
           </Table>
+          </div>
           <Pagination page={page} pageSize={PAGE_SIZE} total={list.data.total} onChange={(p) => update({ p: String(p) })} />
         </>
       )}
@@ -312,7 +381,7 @@ function ReceivableSection({
       {!rows.length ? (
         empty
       ) : (
-        <Table>
+        <Table label={`Parcelas — ${title}`}>
           <THead>
             <tr>
               <TH>Vencimento</TH>
@@ -336,7 +405,7 @@ function ReceivableSection({
                     </span>
                   </TD>
                   <TD className="max-w-[220px]">
-                    <Link to={`/contratos/${r.contract_id}`} className="block truncate font-medium hover:underline">
+                    <Link to={`/contratos/${r.contract_id}`} className="block truncate py-1 font-medium hover:underline">
                       {r.client_name}
                     </Link>
                     <span className="block truncate text-[12px] text-ink-subtle">{CONTRACT_TYPE[r.contract_type]}</span>

@@ -8,7 +8,7 @@ import { useOrg } from '@/contexts/AuthContext'
 import { useMemberNames } from '@/hooks/useOrgData'
 import { formatCurrency, todayISO } from '@/lib/format'
 import { cn } from '@/lib/cn'
-import { Badge, Card, EmptyState, ErrorState, PageHeader, Skeleton, Tabs } from '@/components/ui'
+import { Badge, Card, EmptyState, ErrorState, PageHeader, SegmentedControl, Skeleton, Tabs } from '@/components/ui'
 import { fetchClientNames } from '@/features/contracts/api'
 import { groupByDay, rangeFor, type AgendaItem, type AgendaView } from './logic'
 
@@ -108,26 +108,16 @@ export function AgendaPage() {
             items={VIEWS}
             className="overflow-x-auto"
           />
-          <div
-            className="flex self-start rounded-md border border-line-strong p-0.5 sm:self-auto"
-            role="group"
+          <SegmentedControl
             aria-label="Filtrar por responsável"
-          >
-            {(['mine', 'all'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setScope(value)}
-                aria-pressed={scope === value}
-                className={cn(
-                  'rounded px-2.5 py-1 text-[12.5px] font-medium transition-colors',
-                  scope === value ? 'bg-navy-900 text-white' : 'text-ink-muted hover:text-ink',
-                )}
-              >
-                {value === 'mine' ? 'Minhas' : 'Todos'}
-              </button>
-            ))}
-          </div>
+            className="self-start sm:self-auto"
+            value={scope}
+            onChange={setScope}
+            items={[
+              { value: 'mine', label: 'Minhas' },
+              { value: 'all', label: 'Todos' },
+            ]}
+          />
         </div>
 
         {agendaQ.isLoading ? (

@@ -1,6 +1,6 @@
 // Aba "Quadro": Kanban por categoria com arrastar e soltar (dnd-kit) e menu "Mover para…".
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useCallback, useMemo, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
 import {
   DndContext,
   DragOverlay,
@@ -18,7 +18,7 @@ import {
   type DragStartEvent,
   type KeyboardCoordinateGetter,
 } from '@dnd-kit/core'
-import { ArrowRightLeft, CheckCircle2, Clock, FileClock, KanbanSquare, Plus, Settings2 } from 'lucide-react'
+import { ArrowRightLeft, CheckCircle2, Clock, FileClock, GripVertical, KanbanSquare, Plus, Settings2 } from 'lucide-react'
 import { Avatar, Badge, Button, EmptyState, ErrorState, Modal, SearchInput, Select, Skeleton } from '@/components/ui'
 import { DemandFormModal } from '@/features/demands/DemandFormModal'
 import { useMemberNames, type CategoryWithStages } from '@/hooks/useOrgData'
@@ -71,7 +71,6 @@ export function KanbanBoard({
   const { orgId, userId } = useOrg()
   const qc = useQueryClient()
   const members = useMemberNames()
-  const navigate = useNavigate()
 
   const active = categories.filter((c) => c.active)
   const category = active.find((c) => c.id === categoryId) ?? active[0] ?? null
@@ -81,7 +80,6 @@ export function KanbanBoard({
   const [createIn, setCreateIn] = useState<WorkflowStage | null>(null)
   const [moving, setMoving] = useState<BoardDemand | null>(null)
   const [dragging, setDragging] = useState<BoardDemand | null>(null)
-  const lastDragEnd = useRef(0)
   const closeCreate = useCallback(() => setCreateIn(null), [])
   const closeMove = useCallback(() => setMoving(null), [])
 
@@ -114,15 +112,9 @@ export function KanbanBoard({
   const onDragStart = (e: DragStartEvent) => setDragging(findDemand(e.active.id) ?? null)
   const onDragEnd = (e: DragEndEvent) => {
     setDragging(null)
-    lastDragEnd.current = Date.now()
     const d = findDemand(e.active.id)
     const to = e.over?.id
     if (d && typeof to === 'string' && to !== d.stage_id) move.mutate({ demandId: d.id, stageId: to })
-  }
-
-  const openDemand = (id: string) => {
-    if (Date.now() - lastDragEnd.current < 250) return // ignora o clique que encerra um arraste
-    navigate(`/demandas/${id}`)
   }
 
   if (!active.length) {
@@ -232,7 +224,6 @@ export function KanbanBoard({
                     key={d.id}
                     demand={d}
                     responsible={d.responsible_id ? (members.map.get(d.responsible_id) ?? null) : null}
-                    onOpen={() => openDemand(d.id)}
                     onMove={() => setMoving(d)}
                   />
                 )}
@@ -323,7 +314,7 @@ function Column({
         ) : (
           <>
             {open.map(children)}
-            {open.length === 0 && closed.length === 0 && <p className="px-1 py-4 text-center text-[12px] text-ink-subtle">Nenhuma demanda</p>}
+            {open.length === 0 && closed.length === 0 && <p className="px-1 py-4 text-center text-[12px] text-ink-muted">Nenhuma demanda</p>}
             {closed.length > 0 && (
               <>
                 <p className="mt-1 px-1 text-[11px] font-medium uppercase tracking-wide text-ink-subtle">
@@ -342,29 +333,33 @@ function Column({
 function DraggableCard({
   demand,
   responsible,
-  onOpen,
   onMove,
 }: {
   demand: BoardDemand
   responsible: string | null
-  onOpen: () => void
   onMove: () => void
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: demand.id })
   return (
-    <div
-      ref={setNodeRef}
-      {...listeners}
-      {...attributes}
-      aria-roledescription="demanda arrastável"
-      aria-label={`${demand.title}${demand.client ? `, ${demand.client.full_name}` : ''}`}
-      onClick={onOpen}
-      className={cn(
-        'cursor-grab rounded-md outline-none focus-visible:ring-2 focus-visible:ring-accent-500 active:cursor-grabbing',
-        isDragging && 'opacity-40',
-      )}
-    >
-      <CardBody demand={demand} responsible={responsible} onMove={onMove} />
+    <div ref={setNodeRef} className={cn('rounded-md outline-none', isDragging && 'opacity-40')}>
+      <CardBody
+        demand={demand}
+        responsible={responsible}
+        onMove={onMove}
+        handle={
+          <button
+            type="button"
+            {...listeners}
+            {...attributes}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Arrastar demanda ${demand.title}`}
+            title="Arrastar"
+            className="touch-target -mt-0.5 flex h-8 w-8 shrink-0 cursor-grab items-center justify-center rounded text-ink-subtle hover:bg-navy-50 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-500 active:cursor-grabbing"
+          >
+            <GripVertical className="size-3.5" aria-hidden />
+          </button>
+        }
+      />
     </div>
   )
 }
@@ -379,11 +374,13 @@ function CardBody({
   demand: d,
   responsible,
   onMove,
+  handle,
   className,
 }: {
   demand: BoardDemand
   responsible: string | null
   onMove?: () => void
+  handle?: ReactNode
   className?: string
 }) {
   const closed = isClosed(d)
@@ -394,7 +391,7 @@ function CardBody({
     <article
       className={cn(
         'rounded-md border border-line bg-surface p-2.5 text-left shadow-[0_1px_1px_rgb(15_23_42/0.04)] transition-shadow hover:shadow-[var(--shadow-card)]',
-        closed && 'opacity-70',
+        closed && 'border-dashed bg-canvas shadow-none',
         className,
       )}
     >
@@ -406,6 +403,7 @@ function CardBody({
         >
           {d.title}
         </Link>
+        {handle}
         {onMove && (
           <button
             type="button"
@@ -414,7 +412,7 @@ function CardBody({
               e.stopPropagation()
               onMove()
             }}
-            className="-mr-1 -mt-0.5 shrink-0 rounded p-1 text-ink-subtle hover:bg-navy-50 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-500"
+            className="touch-target -mr-1 -mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded text-ink-subtle hover:bg-navy-50 hover:text-ink focus-visible:outline-2 focus-visible:outline-accent-500"
             aria-label={`Mover "${d.title}" para outra etapa`}
             title="Mover para…"
           >

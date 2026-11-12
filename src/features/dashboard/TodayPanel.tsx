@@ -7,8 +7,7 @@ import { supabase, unwrap } from '@/lib/supabase'
 import { useOrg } from '@/contexts/AuthContext'
 import { qk } from '@/hooks/useOrgData'
 import { diffInDays, todayISO } from '@/lib/format'
-import { cn } from '@/lib/cn'
-import { Card, CardHeader, ErrorState, Skeleton } from '@/components/ui'
+import { Badge, Card, CardHeader, ErrorState, SegmentedControl, Skeleton } from '@/components/ui'
 import { OPEN_STATUSES as DEMAND_OPEN_STATUSES, STALLED_DAYS } from '@/features/demands/logic'
 import { OPEN_STATUSES as TASK_OPEN_STATUSES, useToggleTask } from '@/features/tasks/api'
 import { fetchClientNames } from '@/features/contracts/api'
@@ -155,22 +154,15 @@ export function TodayPanel() {
         title="O que fazer hoje"
         description="Prazos e próximas ações até hoje"
         action={
-          <div className="flex rounded-md border border-line-strong p-0.5" role="group" aria-label="Filtrar por responsável">
-            {(['mine', 'all'] as const).map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => changeScope(value)}
-                aria-pressed={scope === value}
-                className={cn(
-                  'rounded px-2.5 py-1 text-[12.5px] font-medium transition-colors',
-                  scope === value ? 'bg-navy-900 text-white' : 'text-ink-muted hover:text-ink',
-                )}
-              >
-                {value === 'mine' ? 'Minhas' : 'Todos'}
-              </button>
-            ))}
-          </div>
+          <SegmentedControl
+            aria-label="Filtrar por responsável"
+            value={scope}
+            onChange={changeScope}
+            items={[
+              { value: 'mine', label: 'Minhas' },
+              { value: 'all', label: 'Todos' },
+            ]}
+          />
         }
       />
 
@@ -205,37 +197,28 @@ export function TodayPanel() {
       ) : (
         <ul className="divide-y divide-line">
           {visibleItems.map((item) => (
-            <li
-              key={`${item.kind}-${item.id}`}
-              className={cn(
-                'flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between',
-                item.overdue && 'bg-red-50/40',
-              )}
-            >
+            <li key={`${item.kind}-${item.id}`} className="flex min-h-14 items-center gap-3 px-4 py-2">
               <div className="min-w-0 flex-1">
-                {item.kind === 'next_action' ? (
-                  <Link to={item.href} className="block truncate text-[13.5px] font-medium text-ink hover:underline">
-                    {item.title}
-                  </Link>
-                ) : (
-                  <span className="block truncate text-[13.5px] font-medium text-ink">{item.title}</span>
-                )}
-                <span className="mt-0.5 block truncate text-[12px] text-ink-subtle">{contextFor(item)}</span>
-                <span
-                  className={cn(
-                    'mt-0.5 block text-[12px] tabular-nums',
-                    item.overdue ? 'font-medium text-red-600' : 'font-medium text-amber-700',
+                <div className="flex items-center gap-2">
+                  {item.kind === 'next_action' ? (
+                    <Link to={item.href} className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink hover:underline">
+                      {item.title}
+                    </Link>
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-ink">{item.title}</span>
                   )}
-                >
-                  {dateLabel(item, today)}
-                </span>
+                  <Badge tone={item.overdue ? 'red' : 'amber'} className="shrink-0 tabular-nums">
+                    {dateLabel(item, today)}
+                  </Badge>
+                </div>
+                <span className="mt-0.5 block truncate text-[12px] text-ink-subtle">{contextFor(item)}</span>
               </div>
               {item.kind === 'task' && (
                 <button
                   type="button"
                   onClick={() => toggle.mutate({ id: item.id, done: true })}
                   aria-label={`Concluir tarefa ${item.title}`}
-                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center self-end rounded-md border border-line-strong text-ink-muted transition-colors hover:bg-navy-50 hover:text-ink sm:self-auto"
+                  className="touch-target inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line-strong text-ink-muted transition-colors hover:bg-navy-50 hover:text-ink"
                 >
                   <CheckCircle2 className="size-4" aria-hidden />
                 </button>

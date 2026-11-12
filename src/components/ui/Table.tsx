@@ -3,9 +3,9 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { Button } from './Button'
 
-export function Table({ className, ...props }: HTMLAttributes<HTMLTableElement>) {
+export function Table({ className, label = 'Tabela de dados', ...props }: HTMLAttributes<HTMLTableElement> & { label?: string }) {
   return (
-    <div className="scrollbar-thin overflow-x-auto">
+    <div className="scrollbar-thin overflow-x-auto" role="region" aria-label={label} tabIndex={0}>
       <table className={cn('w-full border-collapse text-left text-[13px]', className)} {...props} />
     </div>
   )

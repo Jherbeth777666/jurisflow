@@ -125,7 +125,7 @@ export function OperationalSection() {
                   })}
                 </ul>
               )}
-              <Table>
+              <Table label="Gargalos por etapa">
                 <THead>
                   <tr>
                     <TH>Etapa</TH>
@@ -178,7 +178,7 @@ export function OperationalSection() {
       >
         {metrics &&
           (metrics.workload.length ? (
-            <Table>
+            <Table label="Carga por responsável">
               <THead>
                 <tr>
                   <TH>Responsável</TH>

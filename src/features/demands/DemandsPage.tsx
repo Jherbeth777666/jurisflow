@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Briefcase, Plus, X } from 'lucide-react'
 import {
@@ -83,6 +83,56 @@ export function DemandsPage() {
   const responsibleOptions = [{ value: 'none', label: 'Sem responsável' }, ...members.options]
 
   const active = hasActiveFilters(filters)
+  const [showFilters, setShowFilters] = useState(false)
+  const activeFilterCount = [
+    filters.category,
+    filters.stage,
+    filters.responsible,
+    filters.priority,
+    filters.status !== 'abertas' ? filters.status : '',
+    filters.waitingDocs ? 'docs' : '',
+    filters.stalled > 0 ? String(filters.stalled) : '',
+  ].filter(Boolean).length
+
+  const filterSelects = () => (
+    <>
+      <Select
+        aria-label="Categoria"
+        options={categoryOptions}
+        placeholder="Todas as categorias"
+        value={filters.category}
+        onChange={(e) => apply({ category: e.target.value })}
+      />
+      <Select
+        aria-label="Etapa"
+        options={stageOptions}
+        placeholder={filters.category ? 'Todas as etapas' : 'Etapa (escolha a categoria)'}
+        disabled={!filters.category}
+        value={filters.stage}
+        onChange={(e) => apply({ stage: e.target.value })}
+      />
+      <Select
+        aria-label="Responsável"
+        options={responsibleOptions}
+        placeholder="Todos os responsáveis"
+        value={filters.responsible}
+        onChange={(e) => apply({ responsible: e.target.value })}
+      />
+      <Select
+        aria-label="Prioridade"
+        options={toOptions(PRIORITY)}
+        placeholder="Todas as prioridades"
+        value={filters.priority}
+        onChange={(e) => apply({ priority: e.target.value as PriorityLevel | '' })}
+      />
+      <Select
+        aria-label="Status"
+        options={STATUS_FILTER_OPTIONS}
+        value={filters.status}
+        onChange={(e) => apply({ status: e.target.value as DemandStatusFilter })}
+      />
+    </>
+  )
 
   return (
     <div>
@@ -99,43 +149,25 @@ export function DemandsPage() {
         }
       />
 
-      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(200px,1.4fr)_repeat(5,minmax(0,1fr))]">
+      <div className="mb-3 flex flex-col gap-2 sm:hidden">
+        <div className="flex items-center gap-2">
+          <SearchInput value={filters.q} onChange={onSearch} placeholder="Buscar por título" className="min-w-0 flex-1" />
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters((s) => !s)}
+            className="shrink-0"
+          >
+            Filtros ({activeFilterCount})
+          </Button>
+        </div>
+        {showFilters && <div className="grid grid-cols-1 gap-2">{filterSelects()}</div>}
+      </div>
+
+      <div className="mb-3 hidden gap-2 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(200px,1.4fr)_repeat(5,minmax(0,1fr))]">
         <SearchInput value={filters.q} onChange={onSearch} placeholder="Buscar por título" />
-        <Select
-          aria-label="Categoria"
-          options={categoryOptions}
-          placeholder="Todas as categorias"
-          value={filters.category}
-          onChange={(e) => apply({ category: e.target.value })}
-        />
-        <Select
-          aria-label="Etapa"
-          options={stageOptions}
-          placeholder={filters.category ? 'Todas as etapas' : 'Etapa (escolha a categoria)'}
-          disabled={!filters.category}
-          value={filters.stage}
-          onChange={(e) => apply({ stage: e.target.value })}
-        />
-        <Select
-          aria-label="Responsável"
-          options={responsibleOptions}
-          placeholder="Todos os responsáveis"
-          value={filters.responsible}
-          onChange={(e) => apply({ responsible: e.target.value })}
-        />
-        <Select
-          aria-label="Prioridade"
-          options={toOptions(PRIORITY)}
-          placeholder="Todas as prioridades"
-          value={filters.priority}
-          onChange={(e) => apply({ priority: e.target.value as PriorityLevel | '' })}
-        />
-        <Select
-          aria-label="Status"
-          options={STATUS_FILTER_OPTIONS}
-          value={filters.status}
-          onChange={(e) => apply({ status: e.target.value as DemandStatusFilter })}
-        />
+        {filterSelects()}
       </div>
 
       {(filters.waitingDocs || filters.stalled > 0 || active) && (
@@ -187,7 +219,51 @@ export function DemandsPage() {
           )
         ) : (
           <>
-            <Table className={q.isPlaceholderData ? 'opacity-60' : undefined}>
+            <ul className="divide-y divide-line sm:hidden">
+              {q.data.rows.map((d) => {
+                const cat = catById.get(d.category_id)
+                const stage = d.stage_id ? stageById.get(d.stage_id) : undefined
+                const open = isOpenStatus(d.status)
+                const days = daysSince(d.stage_changed_at)
+                const overdue = isNextActionOverdue(d)
+                const responsible = d.responsible_id ? members.map.get(d.responsible_id) : null
+                return (
+                  <li key={d.id} className="px-4 py-3">
+                    <Link to={`/demandas/${d.id}`} className="block truncate py-1 font-medium text-ink hover:underline">
+                      {d.title}
+                    </Link>
+                    <p className="truncate text-[12px] text-ink-subtle">{d.client?.full_name ?? '—'}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <StatusBadge value={d.priority} map={PRIORITY} />
+                      {d.status !== 'em_andamento' && <StatusBadge value={d.status} map={DEMAND_STATUS} />}
+                      {stage && <span className="text-[12px] text-ink-muted">{stage.name}</span>}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-muted">
+                      {cat && <CategoryTag name={cat.name} color={cat.color} />}
+                      {responsible && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Avatar name={responsible} />
+                          <span>{responsible}</span>
+                        </span>
+                      )}
+                      {open && (
+                        <span className={cn(days >= STALLED_DAYS ? 'font-medium text-amber-700' : 'text-ink-muted')}>
+                          {formatDaysStalled(days)} na etapa
+                        </span>
+                      )}
+                      {(d.next_action || d.next_action_date) && (
+                        <span className={cn('tabular', overdue ? 'font-medium text-red-600' : 'text-ink-muted')}>
+                          {d.next_action_date ? formatDate(d.next_action_date) : 'Sem data'}
+                          {overdue && ' · vencida'}
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="hidden sm:block">
+            <Table label="Lista de demandas" className={q.isPlaceholderData ? 'opacity-60' : undefined}>
               <THead>
                 <tr>
                   <TH>Demanda</TH>
@@ -213,7 +289,7 @@ export function DemandsPage() {
                         <Link
                           to={`/demandas/${d.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="block truncate font-medium text-ink hover:underline"
+                          className="block truncate py-1 font-medium text-ink hover:underline"
                         >
                           {d.title}
                         </Link>
@@ -266,6 +342,7 @@ export function DemandsPage() {
                 })}
               </TBody>
             </Table>
+            </div>
             <Pagination page={filters.page} pageSize={PAGE_SIZE} total={q.data.total} onChange={(p) => apply({ page: p })} />
           </>
         )}

@@ -144,7 +144,7 @@ export function DashboardPage() {
             <PriorityTasks className="lg:col-span-2" />
             <Card className="h-fit">
               <CardHeader title="Atividades recentes" />
-              <CardBody className="max-h-[420px] overflow-y-auto scrollbar-thin">
+              <CardBody className="max-h-[420px] overflow-y-auto scrollbar-thin" role="region" aria-label="Atividades recentes" tabIndex={0}>
                 <ActivityFeed limit={12} />
               </CardBody>
             </Card>

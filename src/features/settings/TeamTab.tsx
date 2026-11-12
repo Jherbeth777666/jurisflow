@@ -89,7 +89,7 @@ function MembersCard({ canManage }: { canManage: boolean }) {
       ) : list.length === 0 ? (
         <EmptyState icon={<Users className="size-5" />} title="Nenhum membro encontrado" />
       ) : (
-        <Table>
+        <Table label="Membros da equipe">
           <THead>
             <tr>
               <TH>Nome</TH>
@@ -231,7 +231,7 @@ function InvitationsCard() {
         ) : !invitations.data?.length ? (
           <p className="px-4 py-5 text-center text-[13px] text-ink-muted">Nenhum convite pendente.</p>
         ) : (
-          <Table>
+          <Table label="Convites pendentes">
             <THead>
               <tr>
                 <TH>E-mail</TH>
@@ -281,7 +281,7 @@ function RolesCard() {
         title="O que cada papel pode fazer"
         description="Estas regras são aplicadas pelo banco de dados (Row Level Security), não apenas pela interface."
       />
-      <Table>
+      <Table label="Permissões por papel">
         <THead>
           <tr>
             <TH>Recurso</TH>

@@ -109,7 +109,7 @@ function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav className="scrollbar-thin flex-1 space-y-0.5 overflow-y-auto px-3 py-2" aria-label="Menu principal">
         {[...NAV, null, ...NAV_TOOLS].map((item) => {
-          if (!item) return <p key="tools" className="px-2.5 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wider text-navy-400">Ferramentas</p>
+          if (!item) return <p key="tools" className="px-2.5 pb-1 pt-4 text-[11px] font-medium uppercase tracking-wider text-navy-300">Ferramentas</p>
           const { to, label, icon: Icon, end } = item
           return (
           <NavLink

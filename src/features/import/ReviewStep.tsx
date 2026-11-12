@@ -120,7 +120,7 @@ export function ReviewStep(p: Props) {
         {!pageRows.length ? (
           <EmptyState title="Nenhuma linha neste filtro" />
         ) : (
-          <Table>
+          <Table label="Revisão da importação">
             <THead>
               <tr>
                 <TH className="w-14">Linha</TH>

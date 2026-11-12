@@ -209,7 +209,14 @@ export function ReportsPage() {
               )
             }
           >
-            {agg && <GroupTable rows={agg.byCategory} firstCol="Categoria" empty="Nenhuma demanda aberta ou concluída no período." />}
+            {agg && (
+              <GroupTable
+                rows={agg.byCategory}
+                firstCol="Categoria"
+                empty="Nenhuma demanda aberta ou concluída no período."
+                label="Demandas por categoria"
+              />
+            )}
           </ReportCard>
 
           {/* Demandas por responsável */}
@@ -227,7 +234,14 @@ export function ReportsPage() {
               )
             }
           >
-            {agg && <GroupTable rows={agg.byPerson} firstCol="Responsável" empty="Nenhuma demanda aberta ou concluída no período." />}
+            {agg && (
+              <GroupTable
+                rows={agg.byPerson}
+                firstCol="Responsável"
+                empty="Nenhuma demanda aberta ou concluída no período."
+                label="Demandas por responsável"
+              />
+            )}
           </ReportCard>
 
           {/* Tempo médio de conclusão */}
@@ -254,7 +268,7 @@ export function ReportsPage() {
           >
             {agg &&
               (agg.completion.rows.length ? (
-                <Table>
+                <Table label="Tempo médio de conclusão">
                   <THead>
                     <tr>
                       <TH>Categoria</TH>
@@ -304,7 +318,7 @@ export function ReportsPage() {
           >
             {agg &&
               (agg.tasks.length ? (
-                <Table>
+                <Table label="Tarefas concluídas por pessoa">
                   <THead>
                     <tr>
                       <TH>Pessoa</TH>
@@ -358,7 +372,7 @@ export function ReportsPage() {
           >
             {agg &&
               (agg.methods.rows.length ? (
-                <Table>
+                <Table label="Recebido por forma de pagamento">
                   <THead>
                     <tr>
                       <TH>Forma</TH>
@@ -452,12 +466,22 @@ function MiniBar({ value, max, color }: { value: number; max: number; color?: st
   )
 }
 
-function GroupTable({ rows, firstCol, empty }: { rows: ReturnType<typeof demandsByGroup>; firstCol: string; empty: string }) {
+function GroupTable({
+  rows,
+  firstCol,
+  empty,
+  label,
+}: {
+  rows: ReturnType<typeof demandsByGroup>
+  firstCol: string
+  empty: string
+  label: string
+}) {
   if (!rows.length) return <ReportEmpty text={empty} />
   const max = Math.max(...rows.map((r) => Math.max(r.opened, r.closed)), 1)
   const tot = rows.reduce((s, r) => ({ opened: s.opened + r.opened, closed: s.closed + r.closed }), { opened: 0, closed: 0 })
   return (
-    <Table>
+    <Table label={label}>
       <THead>
         <tr>
           <TH>{firstCol}</TH>
@@ -518,7 +542,7 @@ function OverdueReport({ agg, data }: { agg: ReturnType<typeof overdueSummary>; 
           ))}
         </ul>
       </div>
-      <Table>
+      <Table label="Parcelas em atraso">
         <THead>
           <tr>
             <TH>Cliente</TH>

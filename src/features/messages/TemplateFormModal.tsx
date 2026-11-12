@@ -136,7 +136,12 @@ export function TemplateFormModal({
           </div>
           <div>
             <p className="mb-1.5 text-[12.5px] font-medium text-ink">Prévia com dados de exemplo</p>
-            <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-canvas/60 p-3 text-[12.5px] leading-relaxed text-ink scrollbar-thin">
+            <div
+              className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-canvas/60 p-3 text-[12.5px] leading-relaxed text-ink scrollbar-thin"
+              role="region"
+              aria-label="Prévia da mensagem"
+              tabIndex={0}
+            >
               {body.trim() ? (
                 <VariableText text={fillTemplate(body, EXAMPLE_VALUES).text} />
               ) : (

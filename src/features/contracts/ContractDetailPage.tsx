@@ -178,7 +178,7 @@ export function ContractDetailPage() {
             ) : !instList.length ? (
               <EmptyState title="Nenhuma parcela gerada" />
             ) : (
-              <Table>
+              <Table label="Cronograma de parcelas">
                 <THead>
                   <tr>
                     <TH>Parcela</TH>
@@ -246,7 +246,7 @@ export function ContractDetailPage() {
                 }
               />
             ) : (
-              <Table>
+              <Table label="Pagamentos registrados">
                 <THead>
                   <tr>
                     <TH>Data</TH>

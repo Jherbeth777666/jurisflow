@@ -344,7 +344,7 @@ function ResultView({
       {report && report.errors.length > 0 && (
         <Card className="overflow-hidden">
           <CardHeader title="Registros não gravados" description="Corrija na planilha e importe só estas linhas novamente." />
-          <Table>
+          <Table label="Registros não gravados">
             <THead>
               <tr>
                 <TH className="w-16">Linha</TH>
