@@ -19,6 +19,7 @@ export const qk = {
   dashboard: (org: string) => ['dashboard', org] as const,
   activity: (org: string, ...rest: unknown[]) => ['activity', org, ...rest] as const,
   ai: (org: string, ...rest: unknown[]) => ['ai', org, ...rest] as const,
+  notifications: (org: string) => ['notifications', org] as const,
 }
 
 export function useMembers() {

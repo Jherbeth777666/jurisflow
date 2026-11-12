@@ -38,6 +38,10 @@ vi.mock('@/features/command/CommandPalette', () => ({
   CommandTrigger: () => null,
 }))
 
+vi.mock('@/features/notifications/NotificationBell', () => ({
+  NotificationBell: () => null,
+}))
+
 vi.mock('@/features/dashboard/DashboardPage', () => ({
   DashboardPage: () => <p>Painel</p>,
 }))

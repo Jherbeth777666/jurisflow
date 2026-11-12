@@ -156,6 +156,26 @@ export interface Task extends Timestamps {
   created_by: UUID | null
 }
 
+export type NotificationKind =
+  | 'resumo_diario'
+  | 'tarefas_atrasadas'
+  | 'prazos_hoje'
+  | 'proximas_acoes_vencidas'
+  | 'demandas_paradas'
+
+export interface Notification {
+  id: UUID
+  organization_id: UUID
+  user_id: UUID
+  kind: NotificationKind
+  title: string
+  body: string | null
+  link: string
+  ref_date: ISODate
+  read_at: ISODateTime | null
+  created_at: ISODateTime
+}
+
 export interface Contract extends Timestamps {
   id: UUID
   organization_id: UUID

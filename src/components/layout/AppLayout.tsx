@@ -21,6 +21,7 @@ import {
   HeartPulse,
 } from 'lucide-react'
 import { CommandPalette, CommandTrigger } from '@/features/command/CommandPalette'
+import { NotificationBell } from '@/features/notifications/NotificationBell'
 import { useAuth } from '@/contexts/AuthContext'
 import { ROLE_LABELS } from '@/lib/constants'
 import { Avatar, Spinner } from '@/components/ui'
@@ -179,6 +180,13 @@ export function AppLayout() {
           <Menu className="size-5" />
         </button>
         <span className="text-[14px] font-semibold">{current?.label ?? 'JurisFlow AI'}</span>
+        <div className="ml-auto">
+          <NotificationBell />
+        </div>
+      </header>
+
+      <header className="sticky top-0 z-20 hidden h-12 items-center justify-end border-b border-line bg-surface/90 px-6 backdrop-blur lg:flex">
+        <NotificationBell />
       </header>
 
       <CommandPalette />
