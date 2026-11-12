@@ -54,6 +54,8 @@ export interface OrganizationInvitation extends Timestamps {
   role: MemberRole
   invited_by: UUID | null
   accepted_at: ISODateTime | null
+  token: string
+  expires_at: ISODateTime
 }
 
 export interface Client extends Timestamps {

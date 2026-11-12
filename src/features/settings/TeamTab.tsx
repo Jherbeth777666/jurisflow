@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Info, MailPlus, UserCheck, UserX, Users, X } from 'lucide-react'
+import { Copy, Info, MailPlus, MessageCircle, RefreshCw, UserCheck, UserX, Users, X } from 'lucide-react'
 import {
   Badge,
   Button,
@@ -26,7 +26,8 @@ import { memberName, useMembers } from '@/hooks/useOrgData'
 import { ROLE_LABELS } from '@/lib/constants'
 import { formatDate } from '@/lib/format'
 import type { MemberRole, MemberWithProfile, OrganizationInvitation } from '@/types/database'
-import { useCancelInvitation, useCreateInvitation, useInvitations, useUpdateMember } from './api'
+import { useCancelInvitation, useCreateInvitation, useInvitations, useRenewInvitation, useUpdateMember } from './api'
+import { inviteLink, inviteStatusLabel, whatsappInviteText } from './invite'
 import { ROLE_CAPABILITIES, sortMembers, validateInvitation, wouldRemoveLastAdmin } from './logic'
 
 const ROLE_OPTIONS = (Object.keys(ROLE_LABELS) as MemberRole[]).map((r) => ({ value: r, label: ROLE_LABELS[r] }))
@@ -167,15 +168,38 @@ function MembersCard({ canManage }: { canManage: boolean }) {
 }
 
 function InvitationsCard() {
+  const { organization } = useOrg()
   const members = useMembers()
   const invitations = useInvitations(true)
   const create = useCreateInvitation()
   const cancel = useCancelInvitation()
+  const renew = useRenewInvitation()
   const toast = useToast()
   const [email, setEmail] = useState('')
   const [role, setRole] = useState<MemberRole>('assistente')
   const [error, setError] = useState<string | null>(null)
   const [toCancel, setToCancel] = useState<OrganizationInvitation | null>(null)
+
+  const copyLink = async (inv: OrganizationInvitation) => {
+    try {
+      await navigator.clipboard.writeText(inviteLink(window.location.origin, inv.token))
+      toast.show('Link copiado')
+    } catch {
+      toast.show('Não foi possível copiar o link.', 'error')
+    }
+  }
+
+  const sendWhatsApp = (inv: OrganizationInvitation) => {
+    const text = whatsappInviteText(organization?.name ?? '', inviteLink(window.location.origin, inv.token))
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+  }
+
+  const renewInvitation = (inv: OrganizationInvitation) => {
+    renew.mutate(inv.id, {
+      onSuccess: () => toast.show('Convite renovado por 14 dias.'),
+      onError: (er) => toast.show(er.message, 'error'),
+    })
+  }
 
   const submit = (e: FormEvent) => {
     e.preventDefault()
@@ -201,8 +225,7 @@ function InvitationsCard() {
         <div role="note" className="flex items-start gap-2 rounded-md border border-accent-200 bg-accent-50 px-3 py-2 text-[13px] text-accent-700">
           <Info className="mt-0.5 size-4 shrink-0" />
           <span>
-            A pessoa deve criar conta com este e-mail; o convite é aceito automaticamente no primeiro acesso. O sistema não envia
-            e-mail de convite — avise a pessoa diretamente. O convite só é aceito depois que ela confirmar o e-mail da conta.
+            Envie o link para a pessoa. Ela cria a conta com o e-mail convidado e entra direto no escritório. O link vale 14 dias.
           </span>
         </div>
         <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-start" noValidate>
@@ -225,7 +248,7 @@ function InvitationsCard() {
 
       <div className="border-t border-line">
         {invitations.isLoading ? (
-          <TableSkeleton rows={2} cols={3} />
+          <TableSkeleton rows={2} cols={5} />
         ) : invitations.isError ? (
           <ErrorState message={(invitations.error as Error).message} onRetry={() => invitations.refetch()} />
         ) : !invitations.data?.length ? (
@@ -237,22 +260,56 @@ function InvitationsCard() {
                 <TH>E-mail</TH>
                 <TH>Papel</TH>
                 <TH>Convidado em</TH>
+                <TH>Situação</TH>
                 <TH className="text-right">Ações</TH>
               </tr>
             </THead>
             <TBody>
-              {invitations.data.map((inv) => (
-                <TR key={inv.id}>
-                  <TD>{inv.email}</TD>
-                  <TD>{ROLE_LABELS[inv.role]}</TD>
-                  <TD className="text-ink-muted">{formatDate(inv.created_at)}</TD>
-                  <TD className="text-right">
-                    <Button size="sm" variant="ghost" icon={<X className="size-4" />} onClick={() => setToCancel(inv)}>
-                      Cancelar
-                    </Button>
-                  </TD>
-                </TR>
-              ))}
+              {invitations.data.map((inv) => {
+                const status = inviteStatusLabel(inv.expires_at, inv.accepted_at)
+                const expired = status === 'Expirado'
+                return (
+                  <TR key={inv.id}>
+                    <TD>{inv.email}</TD>
+                    <TD>{ROLE_LABELS[inv.role]}</TD>
+                    <TD className="text-ink-muted">{formatDate(inv.created_at)}</TD>
+                    <TD>
+                      <Badge tone={expired ? 'red' : 'amber'} dot>
+                        {status}
+                      </Badge>
+                    </TD>
+                    <TD className="text-right">
+                      <span className="inline-flex flex-wrap justify-end gap-1">
+                        <Button size="sm" variant="ghost" icon={<Copy className="size-4" />} onClick={() => void copyLink(inv)}>
+                          Copiar link
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          icon={<MessageCircle className="size-4" />}
+                          onClick={() => sendWhatsApp(inv)}
+                        >
+                          Enviar no WhatsApp
+                        </Button>
+                        {expired && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            icon={<RefreshCw className="size-4" />}
+                            loading={renew.isPending}
+                            onClick={() => renewInvitation(inv)}
+                          >
+                            Renovar
+                          </Button>
+                        )}
+                        <Button size="sm" variant="ghost" icon={<X className="size-4" />} onClick={() => setToCancel(inv)}>
+                          Cancelar
+                        </Button>
+                      </span>
+                    </TD>
+                  </TR>
+                )
+              })}
             </TBody>
           </Table>
         )}

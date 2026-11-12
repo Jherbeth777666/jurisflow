@@ -118,6 +118,18 @@ export function useCreateInvitation() {
   })
 }
 
+export function useRenewInvitation() {
+  const { orgId } = useOrg()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('renew_invitation', { p_invitation: id })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: invitationsKey(orgId) }),
+  })
+}
+
 export function useCancelInvitation() {
   const { orgId } = useOrg()
   const qc = useQueryClient()
