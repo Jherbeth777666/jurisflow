@@ -72,6 +72,8 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   const clients = useClientLookup(clientTerm)
   const [status, setStatus] = useState<ProposalStatus>(proposal.status)
   const [form, setForm] = useState<FormState>(() => initialForm(proposal))
+  const [clientDecided, setClientDecided] = useState(false)
+  const [demandDecided, setDemandDecided] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -104,17 +106,23 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     if ('id' in result) setForm((s) => (s.clientId ? s : { ...s, clientId: result.id }))
   }, [clients.data, fields.client])
 
-  const demandResolved = useRef(false)
+  // A resolução por título considera só as demandas do cliente resolvido/selecionado e pode
+  // ser refeita quando o cliente muda, desde que o usuário ainda não tenha escolhido a demanda.
   useEffect(() => {
-    if (demandResolved.current || !demands.data) return
-    demandResolved.current = true
+    if (!demands.data || demandDecided) return
     if (!fields.demand_title) return
+    // Se a IA citou um cliente, espera a busca para restringir as demandas ao cliente certo.
+    if (fields.client && clients.data === undefined) return
+    const pool = form.clientId ? demands.data.filter((d) => d.client_id === form.clientId) : demands.data
     const result = matchByName(
       fields.demand_title,
-      demands.data.map((d) => ({ id: d.id, name: d.title })),
+      pool.map((d) => ({ id: d.id, name: d.title })),
     )
-    if ('id' in result) setForm((s) => (s.demandId ? s : { ...s, demandId: result.id }))
-  }, [demands.data, fields.demand_title])
+    setForm((s) => {
+      if ('id' in result) return s.demandId === result.id ? s : { ...s, demandId: result.id }
+      return s.demandId ? { ...s, demandId: '' } : s
+    })
+  }, [demands.data, fields.demand_title, fields.client, clients.data, form.clientId, demandDecided])
 
   const assigneeResolved = useRef(false)
   useEffect(() => {
@@ -147,8 +155,13 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     }
   }, [proposal.kind, form.demandId, form.stageId, categories.data, demands.data, fields.stage_name])
 
-  const clientUnresolved = !!fields.client && !form.clientId
+  // Cliente e demanda só são exigidos em criar_tarefa, e apenas até o usuário decidir o campo
+  // citado (inclusive escolhendo "Sem cliente"/"Sem demanda"). Nos demais tipos não há seletor
+  // de cliente; o cliente citado serve só para filtrar as demandas.
+  const clientUnresolved = proposal.kind === 'criar_tarefa' && !!fields.client && !form.clientId
   const demandUnresolved = !!fields.demand_title && !form.demandId
+  const demandPending =
+    proposal.kind === 'criar_tarefa' && !!fields.demand_title && !form.demandId && !demandDecided
   const demandRequired = (proposal.kind === 'definir_proxima_acao' || proposal.kind === 'mover_etapa') && !form.demandId
   const stageRequired = proposal.kind === 'mover_etapa' && !form.stageId
   const titleMissing = proposal.kind === 'criar_tarefa' && !form.title.trim()
@@ -158,8 +171,8 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
   const canConfirm =
     permitted &&
     !saving &&
-    !clientUnresolved &&
-    !demandUnresolved &&
+    !(clientUnresolved && !clientDecided) &&
+    !demandPending &&
     !demandRequired &&
     !stageRequired &&
     !titleMissing &&
@@ -183,48 +196,67 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
     ])
   }
 
+  // Guarda o id já gravado para que uma nova tentativa após falha só repita o registro da proposta.
+  const writtenEntity = useRef<string | null>(null)
+
+  const changeClient = (value: string) => {
+    const current = demands.data?.find((d) => d.id === form.demandId)
+    const keepDemand = !!current && (!value || current.client_id === value)
+    setForm((s) => ({ ...s, clientId: value, demandId: keepDemand ? s.demandId : '' }))
+    setClientDecided(true)
+    if (!keepDemand) setDemandDecided(false)
+  }
+
+  const changeDemand = (value: string) => {
+    setForm((s) => ({ ...s, demandId: value }))
+    setDemandDecided(true)
+  }
+
   const confirm = async () => {
     if (!canConfirm) return
     setSaving(true)
     setError(null)
     try {
-      let entity: string
-      if (proposal.kind === 'criar_tarefa') {
-        const saved = unwrap(
-          await supabase
-            .from('tasks')
-            .insert({
-              title: form.title.trim(),
-              description: null,
-              client_id: form.clientId || null,
-              demand_id: form.demandId || null,
-              assignee_id: form.assigneeId || null,
-              due_date: form.dueDate || null,
-              priority: form.priority,
-              status: 'pendente',
-              organization_id: orgId,
-              created_by: userId,
-            })
-            .select('*')
-            .single(),
-        ) as { id: string }
-        entity = saved.id
-      } else if (proposal.kind === 'definir_proxima_acao') {
-        unwrap(
-          await supabase
-            .from('demands')
-            .update({ next_action: form.nextAction.trim(), next_action_date: form.nextActionDate || null })
-            .eq('organization_id', orgId)
-            .eq('id', form.demandId)
-            .select('*')
-            .single(),
-        )
-        entity = form.demandId
-      } else {
-        const updated = (await patchDemand.mutateAsync({ id: form.demandId, patch: { stage_id: form.stageId } })) as
-          | { id?: string }
-          | undefined
-        entity = updated?.id ?? form.demandId
+      let entity = writtenEntity.current
+      if (!entity) {
+        if (proposal.kind === 'criar_tarefa') {
+          const saved = unwrap(
+            await supabase
+              .from('tasks')
+              .insert({
+                title: form.title.trim(),
+                description: null,
+                client_id: form.clientId || null,
+                demand_id: form.demandId || null,
+                assignee_id: form.assigneeId || null,
+                due_date: form.dueDate || null,
+                priority: form.priority,
+                status: 'pendente',
+                organization_id: orgId,
+                created_by: userId,
+              })
+              .select('*')
+              .single(),
+          ) as { id: string }
+          entity = saved.id
+        } else if (proposal.kind === 'definir_proxima_acao') {
+          unwrap(
+            await supabase
+              .from('demands')
+              .update({ next_action: form.nextAction.trim(), next_action_date: form.nextActionDate || null })
+              .eq('organization_id', orgId)
+              .eq('id', form.demandId)
+              .select('*')
+              .single(),
+          )
+          entity = form.demandId
+        } else {
+          const updated = (await patchDemand.mutateAsync({ id: form.demandId, patch: { stage_id: form.stageId } })) as
+            | { id?: string }
+            | undefined
+          entity = updated?.id ?? form.demandId
+        }
+        writtenEntity.current = entity
       }
       await registrar('confirmada', entity)
       setStatus('confirmada')
@@ -297,14 +329,14 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
                 <Select
                   label="Cliente"
                   value={form.clientId}
-                  onChange={(e) => setForm((s) => ({ ...s, clientId: e.target.value, demandId: '' }))}
+                  onChange={(e) => changeClient(e.target.value)}
                   options={(clients.data ?? []).map((c) => ({ value: c.id, label: c.full_name }))}
                   placeholder={clients.isLoading ? 'Carregando…' : 'Sem cliente'}
                 />
                 <Select
                   label="Demanda"
                   value={form.demandId}
-                  onChange={(e) => set('demandId', e.target.value)}
+                  onChange={(e) => changeDemand(e.target.value)}
                   options={demandOptions}
                   placeholder={demands.isLoading ? 'Carregando…' : 'Sem demanda'}
                 />
@@ -330,7 +362,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
                   label="Demanda"
                   required
                   value={form.demandId}
-                  onChange={(e) => set('demandId', e.target.value)}
+                  onChange={(e) => changeDemand(e.target.value)}
                   options={demandOptions}
                   placeholder={demands.isLoading ? 'Carregando…' : 'Selecione a demanda'}
                 />
@@ -357,7 +389,7 @@ export function ProposalCard({ proposal, messageId }: { proposal: Proposal; mess
                   label="Demanda"
                   required
                   value={form.demandId}
-                  onChange={(e) => set('demandId', e.target.value)}
+                  onChange={(e) => changeDemand(e.target.value)}
                   options={demandOptions}
                   placeholder={demands.isLoading ? 'Carregando…' : 'Selecione a demanda'}
                 />

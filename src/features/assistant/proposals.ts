@@ -31,14 +31,16 @@ function normalize(value: string): string {
 /**
  * Resolve um nome citado pela IA em uma opção (cliente, demanda, etapa...).
  * Igualdade sem acento/caixa vence; sem igualdade, devolve os que contêm o texto
- * (até 5). Só escolhe sozinho quando existe um único candidato.
+ * (até 5). Só escolhe sozinho quando existe um único candidato — homônimos com
+ * igualdade exata também viram candidatos.
  */
 export function matchByName(name: string, options: NamedOption[]): MatchResult {
   const needle = normalize(name)
   if (!needle) return { candidates: [] }
 
-  const exact = options.find((option) => normalize(option.name) === needle)
-  if (exact) return { id: exact.id }
+  const exact = options.filter((option) => normalize(option.name) === needle)
+  if (exact.length === 1) return { id: exact[0].id }
+  if (exact.length > 1) return { candidates: exact.slice(0, MAX_CANDIDATES) }
 
   const candidates = options.filter((option) => normalize(option.name).includes(needle)).slice(0, MAX_CANDIDATES)
   if (candidates.length === 1) return { id: candidates[0].id }
