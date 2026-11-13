@@ -3,8 +3,8 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 const control =
-  'w-full rounded-md border border-line-strong bg-surface px-3 text-[13.5px] text-ink placeholder:text-ink-subtle ' +
-  'transition-colors focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100 ' +
+  'w-full rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 text-body text-ink shadow-[var(--shadow-xs)] placeholder:text-ink-subtle ' +
+  'transition-[border-color,box-shadow] hover:border-ink-subtle/40 focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100 ' +
   'disabled:bg-canvas disabled:text-ink-muted aria-[invalid=true]:border-red-400 aria-[invalid=true]:focus:ring-red-100'
 
 interface FieldWrapperProps {
@@ -22,14 +22,14 @@ export function FieldWrapper({ label, hint, error, required, className, children
   return (
     <div className={cn('flex flex-col gap-1.5', className)}>
       {label && (
-        <label htmlFor={id} className="text-[12.5px] font-medium text-ink">
+        <label htmlFor={id} className="text-label font-medium text-ink">
           {label}
           {required && <span className="ml-0.5 text-red-500">*</span>}
         </label>
       )}
       {children(id, descId)}
       {(error || hint) && (
-        <p id={descId} className={cn('text-[12px]', error ? 'text-red-600' : 'text-ink-subtle')}>
+        <p id={descId} className={cn('text-caption', error ? 'text-red-600' : 'text-ink-subtle')}>
           {error || hint}
         </p>
       )}
@@ -123,8 +123,8 @@ export const Select = forwardRef<
 
 export function Checkbox({ label, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: ReactNode }) {
   return (
-    <label className="inline-flex cursor-pointer items-center gap-2 text-[13px] text-ink">
-      <input type="checkbox" className="size-4 rounded border-line-strong accent-navy-900" {...props} />
+    <label className="inline-flex cursor-pointer items-center gap-2 text-body-sm text-ink">
+      <input type="checkbox" className="size-4 cursor-pointer rounded border-line-strong accent-navy-900" {...props} />
       {label}
     </label>
   )

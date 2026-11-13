@@ -1,8 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
 import { ExportButton, type ExportColumn } from '@/components/ExportButton'
 import { useOrg } from '@/contexts/AuthContext'
-import { qk, useCategories, useMemberNames } from '@/hooks/useOrgData'
-import { supabase, unwrap } from '@/lib/supabase'
+import { useCategories, useMemberNames } from '@/hooks/useOrgData'
+import { supabase, fetchAllRows } from '@/lib/supabase'
 import { DEMAND_STATUS, PRIORITY } from '@/lib/constants'
 import { daysSince, formatDate } from '@/lib/format'
 import type { Demand } from '@/types/database'
@@ -17,20 +16,6 @@ export function ExportDemands() {
   const { orgId } = useOrg()
   const cats = useCategories()
   const members = useMemberNames()
-  const q = useQuery({
-    queryKey: qk.demands(orgId, 'export'),
-    queryFn: async () =>
-      unwrap(
-        await supabase
-          .from('demands')
-          .select('title, category_id, stage_id, responsible_id, priority, status, opened_at, next_action, next_action_date, stage_changed_at, closed_at, client:clients(full_name)')
-          .eq('organization_id', orgId)
-          .order('opened_at', { ascending: false })
-          .limit(5000),
-      ) as unknown as Row[],
-    staleTime: 60_000,
-  })
-  if (!q.data?.length) return null
 
   const catName = new Map<string, string>()
   const stageName = new Map<string, string>()
@@ -53,5 +38,19 @@ export function ExportDemands() {
     { key: 'next_action_date', header: 'Data da próxima atividade', value: (r) => (r.next_action_date ? formatDate(r.next_action_date) : '') },
     { key: 'closed_at', header: 'Encerrada em', value: (r) => (r.closed_at ? formatDate(r.closed_at) : '') },
   ]
-  return <ExportButton filename="demandas" resource="demands" rows={q.data} columns={columns} label="Exportar" size="md" />
+
+  // Busca só ao confirmar: "exportar todas" não carrega a base ao montar a página.
+  const loadRows = () =>
+    fetchAllRows<Row>(
+      (from, to) =>
+        supabase
+          .from('demands')
+          .select('title, category_id, stage_id, responsible_id, priority, status, opened_at, next_action, next_action_date, stage_changed_at, closed_at, client:clients(full_name)')
+          .eq('organization_id', orgId)
+          .order('opened_at', { ascending: false })
+          .order('id')
+          .range(from, to) as unknown as PromiseLike<{ data: Row[] | null; error: unknown }>,
+    )
+
+  return <ExportButton filename="demandas" resource="demands" loadRows={loadRows} columns={columns} label="Exportar" size="md" />
 }

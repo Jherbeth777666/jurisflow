@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { Button, InlineError, Input, Modal, Textarea } from '@/components/ui'
+import { Button, InlineError, Input, Modal } from '@/components/ui'
 import { useSaveMessageTemplate } from './api'
+import { VARIABLE_GROUPS } from './segments'
+import { VariableEditor, type VariableEditorHandle } from './VariableEditor'
 import { VariableText } from './VariableText'
-import { EXAMPLE_VALUES, MESSAGE_VARIABLES, fillTemplate, normalizeVariables, unknownVariables } from './variables'
+import { EXAMPLE_VALUES, fillTemplate, normalizeVariables, unknownVariables } from './variables'
 
 export interface TemplateDraft {
   id?: string
@@ -29,7 +31,9 @@ export function TemplateFormModal({
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const bodyRef = useRef<HTMLTextAreaElement>(null)
+  const bodyRef = useRef<VariableEditorHandle>(null)
+  const subjectRef = useRef<VariableEditorHandle>(null)
+  const lastFocus = useRef<'body' | 'subject'>('body')
 
   useEffect(() => {
     if (!open) return
@@ -41,19 +45,9 @@ export function TemplateFormModal({
 
   const unknown = [...unknownVariables(body), ...unknownVariables(subject)]
 
+  // Insere no editor que teve foco por último (padrão: corpo)
   const insertVariable = (v: string) => {
-    const el = bodyRef.current
-    const token = `{{${v}}}`
-    if (!el) return setBody((b) => b + token)
-    const start = el.selectionStart ?? body.length
-    const end = el.selectionEnd ?? body.length
-    const next = body.slice(0, start) + token + body.slice(end)
-    if (next.length > MAX_BODY) return
-    setBody(next)
-    requestAnimationFrame(() => {
-      el.focus()
-      el.setSelectionRange(start + token.length, start + token.length)
-    })
+    ;(lastFocus.current === 'subject' ? subjectRef : bodyRef).current?.insertVariable(v)
   }
 
   const submit = async (e: FormEvent) => {
@@ -62,7 +56,7 @@ export function TemplateFormModal({
     const n = name.trim()
     if (n.length < 2) return setError('Informe um nome com pelo menos 2 caracteres.')
     if (!body.trim()) return setError('Escreva o texto do modelo.')
-    if (unknown.length) return setError(`Variáveis desconhecidas: ${unknown.join(', ')}.`)
+    if (unknown.length) return setError(`Variáveis desconhecidas: ${unknown.join(', ')}`)
     try {
       const saved = await save.mutateAsync({
         id: initial?.id,
@@ -99,19 +93,20 @@ export function TemplateFormModal({
       <form id="template-form" onSubmit={submit} className="grid gap-5 lg:grid-cols-[1fr_300px]">
         <div className="space-y-4">
           <Input label="Nome" required value={name} onChange={(e) => setName(e.target.value)} maxLength={80} data-autofocus />
-          <Input label="Assunto (e-mail)" value={subject} onChange={(e) => setSubject(e.target.value)} maxLength={160} />
-          <div>
-            <Textarea
+          <div onFocusCapture={() => (lastFocus.current = 'subject')}>
+            <VariableEditor ref={subjectRef} label="Assunto (e-mail)" singleLine value={subject} onChange={setSubject} maxLength={160} />
+          </div>
+          <div onFocusCapture={() => (lastFocus.current = 'body')}>
+            <VariableEditor
               ref={bodyRef}
               label="Texto"
-              required
-              rows={12}
+              minRows={12}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
               maxLength={MAX_BODY}
-              error={unknown.length ? `Variáveis desconhecidas: ${unknown.map((v) => `{{${v}}}`).join(', ')}` : null}
+              error={unknown.length ? `Variáveis desconhecidas: ${unknown.join(', ')}` : null}
             />
-            <p className="mt-1 text-right text-[12px] text-ink-subtle tabular">
+            <p className="mt-1 text-right text-caption text-ink-subtle tabular">
               {body.length}/{MAX_BODY}
             </p>
           </div>
@@ -119,24 +114,35 @@ export function TemplateFormModal({
         </div>
         <div className="space-y-4">
           <div>
-            <p className="mb-1.5 text-[12.5px] font-medium text-ink">Inserir variável</p>
-            <div className="flex flex-wrap gap-1.5">
-              {MESSAGE_VARIABLES.map((v) => (
-                <button
-                  key={v.name}
-                  type="button"
-                  title={v.label}
-                  onClick={() => insertVariable(v.name)}
-                  className="rounded-md border border-line bg-surface px-1.5 py-0.5 font-mono text-[11.5px] text-accent-700 hover:border-accent-200 hover:bg-accent-50"
-                >
-                  {v.name}
-                </button>
+            <p className="mb-1.5 text-label font-medium text-ink">Inserir variável</p>
+            <div className="space-y-2.5">
+              {VARIABLE_GROUPS.map((g) => (
+                <div key={g.title}>
+                  <p className="mb-1 text-caption font-medium uppercase tracking-wide text-ink-subtle">{g.title}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {g.variables.map((v) => (
+                      <button
+                        key={v.name}
+                        type="button"
+                        onClick={() => insertVariable(v.name)}
+                        className="rounded-md bg-accent-50 px-1.5 py-0.5 text-caption text-accent-700 ring-1 ring-inset ring-accent-200 hover:bg-accent-100"
+                      >
+                        {v.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>
           <div>
-            <p className="mb-1.5 text-[12.5px] font-medium text-ink">Prévia com dados de exemplo</p>
-            <div className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-canvas/60 p-3 text-[12.5px] leading-relaxed text-ink scrollbar-thin">
+            <p className="mb-1.5 text-label font-medium text-ink">Prévia com dados de exemplo</p>
+            <div
+              className="max-h-72 overflow-y-auto whitespace-pre-wrap rounded-lg border border-line bg-canvas/60 p-3 text-label leading-relaxed text-ink scrollbar-thin"
+              role="region"
+              aria-label="Prévia da mensagem"
+              tabIndex={0}
+            >
               {body.trim() ? (
                 <VariableText text={fillTemplate(body, EXAMPLE_VALUES).text} />
               ) : (

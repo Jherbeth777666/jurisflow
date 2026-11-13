@@ -1,6 +1,7 @@
 // Consultas e mutações do módulo de configurações.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { supabase, unwrap } from '@/lib/supabase'
+import { supabase, unwrap, fetchAllRows } from '@/lib/supabase'
+import { downloadBlob } from '@/lib/download'
 import { qk } from '@/hooks/useOrgData'
 import { useOrg } from '@/contexts/AuthContext'
 import type {
@@ -13,6 +14,7 @@ import type {
   Payment,
   Task,
 } from '@/types/database'
+import type { DemandChecklistItem } from '@/features/checklist/types'
 import { buildClientExport, normalizeEmail } from './logic'
 
 const invitationsKey = (org: string) => ['invitations', org] as const
@@ -116,6 +118,18 @@ export function useCreateInvitation() {
   })
 }
 
+export function useRenewInvitation() {
+  const { orgId } = useOrg()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc('renew_invitation', { p_invitation: id })
+      if (error) throw new Error(error.message)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: invitationsKey(orgId) }),
+  })
+}
+
 export function useCancelInvitation() {
   const { orgId } = useOrg()
   const qc = useQueryClient()
@@ -135,30 +149,53 @@ export async function fetchClientExport(orgId: string, organizationName: string,
   const client = unwrap(
     await supabase.from('clients').select('*').eq('organization_id', orgId).eq('id', clientId).single(),
   ) as Client
-  const [demands, tasksByClient, contracts] = await Promise.all([
-    supabase.from('demands').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('opened_at'),
-    supabase.from('tasks').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('created_at'),
-    supabase.from('contracts').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('signed_at'),
+  // Tudo paginado: a exportação de portabilidade (LGPD) não pode sair truncada no limite do PostgREST.
+  const [demandRows, tasksByClient, contractRows] = await Promise.all([
+    fetchAllRows<Demand>((from, to) =>
+      supabase.from('demands').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('opened_at').order('id').range(from, to),
+    ),
+    fetchAllRows<Task>((from, to) =>
+      supabase.from('tasks').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('created_at').order('id').range(from, to),
+    ),
+    fetchAllRows<Contract>((from, to) =>
+      supabase.from('contracts').select('*').eq('organization_id', orgId).eq('client_id', clientId).order('signed_at').order('id').range(from, to),
+    ),
   ])
-  const demandRows = unwrap(demands) as Demand[]
-  const contractRows = unwrap(contracts) as Contract[]
-  let taskRows = unwrap(tasksByClient) as Task[]
 
   const demandIds = demandRows.map((d) => d.id)
   const contractIds = contractRows.map((c) => c.id)
-  const [tasksByDemand, installments, payments] = await Promise.all([
+  const [tasksByDemand, installments, payments, checklistItems] = await Promise.all([
     demandIds.length
-      ? supabase.from('tasks').select('*').eq('organization_id', orgId).in('demand_id', demandIds)
-      : Promise.resolve({ data: [] as Task[], error: null }),
+      ? fetchAllRows<Task>((from, to) =>
+          supabase.from('tasks').select('*').eq('organization_id', orgId).in('demand_id', demandIds).order('created_at').order('id').range(from, to),
+        )
+      : Promise.resolve([] as Task[]),
     contractIds.length
-      ? supabase.from('installments').select('*').eq('organization_id', orgId).in('contract_id', contractIds)
-      : Promise.resolve({ data: [] as Installment[], error: null }),
+      ? fetchAllRows<Installment>((from, to) =>
+          supabase.from('installments').select('*').eq('organization_id', orgId).in('contract_id', contractIds).order('due_date').order('id').range(from, to),
+        )
+      : Promise.resolve([] as Installment[]),
     contractIds.length
-      ? supabase.from('payments').select('*').eq('organization_id', orgId).in('contract_id', contractIds).order('paid_at')
-      : Promise.resolve({ data: [] as Payment[], error: null }),
+      ? fetchAllRows<Payment>((from, to) =>
+          supabase.from('payments').select('*').eq('organization_id', orgId).in('contract_id', contractIds).order('paid_at').order('id').range(from, to),
+        )
+      : Promise.resolve([] as Payment[]),
+    demandIds.length
+      ? fetchAllRows<DemandChecklistItem>((from, to) =>
+          supabase
+            .from('demand_checklist_items')
+            .select('*')
+            .eq('organization_id', orgId)
+            .in('demand_id', demandIds)
+            .order('demand_id')
+            .order('position')
+            .order('id')
+            .range(from, to),
+        )
+      : Promise.resolve([] as DemandChecklistItem[]),
   ])
-  const seen = new Set(taskRows.map((t) => t.id))
-  taskRows = taskRows.concat((unwrap(tasksByDemand) as Task[]).filter((t) => !seen.has(t.id)))
+  const seen = new Set(tasksByClient.map((t) => t.id))
+  const taskRows = tasksByClient.concat(tasksByDemand.filter((t) => !seen.has(t.id)))
 
   return buildClientExport({
     organizationName,
@@ -166,19 +203,24 @@ export async function fetchClientExport(orgId: string, organizationName: string,
     demands: demandRows,
     tasks: taskRows,
     contracts: contractRows,
-    installments: unwrap(installments) as Installment[],
-    payments: unwrap(payments) as Payment[],
+    installments,
+    payments,
+    checklistItems,
   })
 }
 
+/** Registra a exportação LGPD nos logs. Falha no registro não impede o download. */
+export async function logClientExport(orgId: string, clientId: string, rowCount: number) {
+  const { error } = await supabase.rpc('log_export', {
+    p_org: orgId,
+    p_resource: 'client_lgpd_export',
+    p_row_count: rowCount,
+    p_sensitive: true,
+    p_entity: clientId,
+  })
+  if (error) console.warn('[export] não foi possível registrar a exportação:', error.message)
+}
+
 export function downloadJSON(data: unknown, fileName: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = fileName
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
+  downloadBlob(fileName, JSON.stringify(data, null, 2), 'application/json;charset=utf-8')
 }

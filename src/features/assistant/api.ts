@@ -1,14 +1,21 @@
 import { FunctionsFetchError, FunctionsHttpError, FunctionsRelayError } from '@supabase/supabase-js'
 import { supabase, unwrap } from '@/lib/supabase'
 import type { AiConversation, AiMessage } from '@/types/database'
+import type { Proposal } from './proposals'
 
 export type ConversationSummary = Pick<AiConversation, 'id' | 'title' | 'updated_at' | 'created_at'>
-export type ChatMessageRow = Pick<AiMessage, 'id' | 'role' | 'content' | 'tools_used' | 'created_at'>
+export type ChatMessageRow = Pick<AiMessage, 'id' | 'role' | 'content' | 'tools_used' | 'created_at'> & {
+  proposals?: Proposal[] | null
+}
 
 export interface AssistantReply {
   conversation_id: string
   message: string
   tools_used: string[]
+  /** Id da mensagem do assistente salva no histórico (para as propostas). */
+  message_id?: string | null
+  /** Ações propostas pela IA, pendentes de confirmação do usuário. */
+  proposals?: Proposal[]
   /** Tipos de dado removidos da pergunta antes do envio (cpf, telefone, email, cnpj) */
   redacted?: string[]
 }
@@ -100,16 +107,22 @@ export async function listConversations(orgId: string, userId: string): Promise<
   ) as ConversationSummary[]
 }
 
+export const MESSAGES_LIMIT = 300
+
+/** As MESSAGES_LIMIT mensagens mais recentes da conversa, em ordem cronológica. */
 export async function listMessages(orgId: string, conversationId: string): Promise<ChatMessageRow[]> {
-  return unwrap(
+  const rows = unwrap(
     await supabase
       .from('ai_messages')
-      .select('id, role, content, tools_used, created_at')
+      .select('id, role, content, tools_used, created_at, proposals')
       .eq('organization_id', orgId)
       .eq('conversation_id', conversationId)
-      .order('created_at')
-      .limit(300),
+      .order('created_at', { ascending: false })
+      .limit(MESSAGES_LIMIT),
   ) as ChatMessageRow[]
+  // Pergunta e resposta podem ter o mesmo created_at (mesma transação): no empate, a do usuário vem antes.
+  const rank = (r: ChatMessageRow) => (r.role === 'user' ? 0 : 1)
+  return rows.reverse().sort((a, b) => a.created_at.localeCompare(b.created_at) || rank(a) - rank(b))
 }
 
 export async function renameConversation(orgId: string, id: string, title: string): Promise<void> {
@@ -119,5 +132,9 @@ export async function renameConversation(orgId: string, id: string, title: strin
 }
 
 export async function deleteConversation(orgId: string, id: string): Promise<void> {
-  unwrap(await supabase.from('ai_conversations').delete().eq('organization_id', orgId).eq('id', id))
+  const rows = unwrap(
+    await supabase.from('ai_conversations').delete().eq('organization_id', orgId).eq('id', id).select('id'),
+  ) as { id: string }[]
+  // Sem linha afetada = conversa inexistente ou exclusão barrada pela RLS: não reportar sucesso.
+  if (!rows?.length) throw new Error('Conversa não encontrada ou sem permissão para excluir.')
 }

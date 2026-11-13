@@ -20,7 +20,7 @@ export function ConversationList({ conversations, loading, error, onRetry, selec
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-3">
-        <h2 className="text-[13px] font-semibold text-ink">Conversas</h2>
+        <h2 className="text-body-sm font-semibold text-ink">Conversas</h2>
         <Button size="sm" variant="primary" icon={<Plus className="size-3.5" />} onClick={onNew}>
           Nova
         </Button>
@@ -33,14 +33,14 @@ export function ConversationList({ conversations, loading, error, onRetry, selec
             ))}
           </div>
         ) : error ? (
-          <div className="p-3 text-[12.5px] text-red-700" role="alert">
+          <div className="p-3 text-label text-red-700" role="alert">
             {error}{' '}
             <button className="font-medium underline" onClick={onRetry}>
               Tentar novamente
             </button>
           </div>
         ) : !conversations?.length ? (
-          <p className="px-2 py-6 text-center text-[12.5px] text-ink-muted">
+          <p className="px-2 py-6 text-center text-label text-ink-muted">
             Nenhuma conversa ainda. Faça uma pergunta para começar.
           </p>
         ) : (
@@ -59,8 +59,8 @@ export function ConversationList({ conversations, loading, error, onRetry, selec
                   >
                     <MessageSquare className="mt-0.5 size-3.5 shrink-0 opacity-60" />
                     <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-medium">{c.title}</span>
-                      <span className="block text-[11.5px] text-ink-subtle">{formatRelative(c.updated_at)}</span>
+                      <span className="block truncate text-body-sm font-medium">{c.title}</span>
+                      <span className="block text-caption text-ink-subtle">{formatRelative(c.updated_at)}</span>
                     </span>
                   </button>
                   <div

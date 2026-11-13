@@ -238,7 +238,7 @@ export function TaskFormModal({ open, onClose, task, defaults, onSaved }: TaskFo
             }
           />
           {form.client_id && (
-            <button type="button" className="self-start text-[12px] text-accent-700 hover:underline" onClick={() => set('client_id', null)}>
+            <button type="button" className="self-start text-caption text-accent-700 hover:underline" onClick={() => set('client_id', null)}>
               Limpar cliente
             </button>
           )}

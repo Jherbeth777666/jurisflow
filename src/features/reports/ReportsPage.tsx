@@ -1,21 +1,20 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { Download, Printer } from 'lucide-react'
+import { Printer } from 'lucide-react'
 import { formatCurrency, formatDate, formatNumber, todayISO } from '@/lib/format'
 import { CONTRACT_TYPE, PAYMENT_METHOD } from '@/lib/constants'
 import { cn } from '@/lib/cn'
+import { downloadBlob } from '@/lib/download'
 import { useOrg } from '@/contexts/AuthContext'
 import { useCategories, useMemberNames } from '@/hooks/useOrgData'
 import {
   Button,
   Card,
-  CardHeader,
   EmptyState,
   ErrorState,
   Input,
   PageHeader,
   Table,
-  TableSkeleton,
   TBody,
   TD,
   TH,
@@ -38,6 +37,8 @@ import {
   type PeriodPreset,
 } from './aggregate'
 import { useOverdueInstallments, useReportData } from './api'
+import { OperationalSection } from './OperationalSection'
+import { ReportCard } from './ReportCard'
 
 const PRESETS: PeriodPreset[] = ['this_month', 'last_month', 'last_90', 'this_year', 'custom']
 
@@ -58,18 +59,6 @@ const PRINT_CSS = `
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 `
-
-function downloadCSV(filename: string, headers: string[], rows: CsvCell[][]) {
-  const blob = new Blob([toCSV(headers, rows)], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 1000)
-}
 
 export function ReportsPage() {
   const { organization } = useOrg()
@@ -135,7 +124,7 @@ export function ReportsPage() {
   const periodText = `${formatDate(period.from)} a ${formatDate(period.to)}`
   const fileSuffix = `${period.from}_a_${period.to}`
   const exportCSV = (title: string, headers: string[], rows: CsvCell[][], withPeriod = true) => {
-    downloadCSV(`jurisflow-${slugify(title)}${withPeriod ? `-${fileSuffix}` : `-${today}`}.csv`, headers, rows)
+    downloadBlob(`jurisflow-${slugify(title)}${withPeriod ? `-${fileSuffix}` : `-${today}`}.csv`, toCSV(headers, rows), 'text/csv;charset=utf-8')
     toast.show('Arquivo CSV gerado.')
   }
 
@@ -147,8 +136,8 @@ export function ReportsPage() {
     <div>
       <style>{PRINT_CSS}</style>
       <div className="report-print-only mb-4 hidden">
-        <p className="text-[16px] font-semibold">{organization.name} — Relatórios gerenciais</p>
-        <p className="text-[12.5px] text-ink-muted">
+        <p className="text-title font-semibold">{organization.name} — Relatórios gerenciais</p>
+        <p className="text-label text-ink-muted">
           Período: {periodText} · Emitido em {formatDate(today)}
         </p>
       </div>
@@ -174,7 +163,7 @@ export function ReportsPage() {
                   aria-checked={preset === p}
                   onClick={() => setPreset(p)}
                   className={cn(
-                    'rounded px-3 py-1.5 text-[13px] font-medium transition-colors',
+                    'rounded px-3 py-1.5 text-body-sm font-medium transition-colors',
                     preset === p ? 'bg-surface text-ink shadow-[var(--shadow-card)]' : 'text-ink-muted hover:text-ink',
                   )}
                 >
@@ -189,9 +178,9 @@ export function ReportsPage() {
                   <Input label="Até" type="date" value={period.to} min={period.from} onChange={(e) => setCustom('ate', e.target.value)} wrapperClassName="w-40" />
                 </>
               ) : (
-                <span className="tabular text-[13px] text-ink-muted">{periodText}</span>
+                <span className="tabular text-body-sm text-ink-muted">{periodText}</span>
               )}
-              {data.isFetching && !data.isLoading && <span className="text-[12px] text-ink-subtle">Atualizando…</span>}
+              {data.isFetching && !data.isLoading && <span className="text-caption text-ink-subtle">Atualizando…</span>}
             </div>
           </div>
         </Card>
@@ -203,6 +192,8 @@ export function ReportsPage() {
         </Card>
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">
+          <OperationalSection />
+
           {/* Demandas por categoria */}
           <ReportCard
             {...sectionProps('por-categoria')}
@@ -218,7 +209,14 @@ export function ReportsPage() {
               )
             }
           >
-            {agg && <GroupTable rows={agg.byCategory} firstCol="Categoria" empty="Nenhuma demanda aberta ou concluída no período." />}
+            {agg && (
+              <GroupTable
+                rows={agg.byCategory}
+                firstCol="Categoria"
+                empty="Nenhuma demanda aberta ou concluída no período."
+                label="Demandas por categoria"
+              />
+            )}
           </ReportCard>
 
           {/* Demandas por responsável */}
@@ -236,7 +234,14 @@ export function ReportsPage() {
               )
             }
           >
-            {agg && <GroupTable rows={agg.byPerson} firstCol="Responsável" empty="Nenhuma demanda aberta ou concluída no período." />}
+            {agg && (
+              <GroupTable
+                rows={agg.byPerson}
+                firstCol="Responsável"
+                empty="Nenhuma demanda aberta ou concluída no período."
+                label="Demandas por responsável"
+              />
+            )}
           </ReportCard>
 
           {/* Tempo médio de conclusão */}
@@ -263,7 +268,7 @@ export function ReportsPage() {
           >
             {agg &&
               (agg.completion.rows.length ? (
-                <Table>
+                <Table label="Tempo médio de conclusão">
                   <THead>
                     <tr>
                       <TH>Categoria</TH>
@@ -313,7 +318,7 @@ export function ReportsPage() {
           >
             {agg &&
               (agg.tasks.length ? (
-                <Table>
+                <Table label="Tarefas concluídas por pessoa">
                   <THead>
                     <tr>
                       <TH>Pessoa</TH>
@@ -367,7 +372,7 @@ export function ReportsPage() {
           >
             {agg &&
               (agg.methods.rows.length ? (
-                <Table>
+                <Table label="Recebido por forma de pagamento">
                   <THead>
                     <tr>
                       <TH>Forma</TH>
@@ -439,54 +444,6 @@ export function ReportsPage() {
 }
 
 // ---------------------------------------------------------------------------
-function ReportCard({
-  id,
-  title,
-  description,
-  loading,
-  error,
-  onRetry,
-  canExport,
-  onExport,
-  onPrint,
-  hidden,
-  className,
-  children,
-}: {
-  id: ReportId
-  title: string
-  description?: string
-  loading?: boolean
-  error?: string | null
-  onRetry?: () => void
-  canExport: boolean
-  onExport: () => void
-  onPrint: () => void
-  hidden: boolean
-  className?: string
-  children: ReactNode
-}) {
-  return (
-    <Card className={cn('report-card h-fit', className)} data-print-hidden={hidden ? 'true' : undefined} id={`relatorio-${id}`}>
-      <CardHeader
-        title={title}
-        description={description}
-        action={
-          <div className="report-no-print flex gap-1">
-            <Button size="sm" variant="ghost" icon={<Download className="size-3.5" />} onClick={onExport} disabled={!canExport || loading} title="Exportar CSV">
-              <span className="hidden sm:inline">Exportar CSV</span>
-            </Button>
-            <Button size="sm" variant="ghost" icon={<Printer className="size-3.5" />} onClick={onPrint} disabled={loading} title="Imprimir">
-              <span className="hidden sm:inline">Imprimir</span>
-            </Button>
-          </div>
-        }
-      />
-      {error ? <ErrorState message={error} onRetry={onRetry} /> : loading ? <TableSkeleton rows={4} cols={3} /> : children}
-    </Card>
-  )
-}
-
 function ReportEmpty({ text }: { text: string }) {
   return <EmptyState title={text} className="py-10" />
 }
@@ -509,12 +466,22 @@ function MiniBar({ value, max, color }: { value: number; max: number; color?: st
   )
 }
 
-function GroupTable({ rows, firstCol, empty }: { rows: ReturnType<typeof demandsByGroup>; firstCol: string; empty: string }) {
+function GroupTable({
+  rows,
+  firstCol,
+  empty,
+  label,
+}: {
+  rows: ReturnType<typeof demandsByGroup>
+  firstCol: string
+  empty: string
+  label: string
+}) {
   if (!rows.length) return <ReportEmpty text={empty} />
   const max = Math.max(...rows.map((r) => Math.max(r.opened, r.closed)), 1)
   const tot = rows.reduce((s, r) => ({ opened: s.opened + r.opened, closed: s.closed + r.closed }), { opened: 0, closed: 0 })
   return (
-    <Table>
+    <Table label={label}>
       <THead>
         <tr>
           <TH>{firstCol}</TH>
@@ -554,14 +521,14 @@ function OverdueReport({ agg, data }: { agg: ReturnType<typeof overdueSummary>; 
     <div>
       <div className="grid gap-4 border-b border-line p-4 md:grid-cols-[220px_1fr]">
         <div>
-          <div className="text-[12px] font-medium text-ink-subtle">Total vencido</div>
-          <div className="tabular mt-0.5 text-[22px] font-semibold tracking-[-0.02em] text-red-600">{formatCurrency(agg.total)}</div>
-          <div className="mt-0.5 text-[12px] text-ink-muted">
+          <div className="text-caption font-medium text-ink-subtle">Total vencido</div>
+          <div className="tabular mt-0.5 text-heading font-semibold tracking-[-0.02em] text-red-600">{formatCurrency(agg.total)}</div>
+          <div className="mt-0.5 text-caption text-ink-muted">
             {agg.count} parcela{agg.count === 1 ? '' : 's'} · {agg.clients} cliente{agg.clients === 1 ? '' : 's'} · {agg.contracts} contrato
             {agg.contracts === 1 ? '' : 's'}
           </div>
         </div>
-        <ul className="space-y-1.5 text-[12.5px]">
+        <ul className="space-y-1.5 text-label">
           {agg.buckets.map((b) => (
             <li key={b.label} className="grid grid-cols-[110px_1fr_auto] items-center gap-3">
               <span className="text-ink-muted">{b.label}</span>
@@ -575,7 +542,7 @@ function OverdueReport({ agg, data }: { agg: ReturnType<typeof overdueSummary>; 
           ))}
         </ul>
       </div>
-      <Table>
+      <Table label="Parcelas em atraso">
         <THead>
           <tr>
             <TH>Cliente</TH>

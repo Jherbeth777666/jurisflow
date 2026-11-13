@@ -28,6 +28,7 @@ import { formatCPF, formatDate, formatDateTime, formatPhone } from '@/lib/format
 import { cn } from '@/lib/cn'
 import { useAnonymizeClient, useClient, useClientContractsCount, useClientDemands, useDeleteClient } from './api'
 import { ClientFormModal } from './ClientFormModal'
+import { ClientSummary } from './ClientSummary'
 import { buildServiceHistory } from './logic'
 
 type Section = 'demandas' | 'tarefas' | 'atendimentos' | 'historico'
@@ -86,7 +87,7 @@ export function ClientDetailPage() {
       <BackLink />
 
       {anonymized && (
-        <div role="note" className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-[13px] text-amber-900">
+        <div role="note" className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-3 text-body-sm text-amber-900">
           <ShieldAlert className="mt-0.5 size-4 shrink-0" />
           <span>
             Este cliente foi anonimizado em {formatDateTime(c.anonymized_at)}. Os dados pessoais foram removidos de forma irreversível e o
@@ -99,10 +100,10 @@ export function ClientDetailPage() {
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-ink">{c.full_name}</h1>
+              <h1 className="text-heading font-semibold tracking-[-0.01em] text-ink">{c.full_name}</h1>
               <StatusBadge value={c.status} map={CLIENT_STATUS} />
             </div>
-            <p className="mt-0.5 text-[12.5px] text-ink-subtle">Cliente desde {formatDate(c.created_at)}</p>
+            <p className="mt-0.5 text-label text-ink-subtle">Cliente desde {formatDate(c.created_at)}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {!anonymized && (
@@ -133,7 +134,7 @@ export function ClientDetailPage() {
             )}
           </div>
         </div>
-        <dl className="grid gap-x-6 gap-y-3 border-t border-line p-4 text-[13px] sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="grid gap-x-6 gap-y-3 border-t border-line p-4 text-body-sm sm:grid-cols-2 lg:grid-cols-4">
           <Info label="CPF">{c.cpf ? <span className="tabular">{formatCPF(c.cpf)}</span> : null}</Info>
           <Info label="Telefone">{c.phone ? <span className="tabular">{formatPhone(c.phone)}</span> : null}</Info>
           <Info label="E-mail">
@@ -152,6 +153,8 @@ export function ClientDetailPage() {
           </Info>
         </dl>
       </Card>
+
+      {!anonymized && <ClientSummary clientId={c.id} />}
 
       {!anonymized && <MessageComposerModal open={composing} onClose={() => setComposing(false)} clientId={c.id} />}
 
@@ -208,8 +211,8 @@ export function ClientDetailPage() {
                       className="flex flex-col gap-1.5 px-4 py-3 hover:bg-navy-50/60 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                     >
                       <div className="min-w-0">
-                        <p className="truncate text-[13.5px] font-medium text-ink">{d.title}</p>
-                        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-subtle">
+                        <p className="truncate text-body font-medium text-ink">{d.title}</p>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-subtle">
                           {cat && <CategoryTag name={cat.name} color={cat.color} />}
                           <span>{d.stage_id ? stageName.get(d.stage_id) ?? '—' : '—'}</span>
                           <span>Aberta em {formatDate(d.opened_at)}</span>
@@ -252,7 +255,7 @@ export function ClientDetailPage() {
                 {history.map((e) => {
                   const Icon = e.kind === 'opened' ? CircleDot : e.kind === 'concluded' ? CheckCircle2 : XCircle
                   return (
-                    <li key={e.key} className="flex items-start gap-3 text-[13px]">
+                    <li key={e.key} className="flex items-start gap-3 text-body-sm">
                       <Icon
                         className={cn(
                           'mt-0.5 size-4 shrink-0',
@@ -267,7 +270,7 @@ export function ClientDetailPage() {
                           {e.title}
                         </Link>
                       </div>
-                      <span className="tabular shrink-0 text-[12px] text-ink-subtle">{formatDate(e.at)}</span>
+                      <span className="tabular shrink-0 text-caption text-ink-subtle">{formatDate(e.at)}</span>
                     </li>
                   )
                 })}
@@ -329,12 +332,12 @@ export function ClientDetailPage() {
           </>
         }
       >
-        <p className="text-[13.5px] text-ink-muted">
+        <p className="text-body text-ink-muted">
           Este cliente possui {plural(demandCount, 'demanda', 'demandas')}
           {contractCount > 0 && ` e ${plural(contractCount, 'contrato', 'contratos')}`} vinculados. Para preservar o histórico operacional e
           financeiro do escritório, o cadastro não pode ser excluído.
         </p>
-        <p className="mt-2 text-[13.5px] text-ink-muted">
+        <p className="mt-2 text-body text-ink-muted">
           {anonymized
             ? 'Os dados pessoais deste cliente já foram removidos por anonimização.'
             : 'Se o objetivo é atender a um pedido de eliminação de dados (LGPD), anonimize o cliente: os dados pessoais são removidos e os vínculos são mantidos.'}
@@ -362,7 +365,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 function Info({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return (
     <div className={cn('min-w-0', className)}>
-      <dt className="text-[12px] text-ink-subtle">{label}</dt>
+      <dt className="text-caption text-ink-subtle">{label}</dt>
       <dd className="mt-0.5 break-words text-ink">{children ?? <span className="text-ink-subtle">—</span>}</dd>
     </div>
   )
@@ -370,7 +373,7 @@ function Info({ label, children, className }: { label: string; children: ReactNo
 
 function BackLink() {
   return (
-    <Link to="/clientes" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-ink-muted hover:text-ink">
+    <Link to="/clientes" className="mb-3 inline-flex items-center gap-1.5 text-body-sm text-ink-muted hover:text-ink">
       <ArrowLeft className="size-4" />
       Clientes
     </Link>

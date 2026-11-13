@@ -4,10 +4,14 @@ import { useMemo, useState, type FormEvent } from 'react'
 import { Button, Input, InlineError, Modal, Select, Spinner, Textarea, useToast } from '@/components/ui'
 import { ClientPicker } from '@/components/ClientPicker'
 import { useCategories, useMemberNames } from '@/hooks/useOrgData'
+import { useOrg } from '@/contexts/AuthContext'
+import { countCategoryChecklistTemplates, fetchCategoryTaskTemplates } from '@/features/workflows/taskTemplatesApi'
 import { DEMAND_STATUS, PRIORITY, toOptions } from '@/lib/constants'
 import { todayISO } from '@/lib/format'
 import type { Demand, DemandStatus, PriorityLevel } from '@/types/database'
 import { useSaveDemand } from './api'
+import { KickoffStep } from './KickoffStep'
+import { suggestTasks, type SuggestedTask } from './kickoff'
 import { validateDemandForm, type DemandFormErrors, type DemandFormValues } from './logic'
 
 export interface DemandFormModalProps {
@@ -60,12 +64,15 @@ export function DemandFormModal(props: DemandFormModalProps) {
 
 function DemandFormModalInner({ open, onClose, demand, defaults, onSaved }: DemandFormModalProps) {
   const toast = useToast()
+  const { orgId } = useOrg()
   const save = useSaveDemand()
   const cats = useCategories()
   const members = useMemberNames()
   const [values, setValues] = useState<DemandFormValues>(() => initialValues(demand, defaults))
   const [errors, setErrors] = useState<DemandFormErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
+  // Passo "Preparar a demanda": só ao criar, quando a categoria tem modelos de checklist ou de tarefa.
+  const [kickoff, setKickoff] = useState<{ demand: Demand; checklistCount: number; suggestions: SuggestedTask[] } | null>(null)
 
   // Categorias ativas; na edição mantém a categoria atual mesmo se tiver sido desativada.
   const categoryOptions = useMemo(
@@ -101,6 +108,25 @@ function DemandFormModalInner({ open, onClose, demand, defaults, onSaved }: Dema
     if (errors.category_id) setErrors((e) => ({ ...e, category_id: undefined }))
   }
 
+  /** Busca modelos da categoria; falha na busca não atrapalha a criação (segue sem o passo). */
+  const loadKickoff = async (saved: Demand) => {
+    try {
+      const [templates, checklistCount] = await Promise.all([
+        fetchCategoryTaskTemplates(orgId, saved.category_id),
+        countCategoryChecklistTemplates(orgId, saved.category_id),
+      ])
+      if (!templates.length && !checklistCount) return null
+      return { demand: saved, checklistCount, suggestions: suggestTasks(templates, todayISO()) }
+    } catch {
+      return null
+    }
+  }
+
+  const finishKickoff = () => {
+    if (kickoff) onSaved?.(kickoff.demand)
+    onClose()
+  }
+
   const submit = async (e: FormEvent) => {
     e.preventDefault()
     setFormError(null)
@@ -110,6 +136,13 @@ function DemandFormModalInner({ open, onClose, demand, defaults, onSaved }: Dema
     try {
       const saved = await save.mutateAsync({ id: demand?.id, values: { ...values, stage_id: stageId } })
       toast.show(demand ? 'Demanda atualizada.' : 'Demanda criada.')
+      if (!demand) {
+        const prep = await loadKickoff(saved)
+        if (prep) {
+          setKickoff(prep)
+          return
+        }
+      }
       onSaved?.(saved)
       onClose()
     } catch (err) {
@@ -119,6 +152,10 @@ function DemandFormModalInner({ open, onClose, demand, defaults, onSaved }: Dema
 
   const selectedStage = category?.stages.find((s) => s.id === stageId)
   const loadingRefs = cats.isLoading || members.isLoading
+
+  if (kickoff) {
+    return <KickoffStep demand={kickoff.demand} checklistCount={kickoff.checklistCount} suggestions={kickoff.suggestions} onDone={finishKickoff} />
+  }
 
   return (
     <Modal

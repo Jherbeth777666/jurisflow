@@ -39,21 +39,18 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, description, co
       size="sm"
       footer={
         <>
-          <Button onClick={onClose} disabled={loading}>
-            Cancelar
-          </Button>
+          {/* Padrão do produto: a ação de confirmar vem primeiro (docs/DESIGN.md). */}
           <Button variant={tone} onClick={handle} loading={loading} data-autofocus>
             {confirmLabel}
+          </Button>
+          <Button onClick={onClose} disabled={loading}>
+            Cancelar
           </Button>
         </>
       }
     >
-      <p className="text-[13.5px] text-ink-muted">{description}</p>
-      {error && (
-        <div className="mt-3">
-          <InlineError message={error} />
-        </div>
-      )}
+      {/* Com erro, a mensagem ocupa o lugar da descrição: a pessoa vê só o que aconteceu. */}
+      {error ? <InlineError message={error} /> : <p className="text-body text-ink-muted">{description}</p>}
     </Modal>
   )
 }

@@ -81,7 +81,7 @@ export function MessagesPage() {
           <div className="border-b border-line p-3">
             <SearchInput value={search} onChange={setSearch} placeholder="Buscar modelo…" />
           </div>
-          {q.isError && <p className="px-4 pt-3 text-[12.5px] text-red-600">Não foi possível carregar os modelos do escritório.</p>}
+          {q.isError && <p className="px-4 pt-3 text-label text-red-600">Não foi possível carregar os modelos do escritório.</p>}
           <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto scrollbar-thin" aria-label="Modelos">
             {filtered.map((t) => (
               <li key={t.id}>
@@ -97,10 +97,10 @@ export function MessagesPage() {
                   <MessageSquareText className={cn('mt-0.5 size-4 shrink-0', t.id === selected?.id ? 'text-accent-600' : 'text-ink-subtle')} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className="truncate text-[13.5px] font-medium text-ink">{t.name}</span>
+                      <span className="truncate text-body font-medium text-ink">{t.name}</span>
                       {t.kind === 'escritorio' && <Badge tone="blue">Escritório</Badge>}
                     </span>
-                    <span className="mt-0.5 line-clamp-1 block text-[12px] text-ink-muted">
+                    <span className="mt-0.5 line-clamp-1 block text-caption text-ink-muted">
                       {t.description ?? t.body.replace(/\s+/g, ' ').slice(0, 90)}
                     </span>
                   </span>
@@ -152,12 +152,12 @@ export function MessagesPage() {
               />
               <CardBody>
                 {selected.subject && (
-                  <p className="mb-3 text-[12.5px] text-ink-muted">
+                  <p className="mb-3 text-label text-ink-muted">
                     <span className="font-medium text-ink">Assunto: </span>
                     <VariableText text={selected.subject} />
                   </p>
                 )}
-                <div className="whitespace-pre-wrap rounded-lg border border-line bg-canvas/50 p-4 text-[13.5px] leading-relaxed text-ink">
+                <div className="whitespace-pre-wrap rounded-lg border border-line bg-canvas/50 p-4 text-body leading-relaxed text-ink">
                   <VariableText text={selected.body} />
                 </div>
               </CardBody>
@@ -172,9 +172,9 @@ export function MessagesPage() {
             <CardHeader title="Variáveis disponíveis" description="Preenchidas com os dados reais ao escrever para um cliente." />
             <CardBody className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
               {MESSAGE_VARIABLES.map((v) => (
-                <div key={v.name} className="flex items-baseline justify-between gap-3 text-[12.5px]">
-                  <code className="font-mono text-accent-700">{`{{${v.name}}}`}</code>
-                  <span className="text-right text-ink-muted">{v.label}</span>
+                <div key={v.name} className="flex items-baseline justify-between gap-3 text-label">
+                  <span className="font-medium text-ink">{v.label}</span>
+                  <span className="truncate text-right text-ink-muted">Ex.: {v.example.split('\n')[0]}</span>
                 </div>
               ))}
             </CardBody>

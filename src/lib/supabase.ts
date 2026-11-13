@@ -47,3 +47,41 @@ export function unwrap<T>(res: { data: T | null; error: unknown }): T {
   if (res.error) throw new Error(friendlyError(res.error))
   return res.data as T
 }
+
+/**
+ * Erro de acesso negado: vínculo removido/desativado (42501), sessão inválida
+ * (PGRST301) ou as mensagens amigáveis correspondentes.
+ */
+export function isAccessDeniedError(error: unknown): boolean {
+  if (!error) return false
+  const e = error as { code?: unknown; message?: unknown }
+  if (e.code === '42501' || e.code === 'PGRST301') return true
+  const msg = typeof e.message === 'string' ? e.message : String(error)
+  return msg.includes('Você não tem permissão') || msg.includes('Sem acesso a este escritório')
+}
+
+/** Tamanho de página do PostgREST (padrão max_rows do Supabase). */
+export const PAGE_SIZE = 1000
+
+/**
+ * Busca todas as linhas de uma consulta, paginando de PAGE_SIZE em PAGE_SIZE.
+ * A consulta montada em `build` precisa de ordenação estável (termine com uma coluna única, ex.: id).
+ */
+export async function fetchAllRows<T>(build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: unknown }>): Promise<T[]> {
+  const out: T[] = []
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const rows = unwrap(await build(from, from + PAGE_SIZE - 1)) ?? []
+    out.push(...rows)
+    if (rows.length < PAGE_SIZE) break
+  }
+  return out
+}
+
+/**
+ * Erro causado por uma linha específica: integridade (classe 23: duplicado, chave estrangeira, check, not null),
+ * dado inválido (classe 22: data/número malformado) ou validação de trigger (P0001).
+ */
+export function isRowConstraintError(error: unknown): boolean {
+  const code = (error as { code?: unknown } | null)?.code
+  return typeof code === 'string' && (code.startsWith('23') || code.startsWith('22') || code === 'P0001')
+}

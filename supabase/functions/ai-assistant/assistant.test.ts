@@ -173,7 +173,7 @@ describe('adaptador Anthropic', () => {
     expect(f.urls[0]).toBe('https://api.anthropic.com/v1/messages')
     expect(f.headers[0]['x-api-key']).toBe('sk-test')
     const second = f.bodies[1] as { messages: Array<{ role: string; content: Array<Record<string, unknown>> }>; tools: unknown[] }
-    expect(second.tools).toHaveLength(9)
+    expect(second.tools).toHaveLength(12)
     expect(second.messages[1].content[0]).toMatchObject({ type: 'tool_use', id: 'tu1', name: 'ai_stalled_demands' })
     expect(second.messages[2].content[0]).toMatchObject({ type: 'tool_result', tool_use_id: 'tu1' })
     expect(JSON.stringify(f.bodies)).not.toMatch(/Maria|Bruno|José/)

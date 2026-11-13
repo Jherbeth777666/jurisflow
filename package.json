@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "local": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/preparar.ps1 && vite --port 5173 --strictPort",
+    "local:parar": "npx --yes supabase@latest stop",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",

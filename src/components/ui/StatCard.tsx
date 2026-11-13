@@ -18,24 +18,25 @@ export function StatCard({
   tone?: 'default' | 'warning' | 'danger' | 'success'
 }) {
   const toneCls = {
-    default: 'text-navy-500 bg-navy-50',
-    warning: 'text-amber-700 bg-amber-50',
-    danger: 'text-red-600 bg-red-50',
-    success: 'text-emerald-700 bg-emerald-50',
+    default: 'text-navy-600 bg-navy-50 ring-navy-100',
+    warning: 'text-amber-700 bg-amber-50 ring-amber-100',
+    danger: 'text-red-600 bg-red-50 ring-red-100',
+    success: 'text-emerald-700 bg-emerald-50 ring-emerald-100',
   }[tone]
+
   const body = (
     <>
-      <div className="flex items-center justify-between">
-        <span className="text-[12.5px] font-medium text-ink-muted">{label}</span>
-        {icon && <span className={cn('flex size-7 items-center justify-center rounded-md', toneCls)}>{icon}</span>}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-label font-medium text-ink-muted">{label}</span>
+        {icon && <span className={cn('flex size-8 items-center justify-center rounded-lg ring-1 ring-inset', toneCls)}>{icon}</span>}
       </div>
-      <div className="tabular mt-2 text-[22px] font-semibold tracking-[-0.02em] text-ink">{value}</div>
-      {hint && <div className="mt-0.5 text-[12px] text-ink-subtle">{hint}</div>}
+      <div className="tabular mt-2.5 truncate text-heading font-semibold leading-none sm:text-display tracking-[-0.03em] text-ink">{value}</div>
+      {hint && <div className="mt-1.5 text-caption text-ink-subtle">{hint}</div>}
     </>
   )
-  const cls = 'block rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]'
+  const cls = 'group relative block overflow-hidden rounded-[var(--radius-card)] bg-surface p-4 shadow-[var(--shadow-card)]'
   return to ? (
-    <Link to={to} className={cn(cls, 'transition-shadow hover:shadow-[var(--shadow-pop)]')}>
+    <Link to={to} className={cn(cls, 'transition-[box-shadow,transform] duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]')}>
       {body}
     </Link>
   ) : (

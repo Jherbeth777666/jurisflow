@@ -38,10 +38,10 @@ export function OnboardingPage() {
     >
       <form onSubmit={submit} className="space-y-4">
         <Input label="Nome do escritório" placeholder="Ex.: Silva & Souza Advocacia" value={name} onChange={(e) => setName(e.target.value)} required />
-        <p className="text-[12.5px] text-ink-muted">
+        <p className="text-label text-ink-muted">
           Criaremos categorias e fluxos de trabalho iniciais (salário-maternidade, aposentadoria, incapacidade, pesca, trabalhista, contratos e outros). Você pode personalizar tudo.
         </p>
-        <p className="text-[12.5px] text-ink-muted">Foi convidado por um escritório? Peça ao administrador para enviar o convite para este e-mail e entre novamente.</p>
+        <p className="text-label text-ink-muted">Foi convidado por um escritório? Peça ao administrador para enviar o convite para este e-mail e entre novamente.</p>
         <InlineError message={error} />
         <Button type="submit" variant="primary" className="w-full justify-center" loading={loading}>
           Criar escritório

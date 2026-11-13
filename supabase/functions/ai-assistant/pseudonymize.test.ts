@@ -70,6 +70,12 @@ describe('Pseudonymizer', () => {
     expect(p.restore('Cliente C99 não existe')).toBe('Cliente C99 não existe')
   })
 
+  it('primeTokens permite restaurar códigos antes de o nome aparecer no texto', () => {
+    const p = new Pseudonymizer({ clients: ['Maria Souza'], members: ['Bruno Lima'] })
+    p.primeTokens()
+    expect(p.restore('Cliente C1 e Responsável R1')).toBe('Maria Souza e Bruno Lima')
+  })
+
   it('escapa caracteres especiais de regex nos nomes', () => {
     const p = new Pseudonymizer({ clients: ['M. (Teste) Silva*'] })
     expect(p.pseudonymizeText('cliente M. (Teste) Silva* chegou')).toBe('cliente Cliente C1 chegou')

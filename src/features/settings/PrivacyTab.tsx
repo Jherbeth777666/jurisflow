@@ -3,7 +3,7 @@ import { Download, FileX2, Lock, PencilLine, ShieldCheck, Sparkles, ScrollText, 
 import { Button, Card, CardBody, CardHeader, InlineError, useToast } from '@/components/ui'
 import { ClientPicker } from '@/components/ClientPicker'
 import { useOrg } from '@/contexts/AuthContext'
-import { downloadJSON, fetchClientExport } from './api'
+import { downloadJSON, fetchClientExport, logClientExport } from './api'
 import { exportFileName } from './logic'
 
 export function PrivacyTab() {
@@ -43,7 +43,7 @@ export function PrivacyTab() {
 
       <Card>
         <CardHeader title="Direitos do titular (LGPD, art. 18)" />
-        <CardBody className="flex flex-col gap-4 text-[13px] text-ink-muted">
+        <CardBody className="flex flex-col gap-4 text-body-sm text-ink-muted">
           <div className="flex gap-3">
             <PencilLine className="mt-0.5 size-4 shrink-0 text-navy-500" />
             <div>
@@ -72,7 +72,7 @@ export function PrivacyTab() {
       ) : (
         <Card>
           <CardHeader title="Portabilidade (exportação de dados)" />
-          <CardBody className="text-[13px] text-ink-muted">Somente administradores podem exportar os dados de um cliente.</CardBody>
+          <CardBody className="text-body-sm text-ink-muted">Somente administradores podem exportar os dados de um cliente.</CardBody>
         </Card>
       )}
     </div>
@@ -94,6 +94,14 @@ function ExportCard() {
     try {
       const data = await fetchClientExport(orgId, organization.name, clientId)
       downloadJSON(data, exportFileName(clientName || data.titular.full_name))
+      const totalRows =
+        1 +
+        data.demandas.length +
+        data.tarefas.length +
+        data.contratos.length +
+        data.demandas.reduce((n, d) => n + d.checklist.length, 0) +
+        data.contratos.reduce((n, c) => n + c.parcelas.length + c.pagamentos.length, 0)
+      void logClientExport(orgId, clientId, totalRows)
       toast.show('Arquivo de exportação gerado.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível exportar os dados.')
@@ -106,7 +114,7 @@ function ExportCard() {
     <Card>
       <CardHeader
         title="Portabilidade (exportação de dados)"
-        description="Gera um arquivo JSON com o cadastro do cliente, demandas, tarefas, contratos, parcelas e pagamentos."
+        description="Gera um arquivo JSON com o cadastro do cliente, demandas, checklist de documentos, tarefas, contratos, parcelas e pagamentos."
       />
       <CardBody className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -125,7 +133,7 @@ function ExportCard() {
           </Button>
         </div>
         <InlineError message={error} />
-        <p className="text-[12px] text-ink-subtle">
+        <p className="text-caption text-ink-subtle">
           Entregue o arquivo somente ao próprio titular (ou representante legal), por canal seguro. O arquivo contém dados pessoais.
         </p>
       </CardBody>
@@ -138,8 +146,8 @@ function Item({ icon, title, children }: { icon: ReactNode; title: string; child
     <li className="flex gap-3">
       <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-navy-50 text-navy-600">{icon}</span>
       <div>
-        <p className="text-[13.5px] font-medium text-ink">{title}</p>
-        <p className="mt-0.5 text-[13px] text-ink-muted">{children}</p>
+        <p className="text-body font-medium text-ink">{title}</p>
+        <p className="mt-0.5 text-body-sm text-ink-muted">{children}</p>
       </div>
     </li>
   )

@@ -126,7 +126,7 @@ function renderInline(parts: Inline[]): ReactNode {
         return <em key={i}>{p.text}</em>
       case 'code':
         return (
-          <code key={i} className="rounded bg-navy-50 px-1 py-0.5 font-mono text-[12.5px]">
+          <code key={i} className="rounded bg-navy-50 px-1 py-0.5 font-mono text-label">
             {p.text}
           </code>
         )
@@ -139,12 +139,12 @@ function renderInline(parts: Inline[]): ReactNode {
 export function Markdown({ text }: { text: string }) {
   const blocks = parseMarkdown(text)
   return (
-    <div className="space-y-2.5 text-[13.5px] leading-relaxed text-ink">
+    <div className="space-y-2.5 text-body leading-relaxed text-ink">
       {blocks.map((b, i) => {
         switch (b.type) {
           case 'heading':
             return (
-              <p key={i} className={b.level <= 2 ? 'text-[14.5px] font-semibold' : 'text-[13.5px] font-semibold'}>
+              <p key={i} className={b.level <= 2 ? 'text-body-lg font-semibold' : 'text-body font-semibold'}>
                 {renderInline(b.content)}
               </p>
             )
@@ -169,7 +169,7 @@ export function Markdown({ text }: { text: string }) {
           case 'table':
             return (
               <div key={i} className="overflow-x-auto rounded-md border border-line">
-                <table className="w-full text-left text-[12.5px]">
+                <table className="w-full text-left text-label">
                   <thead className="bg-canvas text-ink-muted">
                     <tr>
                       {b.header.map((c, j) => (

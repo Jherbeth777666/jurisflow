@@ -66,6 +66,24 @@ describe('checkRewrite', () => {
   })
 })
 
+describe('texto livre enviado ao provedor (1.4)', () => {
+  it('redige CID e NB do modelo antes de montar a mensagem ao provedor', () => {
+    const msg = buildComposeUserMessage('Olá {{primeiro_nome}}, laudo com CID M54.5 e NB 123.456.789-0', 'formal')
+    expect(msg).toContain('{{primeiro_nome}}')
+    expect(msg).not.toContain('M54.5')
+    expect(msg).not.toContain('123.456.789-0')
+    expect(msg).toContain('[CID-OCULTO]')
+    expect(msg).toContain('[DOC-PREVIDENCIARIO]')
+  })
+
+  it('redige NIT e mantém datas e variáveis do modelo', () => {
+    const msg = buildComposeUserMessage('Perícia {{data_pericia}} — NIT 123.45678.90-1', 'simples')
+    expect(msg).toContain('{{data_pericia}}')
+    expect(msg).not.toContain('123.45678.90-1')
+    expect(msg).toContain('[DOC-PREVIDENCIARIO]')
+  })
+})
+
 describe('cleanModelOutput / prompt', () => {
   it('remove aspas e delimitadores', () => {
     expect(cleanModelOutput('"Olá {{ primeiro_nome }}"')).toBe('Olá {{primeiro_nome}}')

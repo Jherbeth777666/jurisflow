@@ -147,3 +147,16 @@ export function useDeleteDemand() {
     },
   })
 }
+
+export type BulkDemandPatch = { responsible_id: string | null } | { priority: string } | { stage_id: string }
+
+/** Alteração em massa (RPC bulk_update_demands). Devolve quantas demandas foram atualizadas. */
+export function useBulkUpdateDemands() {
+  const { orgId } = useOrg()
+  const invalidate = useInvalidateDemands()
+  return useMutation<number, Error, { ids: string[]; patch: BulkDemandPatch }>({
+    mutationFn: async ({ ids, patch }) =>
+      Number(unwrap(await supabase.rpc('bulk_update_demands', { p_org: orgId, p_ids: ids, p_patch: patch })) ?? 0),
+    onSuccess: () => invalidate(),
+  })
+}

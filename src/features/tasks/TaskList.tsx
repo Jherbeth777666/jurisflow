@@ -96,7 +96,7 @@ export function TaskList({ demandId, clientId, allowCreate }: TaskListProps) {
         {open.length > 0 ? (
           <ul className="divide-y divide-line">{open.map(renderRow)}</ul>
         ) : (
-          <p className="px-4 py-3 text-[13px] text-ink-muted">Nenhuma tarefa em aberto.</p>
+          <p className="px-4 py-3 text-body-sm text-ink-muted">Nenhuma tarefa em aberto.</p>
         )}
         {closed.length > 0 && (
           <div className="border-t border-line">
@@ -104,7 +104,7 @@ export function TaskList({ demandId, clientId, allowCreate }: TaskListProps) {
               type="button"
               onClick={() => setShowClosed((s) => !s)}
               aria-expanded={showClosed}
-              className="w-full px-4 py-2 text-left text-[12.5px] text-ink-muted hover:text-ink"
+              className="w-full px-4 py-2 text-left text-label text-ink-muted hover:text-ink"
             >
               {showClosed ? 'Ocultar' : 'Mostrar'} concluídas/canceladas ({closed.length})
             </button>

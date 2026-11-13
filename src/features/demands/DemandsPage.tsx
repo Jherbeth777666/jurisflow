@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Briefcase, Plus, X } from 'lucide-react'
 import {
@@ -30,6 +30,9 @@ import type { PriorityLevel } from '@/types/database'
 import { useDemandsList } from './api'
 import { DemandFormModal } from './DemandFormModal'
 import { useOpenFromParam } from '@/hooks/useOpenFromParam'
+import { useSelection } from '@/hooks/useSelection'
+import { SavedViewsMenu } from '@/features/views/SavedViewsMenu'
+import { DemandsBulkActions } from './DemandsBulkActions'
 import { ExportDemands } from './ExportDemands'
 import {
   STALLED_DAYS,
@@ -72,6 +75,13 @@ export function DemandsPage() {
 
   const q = useDemandsList(filters, waitingStageIds)
 
+  // Seleção em massa: some ao mudar filtros/página (a chave é a própria URL).
+  const selection = useSelection(params.toString())
+  const pageRows = q.data?.rows ?? []
+  const pageIds = pageRows.map((d) => d.id)
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selection.has(id))
+  const selectedRows = pageRows.filter((d) => selection.has(d.id))
+
   const apply = useCallback(
     (patch: Partial<DemandFilters>) => setParams(serializeDemandFilters(patchDemandFilters(parseDemandFilters(params), patch)), { replace: true }),
     [params, setParams],
@@ -83,6 +93,56 @@ export function DemandsPage() {
   const responsibleOptions = [{ value: 'none', label: 'Sem responsável' }, ...members.options]
 
   const active = hasActiveFilters(filters)
+  const [showFilters, setShowFilters] = useState(false)
+  const activeFilterCount = [
+    filters.category,
+    filters.stage,
+    filters.responsible,
+    filters.priority,
+    filters.status !== 'abertas' ? filters.status : '',
+    filters.waitingDocs ? 'docs' : '',
+    filters.stalled > 0 ? String(filters.stalled) : '',
+  ].filter(Boolean).length
+
+  const filterSelects = () => (
+    <>
+      <Select
+        aria-label="Categoria"
+        options={categoryOptions}
+        placeholder="Todas as categorias"
+        value={filters.category}
+        onChange={(e) => apply({ category: e.target.value })}
+      />
+      <Select
+        aria-label="Etapa"
+        options={stageOptions}
+        placeholder={filters.category ? 'Todas as etapas' : 'Etapa (escolha a categoria)'}
+        disabled={!filters.category}
+        value={filters.stage}
+        onChange={(e) => apply({ stage: e.target.value })}
+      />
+      <Select
+        aria-label="Responsável"
+        options={responsibleOptions}
+        placeholder="Todos os responsáveis"
+        value={filters.responsible}
+        onChange={(e) => apply({ responsible: e.target.value })}
+      />
+      <Select
+        aria-label="Prioridade"
+        options={toOptions(PRIORITY)}
+        placeholder="Todas as prioridades"
+        value={filters.priority}
+        onChange={(e) => apply({ priority: e.target.value as PriorityLevel | '' })}
+      />
+      <Select
+        aria-label="Status"
+        options={STATUS_FILTER_OPTIONS}
+        value={filters.status}
+        onChange={(e) => apply({ status: e.target.value as DemandStatusFilter })}
+      />
+    </>
+  )
 
   return (
     <div>
@@ -91,6 +151,7 @@ export function DemandsPage() {
         description="Acompanhe os casos do escritório por categoria, etapa e responsável."
         actions={
           <>
+            <SavedViewsMenu page="demandas" />
             <ExportDemands />
             <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
               Nova demanda
@@ -99,47 +160,29 @@ export function DemandsPage() {
         }
       />
 
-      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(200px,1.4fr)_repeat(5,minmax(0,1fr))]">
+      <div className="mb-3 flex flex-col gap-2 sm:hidden">
+        <div className="flex items-center gap-2">
+          <SearchInput value={filters.q} onChange={onSearch} placeholder="Buscar por título" className="min-w-0 flex-1" />
+          <Button
+            size="sm"
+            variant="secondary"
+            aria-expanded={showFilters}
+            onClick={() => setShowFilters((s) => !s)}
+            className="shrink-0"
+          >
+            Filtros ({activeFilterCount})
+          </Button>
+        </div>
+        {showFilters && <div className="grid grid-cols-1 gap-2">{filterSelects()}</div>}
+      </div>
+
+      <div className="mb-3 hidden gap-2 sm:grid sm:grid-cols-2 lg:grid-cols-[minmax(200px,1.4fr)_repeat(5,minmax(0,1fr))]">
         <SearchInput value={filters.q} onChange={onSearch} placeholder="Buscar por título" />
-        <Select
-          aria-label="Categoria"
-          options={categoryOptions}
-          placeholder="Todas as categorias"
-          value={filters.category}
-          onChange={(e) => apply({ category: e.target.value })}
-        />
-        <Select
-          aria-label="Etapa"
-          options={stageOptions}
-          placeholder={filters.category ? 'Todas as etapas' : 'Etapa (escolha a categoria)'}
-          disabled={!filters.category}
-          value={filters.stage}
-          onChange={(e) => apply({ stage: e.target.value })}
-        />
-        <Select
-          aria-label="Responsável"
-          options={responsibleOptions}
-          placeholder="Todos os responsáveis"
-          value={filters.responsible}
-          onChange={(e) => apply({ responsible: e.target.value })}
-        />
-        <Select
-          aria-label="Prioridade"
-          options={toOptions(PRIORITY)}
-          placeholder="Todas as prioridades"
-          value={filters.priority}
-          onChange={(e) => apply({ priority: e.target.value as PriorityLevel | '' })}
-        />
-        <Select
-          aria-label="Status"
-          options={STATUS_FILTER_OPTIONS}
-          value={filters.status}
-          onChange={(e) => apply({ status: e.target.value as DemandStatusFilter })}
-        />
+        {filterSelects()}
       </div>
 
       {(filters.waitingDocs || filters.stalled > 0 || active) && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-[12.5px]">
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-label">
           {filters.waitingDocs && (
             <FilterChip onRemove={() => apply({ waitingDocs: false })}>Aguardando documentação</FilterChip>
           )}
@@ -187,9 +230,82 @@ export function DemandsPage() {
           )
         ) : (
           <>
-            <Table className={q.isPlaceholderData ? 'opacity-60' : undefined}>
+            <label className="flex items-center gap-2.5 border-b border-line bg-surface-muted px-4 py-2 text-label text-ink-muted sm:hidden">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() => selection.toggleAll(pageIds)}
+                aria-label="Selecionar todas desta página"
+                className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+              />
+              Selecionar todas desta página
+            </label>
+            <ul className="divide-y divide-line sm:hidden">
+              {q.data.rows.map((d) => {
+                const cat = catById.get(d.category_id)
+                const stage = d.stage_id ? stageById.get(d.stage_id) : undefined
+                const open = isOpenStatus(d.status)
+                const days = daysSince(d.stage_changed_at)
+                const overdue = isNextActionOverdue(d)
+                const responsible = d.responsible_id ? members.map.get(d.responsible_id) : null
+                return (
+                  <li key={d.id} className="flex items-start gap-3 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selection.has(d.id)}
+                      onChange={() => selection.toggle(d.id)}
+                      aria-label={`Selecionar ${d.title}`}
+                      className="mt-2 size-4 shrink-0 cursor-pointer rounded border-line-strong accent-navy-900"
+                    />
+                    <div className="min-w-0 flex-1">
+                    <Link to={`/demandas/${d.id}`} className="block truncate py-1 font-medium text-ink hover:underline">
+                      {d.title}
+                    </Link>
+                    <p className="truncate text-caption text-ink-subtle">{d.client?.full_name ?? '—'}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <StatusBadge value={d.priority} map={PRIORITY} />
+                      {d.status !== 'em_andamento' && <StatusBadge value={d.status} map={DEMAND_STATUS} />}
+                      {stage && <span className="text-caption text-ink-muted">{stage.name}</span>}
+                    </div>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-muted">
+                      {cat && <CategoryTag name={cat.name} color={cat.color} />}
+                      {responsible && (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Avatar name={responsible} />
+                          <span>{responsible}</span>
+                        </span>
+                      )}
+                      {open && (
+                        <span className={cn(days >= STALLED_DAYS ? 'font-medium text-amber-700' : 'text-ink-muted')}>
+                          {formatDaysStalled(days)} na etapa
+                        </span>
+                      )}
+                      {(d.next_action || d.next_action_date) && (
+                        <span className={cn('tabular', overdue ? 'font-medium text-red-600' : 'text-ink-muted')}>
+                          {d.next_action && <span className="text-ink-muted">{d.next_action} · </span>}
+                          {d.next_action_date ? formatDate(d.next_action_date) : 'Sem data'}
+                          {overdue && ' · vencida'}
+                        </span>
+                      )}
+                    </div>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+            <div className="hidden sm:block">
+            <Table label="Lista de demandas" className={q.isPlaceholderData ? 'opacity-60' : undefined}>
               <THead>
                 <tr>
+                  <TH className="w-10 pr-0">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() => selection.toggleAll(pageIds)}
+                      aria-label="Selecionar todas desta página"
+                      className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+                    />
+                  </TH>
                   <TH>Demanda</TH>
                   <TH>Categoria</TH>
                   <TH>Etapa</TH>
@@ -209,15 +325,24 @@ export function DemandsPage() {
                   const responsible = d.responsible_id ? members.map.get(d.responsible_id) : null
                   return (
                     <TR key={d.id} onClick={() => navigate(`/demandas/${d.id}`)}>
+                      <TD className="w-10 pr-0" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.has(d.id)}
+                          onChange={() => selection.toggle(d.id)}
+                          aria-label={`Selecionar ${d.title}`}
+                          className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+                        />
+                      </TD>
                       <TD className="max-w-[280px]">
                         <Link
                           to={`/demandas/${d.id}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="block truncate font-medium text-ink hover:underline"
+                          className="block truncate py-1 font-medium text-ink hover:underline"
                         >
                           {d.title}
                         </Link>
-                        <span className="block truncate text-[12px] text-ink-subtle">{d.client?.full_name ?? '—'}</span>
+                        <span className="block truncate text-caption text-ink-subtle">{d.client?.full_name ?? '—'}</span>
                       </TD>
                       <TD>{cat ? <CategoryTag name={cat.name} color={cat.color} /> : '—'}</TD>
                       <TD>
@@ -255,7 +380,7 @@ export function DemandsPage() {
                               {d.next_action_date ? formatDate(d.next_action_date) : 'Sem data'}
                               {overdue && ' · vencida'}
                             </span>
-                            {d.next_action && <span className="block truncate text-[12px] text-ink-subtle">{d.next_action}</span>}
+                            {d.next_action && <span className="block truncate text-caption text-ink-subtle">{d.next_action}</span>}
                           </>
                         ) : (
                           <span className="text-ink-subtle">—</span>
@@ -266,10 +391,18 @@ export function DemandsPage() {
                 })}
               </TBody>
             </Table>
+            </div>
             <Pagination page={filters.page} pageSize={PAGE_SIZE} total={q.data.total} onChange={(p) => apply({ page: p })} />
           </>
         )}
       </Card>
+
+      <DemandsBulkActions
+        selected={selectedRows}
+        categories={cats.data ?? []}
+        memberOptions={members.options}
+        onClear={selection.clear}
+      />
 
       <DemandFormModal open={creating} onClose={() => setCreating(false)} onSaved={(d) => navigate(`/demandas/${d.id}`)} />
     </div>

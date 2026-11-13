@@ -1,0 +1,255 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
+import { ToastProvider } from '@/components/ui'
+import { addDaysISO, todayISO } from '@/lib/format'
+import type { Demand, Task } from '@/types/database'
+import { TodayPanel } from './TodayPanel'
+
+const STAMP = '2026-11-01T00:00:00.000Z'
+
+const mockDb = vi.hoisted(() => ({
+  tables: {} as Record<string, unknown[]>,
+  updates: [] as { table: string; patch: Record<string, unknown> }[],
+}))
+
+vi.mock('@/contexts/AuthContext', () => ({
+  useOrg: () => ({
+    orgId: 'org-1',
+    userId: 'user-1',
+    role: 'advogado',
+    profile: { id: 'user-1', full_name: 'Ana Advogada', email: 'ana@teste.com' },
+    organization: { id: 'org-1', name: 'Escritório Teste' },
+    can: () => true,
+  }),
+}))
+
+vi.mock('@/lib/supabase', () => {
+  type Row = Record<string, unknown>
+  interface Filter {
+    op: 'eq' | 'in' | 'lte' | 'lt'
+    column: string
+    value: unknown
+  }
+  interface MockQuery {
+    select(columns?: string, options?: unknown): MockQuery
+    eq(column: string, value: unknown): MockQuery
+    in(column: string, values: unknown[]): MockQuery
+    lte(column: string, value: unknown): MockQuery
+    lt(column: string, value: unknown): MockQuery
+    gte(column: string, value: unknown): MockQuery
+    neq(column: string, value: unknown): MockQuery
+    is(column: string, value: unknown): MockQuery
+    not(...args: unknown[]): MockQuery
+    or(...args: unknown[]): MockQuery
+    order(...args: unknown[]): MockQuery
+    limit(count: number): MockQuery
+    range(from: number, to: number): MockQuery
+    update(patch: Record<string, unknown>): MockQuery
+    delete(): MockQuery
+    single(): Promise<{ data: unknown; error: null }>
+    maybeSingle(): Promise<{ data: unknown; error: null }>
+    then<TResult1 = { data: unknown[]; error: null }, TResult2 = never>(
+      onfulfilled?: ((value: { data: unknown[]; error: null }) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+    ): Promise<TResult1 | TResult2>
+  }
+  function matches(entry: unknown, filters: Filter[]) {
+    const row = entry as Row
+    return filters.every((f) => {
+      const v = row[f.column]
+      if (f.op === 'eq') return v === f.value
+      if (f.op === 'in') return Array.isArray(f.value) && f.value.includes(v)
+      if (f.op === 'lte') return v != null && String(v) <= String(f.value)
+      return v != null && String(v) < String(f.value)
+    })
+  }
+  function builder(table: string): MockQuery {
+    const filters: Filter[] = []
+    const result = () => ({ data: (mockDb.tables[table] ?? []).filter((r) => matches(r, filters)), error: null })
+    const q: MockQuery = {
+      select: () => q,
+      eq: (column, value) => {
+        filters.push({ op: 'eq', column, value })
+        return q
+      },
+      in: (column, values) => {
+        filters.push({ op: 'in', column, value: values })
+        return q
+      },
+      lte: (column, value) => {
+        filters.push({ op: 'lte', column, value })
+        return q
+      },
+      lt: (column, value) => {
+        filters.push({ op: 'lt', column, value })
+        return q
+      },
+      gte: () => q,
+      neq: () => q,
+      is: () => q,
+      not: () => q,
+      or: () => q,
+      order: () => q,
+      limit: () => q,
+      range: () => q,
+      update: (patch) => {
+        mockDb.updates.push({ table, patch })
+        return q
+      },
+      delete: () => q,
+      single: async () => ({ data: null, error: null }),
+      maybeSingle: async () => ({ data: null, error: null }),
+      then: (onfulfilled, onrejected) => Promise.resolve(result()).then(onfulfilled, onrejected),
+    }
+    return q
+  }
+  return {
+    supabase: {
+      from: (table: string) => builder(table),
+      rpc: async () => ({ data: null, error: null }),
+    },
+    unwrap: <T,>(r: { data: T | null; error: unknown }): T => {
+      if (r?.error) throw new Error(String(r.error))
+      return r.data as T
+    },
+  }
+})
+
+function makeTask(over: Partial<Task>): Task {
+  return {
+    id: 't',
+    organization_id: 'org-1',
+    title: 'Tarefa',
+    description: null,
+    client_id: null,
+    demand_id: null,
+    assignee_id: 'user-1',
+    due_date: null,
+    priority: 'media',
+    status: 'pendente',
+    completed_at: null,
+    created_by: null,
+    created_at: STAMP,
+    updated_at: STAMP,
+    ...over,
+  } as Task
+}
+
+function makeDemand(over: Partial<Demand>): Demand {
+  return {
+    id: 'd',
+    organization_id: 'org-1',
+    client_id: 'cli-1',
+    category_id: 'cat-1',
+    stage_id: null,
+    title: 'Demanda',
+    description: null,
+    responsible_id: 'user-1',
+    opened_at: '2026-11-01',
+    priority: 'media',
+    status: 'em_andamento',
+    next_action: null,
+    next_action_date: null,
+    notes: null,
+    stage_changed_at: STAMP,
+    closed_at: null,
+    created_by: null,
+    created_at: STAMP,
+    updated_at: STAMP,
+    ...over,
+  } as Demand
+}
+
+function renderPanel() {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={qc}>
+      <ToastProvider>
+        <MemoryRouter>
+          <TodayPanel />
+        </MemoryRouter>
+      </ToastProvider>
+    </QueryClientProvider>,
+  )
+}
+
+beforeEach(() => {
+  mockDb.tables = { tasks: [], demands: [] }
+  mockDb.updates = []
+  localStorage.clear()
+})
+
+describe('<TodayPanel>', () => {
+  it('mostra o item atrasado antes do de hoje, com os rótulos de prazo', async () => {
+    const today = todayISO()
+    mockDb.tables.tasks = [
+      makeTask({ id: 't-today', title: 'Tarefa de hoje', due_date: today }),
+      makeTask({ id: 't-over', title: 'Tarefa atrasada', due_date: addDaysISO(today, -3) }),
+    ]
+
+    renderPanel()
+
+    const overdue = await screen.findByText('Tarefa atrasada')
+    const todayItem = screen.getByText('Tarefa de hoje')
+    expect(screen.getByText('Atrasada há 3 dias')).toBeInTheDocument()
+    expect(screen.getAllByText('Hoje').length).toBeGreaterThan(0)
+    // O atrasado aparece antes do item de hoje no documento.
+    expect(overdue.compareDocumentPosition(todayItem) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('ao clicar em Concluir, atualiza a tarefa com status concluida', async () => {
+    mockDb.tables.tasks = [makeTask({ id: 't-1', title: 'Protocolar recurso', due_date: todayISO() })]
+
+    renderPanel()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir tarefa Protocolar recurso' }))
+    // Pede confirmação antes de concluir
+    expect(mockDb.updates.find((u) => u.table === 'tasks')).toBeUndefined()
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir' }))
+
+    await waitFor(() => {
+      const update = mockDb.updates.find((u) => u.table === 'tasks')
+      expect(update?.patch).toMatchObject({ status: 'concluida' })
+    })
+  })
+
+  it('mostra o estado vazio quando não há nada para hoje', async () => {
+    renderPanel()
+
+    expect(await screen.findByText('Nada para hoje. Tudo em dia.')).toBeInTheDocument()
+  })
+
+  it('começa em "Minhas" e "Todos" mostra itens de outros responsáveis', async () => {
+    mockDb.tables.tasks = [
+      makeTask({ id: 't-mine', title: 'Minha tarefa', due_date: todayISO(), assignee_id: 'user-1' }),
+      makeTask({ id: 't-other', title: 'Tarefa da equipe', due_date: todayISO(), assignee_id: 'user-2' }),
+    ]
+
+    renderPanel()
+
+    expect(await screen.findByText('Minha tarefa')).toBeInTheDocument()
+    expect(screen.queryByText('Tarefa da equipe')).toBeNull()
+
+    fireEvent.click(screen.getByText('Todos'))
+
+    expect(await screen.findByText('Tarefa da equipe')).toBeInTheDocument()
+    expect(screen.getByText('Minha tarefa')).toBeInTheDocument()
+  })
+
+  it('a próxima ação de demanda leva para a demanda', async () => {
+    mockDb.tables.demands = [
+      makeDemand({
+        id: 'dem-1',
+        next_action: 'Protocolar contestação',
+        next_action_date: addDaysISO(todayISO(), -1),
+      }),
+    ]
+
+    renderPanel()
+
+    const link = await screen.findByRole('link', { name: 'Protocolar contestação' })
+    expect(link).toHaveAttribute('href', '/demandas/dem-1')
+  })
+})

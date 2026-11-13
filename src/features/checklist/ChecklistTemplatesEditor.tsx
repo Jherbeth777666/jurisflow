@@ -130,7 +130,7 @@ export function ChecklistTemplatesEditor({ initialCategoryId }: { initialCategor
         <ol className="divide-y divide-line px-1 py-1.5">
           {list.map((t, idx) => (
             <li key={t.id} className="group flex items-center gap-3 rounded-md px-3 py-1.5 hover:bg-canvas">
-              <span className="w-5 shrink-0 text-right text-[12px] text-ink-subtle tabular">{idx + 1}</span>
+              <span className="w-5 shrink-0 text-right text-caption text-ink-subtle tabular">{idx + 1}</span>
               {editing?.id === t.id ? (
                 <div className="min-w-0 flex-1">
                   <input
@@ -149,12 +149,12 @@ export function ChecklistTemplatesEditor({ initialCategoryId }: { initialCategor
                     }}
                     onBlur={saveEdit}
                     aria-label="Renomear item sugerido"
-                    className="h-7 w-full rounded border border-accent-500 bg-surface px-2 text-[13px] outline-none ring-3 ring-accent-100"
+                    className="h-7 w-full rounded border border-accent-500 bg-surface px-2 text-body-sm outline-none ring-3 ring-accent-100"
                   />
-                  {editing.error && <p className="mt-0.5 text-[11.5px] text-red-600">{editing.error}</p>}
+                  {editing.error && <p className="mt-0.5 text-caption text-red-600">{editing.error}</p>}
                 </div>
               ) : (
-                <span className="min-w-0 flex-1 truncate text-[13.5px] text-ink">{t.label}</span>
+                <span className="min-w-0 flex-1 truncate text-body text-ink">{t.label}</span>
               )}
               {canEdit && (
                 <div className={cn('flex shrink-0 items-center sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100')}>
@@ -189,24 +189,24 @@ export function ChecklistTemplatesEditor({ initialCategoryId }: { initialCategor
               maxLength={CHECKLIST_LABEL_MAX}
               placeholder="Novo item sugerido"
               aria-label="Novo item sugerido"
-              className="h-8 min-w-0 flex-1 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+              className="h-8 min-w-0 flex-1 rounded-md border border-line-strong bg-surface px-2.5 text-body-sm placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
             />
             <Button size="sm" type="submit" icon={<Plus className="size-3.5" />} loading={actions.add.isPending} disabled={!newLabel.trim()}>
               Adicionar
             </Button>
           </div>
           {error && (
-            <p className="mt-1 text-[12px] text-red-600" role="alert">
+            <p className="mt-1 text-caption text-red-600" role="alert">
               {error}
             </p>
           )}
-          <p className="mt-2 flex items-start gap-1.5 text-[11.5px] text-ink-subtle">
+          <p className="mt-2 flex items-start gap-1.5 text-caption text-ink-subtle">
             <Info className="mt-px size-3 shrink-0" />
             Alterações valem para as próximas aplicações; checklists já criados nas demandas não mudam.
           </p>
         </form>
       ) : (
-        !canEdit && <p className="border-t border-line px-4 py-3 text-[12px] text-ink-subtle">Somente leitura para o seu perfil.</p>
+        !canEdit && <p className="border-t border-line px-4 py-3 text-caption text-ink-subtle">Somente leitura para o seu perfil.</p>
       )}
 
       <ConfirmDialog

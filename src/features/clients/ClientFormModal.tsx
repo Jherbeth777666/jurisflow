@@ -78,7 +78,7 @@ function ClientFormModalInner({ open, onClose, client, onSaved }: ClientFormModa
       }
     >
       <form id="client-form" onSubmit={submit} noValidate className="space-y-4">
-        <div className="flex items-start gap-2 rounded-md bg-navy-50 px-3 py-2 text-[12.5px] text-ink-muted">
+        <div className="flex items-start gap-2 rounded-md bg-navy-50 px-3 py-2 text-label text-ink-muted">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-navy-500" />
           <span>
             LGPD: colete apenas o necessário para o atendimento. Campos opcionais podem ficar em branco e as observações não devem conter

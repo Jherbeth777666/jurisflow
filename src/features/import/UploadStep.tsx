@@ -34,8 +34,8 @@ export function UploadStep({ onFile, loading, error }: { onFile: (f: File) => vo
           <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-surface text-navy-600 shadow-[var(--shadow-card)]">
             <FileSpreadsheet className="size-5" />
           </div>
-          <p className="text-[14.5px] font-medium text-ink">Arraste sua planilha aqui</p>
-          <p className="mt-1 text-[13px] text-ink-muted">Excel (.xlsx) ou CSV · até 5 MB e {MAX_ROWS.toLocaleString('pt-BR')} linhas</p>
+          <p className="text-body-lg font-medium text-ink">Arraste sua planilha aqui</p>
+          <p className="mt-1 text-body-sm text-ink-muted">Excel (.xlsx) ou CSV · até 5 MB e {MAX_ROWS.toLocaleString('pt-BR')} linhas</p>
           <Button className="mt-4" variant="primary" icon={<Upload className="size-4" />} loading={loading} onClick={() => inputRef.current?.click()}>
             Escolher arquivo
           </Button>
@@ -64,12 +64,12 @@ export function UploadStep({ onFile, loading, error }: { onFile: (f: File) => vo
           <div className="flex items-start gap-2.5">
             <Lock className="mt-0.5 size-4 shrink-0 text-emerald-600" />
             <div>
-              <p className="text-[13px] font-medium text-ink">Seu arquivo não sai deste computador</p>
-              <p className="mt-1 text-[12.5px] leading-relaxed text-ink-muted">
+              <p className="text-body-sm font-medium text-ink">Seu arquivo não sai deste computador</p>
+              <p className="mt-1 text-label leading-relaxed text-ink-muted">
                 A planilha é lida no próprio navegador e <strong className="font-medium text-ink">não é enviada nem armazenada</strong> em lugar
                 nenhum. Só os registros que você confirmar na revisão são gravados no cadastro.
               </p>
-              <p className="mt-2 text-[12.5px] leading-relaxed text-ink-muted">
+              <p className="mt-2 text-label leading-relaxed text-ink-muted">
                 Se você usar o mapeamento com IA, vão apenas os títulos das colunas e exemplos <em>mascarados</em> (ex.: “999.999.999-99”) —
                 nunca nomes, CPFs ou telefones reais.
               </p>
@@ -77,8 +77,8 @@ export function UploadStep({ onFile, loading, error }: { onFile: (f: File) => vo
           </div>
         </Card>
         <Card className="p-4">
-          <p className="text-[13px] font-medium text-ink">Não tem uma planilha pronta?</p>
-          <p className="mt-1 text-[12.5px] text-ink-muted">Baixe o modelo, preencha no Excel e envie aqui. Qualquer ordem de colunas funciona.</p>
+          <p className="text-body-sm font-medium text-ink">Não tem uma planilha pronta?</p>
+          <p className="mt-1 text-label text-ink-muted">Baixe o modelo, preencha no Excel e envie aqui. Qualquer ordem de colunas funciona.</p>
           <Button size="sm" className="mt-3" icon={<Download className="size-3.5" />} onClick={() => downloadCSV('modelo-importacao-clientes', TEMPLATE_ROWS)}>
             Baixar modelo (CSV)
           </Button>
@@ -97,7 +97,7 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
           <li key={s} className="flex items-center gap-2" aria-current={state === 'current' ? 'step' : undefined}>
             <span
               className={cn(
-                'tabular flex size-6 items-center justify-center rounded-full text-[11.5px] font-semibold',
+                'tabular flex size-6 items-center justify-center rounded-full text-caption font-semibold',
                 state === 'done' && 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200',
                 state === 'current' && 'bg-navy-900 text-white',
                 state === 'todo' && 'bg-slate-100 text-ink-subtle',
@@ -105,7 +105,7 @@ export function Stepper({ steps, current }: { steps: string[]; current: number }
             >
               {state === 'done' ? '✓' : i + 1}
             </span>
-            <span className={cn('text-[13px]', state === 'current' ? 'font-medium text-ink' : 'text-ink-muted')}>{s}</span>
+            <span className={cn('text-body-sm', state === 'current' ? 'font-medium text-ink' : 'text-ink-muted')}>{s}</span>
             {i < steps.length - 1 && <span className="mx-1 hidden h-px w-8 bg-line-strong sm:block" aria-hidden />}
           </li>
         )

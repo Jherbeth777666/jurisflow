@@ -22,13 +22,13 @@ export function Tabs<T extends string>({
             aria-selected={active}
             onClick={() => onChange(it.value)}
             className={cn(
-              '-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px] font-medium transition-colors',
-              active ? 'border-navy-900 text-ink' : 'border-transparent text-ink-muted hover:text-ink',
+              'touch-target -mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-body-sm font-medium transition-colors',
+              active ? 'border-navy-900 text-ink' : 'border-transparent text-ink-muted hover:border-line-strong hover:text-ink',
             )}
           >
             {it.label}
             {it.count !== undefined && (
-              <span className={cn('tabular rounded-full px-1.5 text-[11px]', active ? 'bg-navy-900 text-white' : 'bg-slate-100 text-ink-muted')}>
+              <span className={cn('tabular rounded-full px-1.5 text-2xs', active ? 'bg-navy-900 text-white' : 'bg-ink/[0.06] text-ink-muted')}>
                 {it.count}
               </span>
             )}

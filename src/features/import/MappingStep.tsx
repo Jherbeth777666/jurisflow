@@ -1,4 +1,4 @@
-import { ArrowRight, Info, Sparkles } from 'lucide-react'
+import { ArrowRight, History, Info, Sparkles } from 'lucide-react'
 import { Badge, Button, Card, CardHeader, InlineError, Select } from '@/components/ui'
 import { FIELD_HINTS, FIELD_LABELS, IMPORT_FIELDS, type ColumnInfo, type ImportField, type Mapping } from './mapping'
 
@@ -18,6 +18,9 @@ interface Props {
   onBack: () => void
   onNext: () => void
   rowsCount: number
+  /** o mapeamento veio da última importação desta planilha */
+  remembered?: boolean
+  onRedo?: () => void
 }
 
 export function MappingStep(p: Props) {
@@ -55,13 +58,23 @@ export function MappingStep(p: Props) {
           }
         />
         <div className="px-4 pt-3">
+          {p.remembered && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-accent-50 px-3 py-2">
+              <p className="flex items-center gap-1.5 text-label text-accent-700">
+                <History className="size-3.5 shrink-0" /> Usamos o mapeamento salvo da última importação desta planilha.
+              </p>
+              <Button size="sm" onClick={p.onRedo}>
+                Refazer mapeamento
+              </Button>
+            </div>
+          )}
           {p.ai.kind === 'done' && (
-            <p className="flex items-center gap-1.5 text-[12.5px] text-emerald-700">
+            <p className="flex items-center gap-1.5 text-label text-emerald-700">
               <Sparkles className="size-3.5" /> Sugestão da IA aplicada — confira antes de seguir.
             </p>
           )}
           {p.ai.kind === 'unavailable' && (
-            <p className="flex items-start gap-1.5 text-[12.5px] text-ink-muted">
+            <p className="flex items-start gap-1.5 text-label text-ink-muted">
               <Info className="mt-0.5 size-3.5 shrink-0" /> {p.ai.message} O mapeamento automático continua funcionando.
             </p>
           )}
@@ -73,11 +86,11 @@ export function MappingStep(p: Props) {
             return (
               <div key={f} className="grid gap-2 px-4 py-3 sm:grid-cols-[200px_minmax(0,260px)_1fr] sm:items-center">
                 <div>
-                  <p className="text-[13px] font-medium text-ink">
+                  <p className="text-body-sm font-medium text-ink">
                     {FIELD_LABELS[f]}
                     {f === 'full_name' && <span className="ml-0.5 text-red-500">*</span>}
                   </p>
-                  {FIELD_HINTS[f] && <p className="text-[12px] text-ink-subtle">{FIELD_HINTS[f]}</p>}
+                  {FIELD_HINTS[f] && <p className="text-caption text-ink-subtle">{FIELD_HINTS[f]}</p>}
                 </div>
                 <Select
                   aria-label={`Coluna para ${FIELD_LABELS[f]}`}
@@ -89,7 +102,7 @@ export function MappingStep(p: Props) {
                 <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                   {idx !== undefined && conf !== undefined && conf < 0.7 && <Badge tone="amber">Confira</Badge>}
                   {samplesOf(idx).map((s, i) => (
-                    <span key={i} className="max-w-[180px] truncate rounded bg-canvas px-1.5 py-0.5 text-[12px] text-ink-muted ring-1 ring-line" title={s}>
+                    <span key={i} className="max-w-[180px] truncate rounded bg-canvas px-1.5 py-0.5 text-caption text-ink-muted ring-1 ring-line" title={s}>
                       {s}
                     </span>
                   ))}
@@ -99,7 +112,7 @@ export function MappingStep(p: Props) {
           })}
         </div>
         {unmapped.length > 0 && (
-          <p className="border-t border-line px-4 py-2.5 text-[12px] text-ink-subtle">
+          <p className="border-t border-line px-4 py-2.5 text-caption text-ink-subtle">
             Colunas que não serão importadas: {unmapped.map((c) => c.header).join(', ')}
           </p>
         )}
@@ -114,7 +127,7 @@ export function MappingStep(p: Props) {
           <div className="divide-y divide-line">
             {p.categoryValues.slice(0, 200).map((v) => (
               <div key={v} className="grid gap-2 px-4 py-2.5 sm:grid-cols-[1fr_260px] sm:items-center">
-                <span className="truncate text-[13px] text-ink" title={v}>
+                <span className="truncate text-body-sm text-ink" title={v}>
                   {v}
                 </span>
                 <Select

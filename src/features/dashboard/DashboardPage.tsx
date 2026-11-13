@@ -17,15 +17,16 @@ import {
 } from 'recharts'
 import {
   AlarmClock,
+  ArrowDownRight,
   ArrowRight,
-  Briefcase,
+  ArrowUpRight,
   CalendarClock,
   CheckCircle2,
   FileWarning,
   ListTodo,
+  Minus,
   Plus,
   Users,
-  Wallet,
   Receipt,
   Hourglass,
 } from 'lucide-react'
@@ -35,16 +36,22 @@ import { DEMAND_STATUS, PRIORITY } from '@/lib/constants'
 import { cn } from '@/lib/cn'
 import { useOrg } from '@/contexts/AuthContext'
 import { qk, useCategories, useMemberNames } from '@/hooks/useOrgData'
-import { Badge, Card, CardBody, CardHeader, EmptyState, ErrorState, Skeleton, StatCard, StatusBadge } from '@/components/ui'
+import { Badge, Card, CardBody, CardHeader, EmptyState, ErrorState, Skeleton, StatusBadge } from '@/components/ui'
 import { ActivityFeed } from '@/components/ActivityFeed'
 import { DemandFormModal } from '@/features/demands/DemandFormModal'
 import type { DashboardMetrics, Demand, Task } from '@/types/database'
 import { fetchClientNames } from '@/features/contracts/api'
 import { ChartTooltip, Legend } from './charts'
 import { axisProps, CHART, compactCurrency, STATUS_COLORS } from './chartTheme'
-import { dueTone, firstName, greeting, sortPriorityTasks } from './logic'
+import { dueTone, firstName, greeting, monthDelta, sortPriorityTasks, type MonthDelta } from './logic'
+import { TodayPanel } from './TodayPanel'
 
 const STALLED_DAYS = 15
+
+const QUICK_ACTIONS = [
+  { to: '/tarefas?nova=1', label: 'Nova tarefa', icon: ListTodo },
+  { to: '/clientes?novo=1', label: 'Novo cliente', icon: Users },
+]
 
 function normalizeMetrics(m: DashboardMetrics): DashboardMetrics {
   const n = (v: unknown) => Number(v ?? 0)
@@ -56,6 +63,8 @@ function normalizeMetrics(m: DashboardMetrics): DashboardMetrics {
     demands_waiting_docs: n(m.demands_waiting_docs),
     tasks_pending: n(m.tasks_pending),
     tasks_overdue: n(m.tasks_overdue),
+    next_actions_overdue: n(m.next_actions_overdue),
+    next_actions_today: n(m.next_actions_today),
     deadlines_upcoming: n(m.deadlines_upcoming),
     fees_expected: n(m.fees_expected),
     fees_received: n(m.fees_received),
@@ -88,16 +97,35 @@ export function DashboardPage() {
   const isNewOffice = !!m && m.clients_total === 0 && m.demands_in_progress === 0 && m.demands_done === 0
 
   return (
-    <div className="space-y-5">
-      <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-[20px] font-semibold tracking-[-0.01em] text-ink">
+    <div className="space-y-6">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <p className="eyebrow first-letter:uppercase">{dateLabel}</p>
+          <h1 className="mt-1.5 text-heading font-semibold tracking-[-0.025em] text-ink sm:text-display">
             {greeting(now.getHours())}
             {name ? `, ${name}` : ''}
           </h1>
-          <p className="mt-0.5 text-[13.5px] text-ink-muted first-letter:uppercase">{dateLabel}</p>
+          <p className="mt-1 truncate text-body text-ink-muted">{organization.name}</p>
         </div>
-        <p className="text-[12.5px] text-ink-subtle">{organization.name}</p>
+        <nav aria-label="Atalhos rápidos" className="flex flex-wrap gap-2">
+          {QUICK_ACTIONS.map(({ to, label, icon: Icon }) => (
+            <Link
+              key={to}
+              to={to}
+              className="touch-target inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-control)] border border-line-strong bg-surface px-3 text-body-sm font-medium text-ink shadow-[var(--shadow-xs)] transition-[border-color,background-color,transform] duration-150 hover:border-ink-subtle/40 hover:bg-surface-muted active:scale-[0.97]"
+            >
+              <Icon className="size-4 text-ink-subtle" aria-hidden />
+              {label}
+            </Link>
+          ))}
+          <Link
+            to="/demandas?nova=1"
+            className="touch-target inline-flex h-9 items-center gap-1.5 rounded-[var(--radius-control)] bg-navy-900 px-3 text-body-sm font-medium text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.1),var(--shadow-xs)] transition-[background-color,transform] duration-150 hover:bg-navy-800 active:scale-[0.97] lg:hidden"
+          >
+            <Plus className="size-4" aria-hidden />
+            Nova demanda
+          </Link>
+        </nav>
       </header>
 
       {metrics.isError ? (
@@ -105,8 +133,18 @@ export function DashboardPage() {
           <ErrorState message={(metrics.error as Error).message} onRetry={() => metrics.refetch()} />
         </Card>
       ) : (
+        <KpiPanel m={m} />
+      )}
+
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
+          <TodayPanel />
+        </div>
+        <AttentionCard m={m} />
+      </div>
+
+      {metrics.isError ? null : (
         <>
-          <StatGrid m={m} />
           {isNewOffice ? (
             <WelcomePanel />
           ) : (
@@ -139,7 +177,7 @@ export function DashboardPage() {
             <PriorityTasks className="lg:col-span-2" />
             <Card className="h-fit">
               <CardHeader title="Atividades recentes" />
-              <CardBody className="max-h-[420px] overflow-y-auto scrollbar-thin">
+              <CardBody className="max-h-[420px] overflow-y-auto scrollbar-thin" role="region" aria-label="Atividades recentes" tabIndex={0}>
                 <ActivityFeed limit={12} />
               </CardBody>
             </Card>
@@ -153,59 +191,250 @@ export function DashboardPage() {
 // ---------------------------------------------------------------------------
 // Indicadores
 // ---------------------------------------------------------------------------
-function StatGrid({ m }: { m: DashboardMetrics | undefined }) {
-  if (!m)
+function Delta({ delta, unit = 'number' }: { delta: MonthDelta | null; unit?: 'number' | 'currency' }) {
+  if (!delta) return null
+  const { diff } = delta
+  const fmt = (v: number) => (unit === 'currency' ? formatCurrency(Math.abs(v)) : formatNumber(Math.abs(v)))
+  if (diff === 0)
     return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-busy="true">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <Skeleton key={i} className="h-[92px] rounded-[var(--radius-card)]" />
-        ))}
-      </div>
+      <span className="inline-flex items-center gap-1 text-caption text-ink-subtle">
+        <Minus className="size-3" aria-hidden /> igual ao mês anterior
+      </span>
     )
-  const pct = m.fees_expected > 0 ? Math.round((m.fees_received / m.fees_expected) * 100) : 0
+  const up = diff > 0
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <StatCard label="Clientes" value={formatNumber(m.clients_total)} icon={<Users className="size-4" />} to="/clientes" />
-      <StatCard label="Demandas em andamento" value={formatNumber(m.demands_in_progress)} icon={<Briefcase className="size-4" />} to="/demandas" />
-      <StatCard label="Demandas concluídas" value={formatNumber(m.demands_done)} icon={<CheckCircle2 className="size-4" />} to="/demandas?status=concluida" tone="success" />
-      <StatCard
-        label="Aguardando documentos"
-        value={formatNumber(m.demands_waiting_docs)}
-        icon={<FileWarning className="size-4" />}
-        to="/demandas?waiting_docs=1"
-        tone={m.demands_waiting_docs > 0 ? 'warning' : 'default'}
-      />
-      <StatCard
-        label="Atividades pendentes"
-        value={formatNumber(m.tasks_pending)}
-        icon={<ListTodo className="size-4" />}
-        to="/tarefas"
-        hint={m.tasks_overdue > 0 ? <span className="text-red-600">{m.tasks_overdue} vencida{m.tasks_overdue === 1 ? '' : 's'}</span> : 'Nenhuma vencida'}
-        tone={m.tasks_overdue > 0 ? 'danger' : 'default'}
-      />
-      <StatCard
-        label="Prazos nos próximos 7 dias"
-        value={formatNumber(m.deadlines_upcoming)}
-        icon={<CalendarClock className="size-4" />}
-        to="/tarefas?filter=week"
-        tone={m.deadlines_upcoming > 0 ? 'warning' : 'default'}
-      />
-      <StatCard label="Honorários previstos" value={formatCurrency(m.fees_expected)} icon={<Receipt className="size-4" />} to="/contratos" hint="Contratos ativos e quitados" />
-      <StatCard
-        label="Honorários recebidos"
-        value={formatCurrency(m.fees_received)}
-        icon={<Wallet className="size-4" />}
-        to="/contratos"
-        tone="success"
-        hint={
-          m.installments_overdue > 0 ? (
-            <span className="text-red-600">{formatCurrency(m.installments_overdue)} vencido</span>
-          ) : m.fees_expected > 0 ? (
-            `${pct}% do previsto`
-          ) : undefined
-        }
-      />
-    </div>
+    <span className="inline-flex items-center gap-1 text-caption text-ink-subtle">
+      <span
+        className={cn(
+          'inline-flex items-center gap-0.5 rounded px-1 py-px font-medium tabular',
+          up ? 'bg-emerald-50 text-emerald-700' : 'bg-ink/[0.05] text-ink-muted',
+        )}
+      >
+        {up ? <ArrowUpRight className="size-3" aria-hidden /> : <ArrowDownRight className="size-3" aria-hidden />}
+        {fmt(diff)}
+      </span>
+      vs. mês anterior
+    </span>
+  )
+}
+
+function Kpi({
+  label,
+  value,
+  to,
+  foot,
+  accent,
+}: {
+  label: string
+  value: ReactNode
+  to: string
+  foot?: ReactNode
+  accent?: 'danger' | 'warning'
+}) {
+  return (
+    <Link
+      to={to}
+      className="group relative flex min-w-0 flex-col bg-surface px-5 py-4 transition-colors hover:bg-surface-muted focus-visible:z-10"
+    >
+      <span className="flex items-center justify-between gap-2 text-label font-medium text-ink-muted">
+        <span className="flex min-w-0 items-center gap-1.5 truncate">
+          {accent && (
+            <span
+              className={cn('size-1.5 shrink-0 rounded-full', accent === 'danger' ? 'bg-red-500' : 'bg-amber-500')}
+              aria-hidden
+            />
+          )}
+          {label}
+        </span>
+        <ArrowUpRight
+          className="size-3.5 shrink-0 text-ink-subtle opacity-0 transition-opacity group-hover:opacity-100"
+          aria-hidden
+        />
+      </span>
+      <span className="tabular mt-2 truncate text-heading font-semibold leading-none tracking-[-0.03em] text-ink sm:text-display">
+        {value}
+      </span>
+      {foot && <span className="mt-2 min-h-5">{foot}</span>}
+    </Link>
+  )
+}
+
+function KpiPanel({ m }: { m: DashboardMetrics | undefined }) {
+  if (!m) return <Skeleton className="h-[200px] w-full rounded-[var(--radius-card)]" />
+  const opened = monthDelta(m.monthly, (r) => r.opened)
+  const received = monthDelta(m.revenue_monthly, (r) => r.received)
+  const pct = m.fees_expected > 0 ? Math.round((m.fees_received / m.fees_expected) * 100) : null
+  return (
+    <Card className="overflow-hidden">
+      <div className="grid grid-cols-2 gap-px bg-line lg:grid-cols-4">
+        <Kpi
+          label="Demandas em andamento"
+          value={formatNumber(m.demands_in_progress)}
+          to="/demandas"
+          foot={<Delta delta={opened} />}
+        />
+        <Kpi
+          label="Atividades pendentes"
+          value={formatNumber(m.tasks_pending)}
+          to="/tarefas"
+          accent={m.tasks_overdue > 0 ? 'danger' : undefined}
+          foot={
+            <span className="text-caption text-ink-subtle">
+              {m.tasks_overdue > 0 ? (
+                <span className="font-medium text-red-700">
+                  {formatNumber(m.tasks_overdue)} vencida{m.tasks_overdue === 1 ? '' : 's'}
+                </span>
+              ) : (
+                'Nenhuma vencida'
+              )}
+            </span>
+          }
+        />
+        <Kpi
+          label="Prazos em 7 dias"
+          value={formatNumber(m.deadlines_upcoming)}
+          to="/tarefas?filter=week"
+          accent={m.deadlines_upcoming > 0 ? 'warning' : undefined}
+          foot={
+            <span className="text-caption text-ink-subtle">
+              {formatNumber(m.next_actions_today)} próxima{m.next_actions_today === 1 ? '' : 's'} ação{m.next_actions_today === 1 ? '' : 'ões'} hoje
+            </span>
+          }
+        />
+        <Kpi
+          label="Honorários recebidos"
+          value={formatCurrency(m.fees_received)}
+          to="/contratos"
+          foot={
+            pct != null ? (
+              <span className="flex items-center gap-2">
+                <span
+                  className="h-1.5 w-16 overflow-hidden rounded-full bg-ink/[0.07]"
+                  role="img"
+                  aria-label={`${pct}% do previsto recebido`}
+                >
+                  <span className="block h-full rounded-full bg-accent-600" style={{ width: `${Math.min(pct, 100)}%` }} />
+                </span>
+                <span className="text-caption text-ink-subtle">
+                  <span className="tabular font-medium text-ink-muted">{pct}%</span> de {formatCurrency(m.fees_expected)}
+                </span>
+              </span>
+            ) : (
+              <Delta delta={received} unit="currency" />
+            )
+          }
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-x-6 gap-y-2 border-t border-line bg-surface-muted px-5 py-3 text-label sm:grid-cols-4">
+        <MiniStat label="Clientes" value={formatNumber(m.clients_total)} to="/clientes" />
+        <MiniStat label="Concluídas" value={formatNumber(m.demands_done)} to="/demandas?status=concluida" />
+        <MiniStat label="Aguardando documentos" value={formatNumber(m.demands_waiting_docs)} to="/demandas?waiting_docs=1" />
+        <MiniStat label="Honorários previstos" value={formatCurrency(m.fees_expected)} to="/contratos" />
+      </div>
+    </Card>
+  )
+}
+
+function MiniStat({ label, value, to }: { label: string; value: string; to: string }) {
+  return (
+    <Link to={to} className="flex min-h-6 min-w-0 items-baseline justify-between gap-2 rounded hover:text-ink sm:justify-start">
+      <span className="truncate text-ink-muted">{label}</span>
+      <span className="tabular shrink-0 font-semibold text-ink">{value}</span>
+    </Link>
+  )
+}
+
+function AttentionCard({ m }: { m: DashboardMetrics | undefined }) {
+  const rows = m
+    ? [
+        {
+          key: 'tasks',
+          show: m.tasks_overdue > 0,
+          tone: 'danger' as const,
+          icon: AlarmClock,
+          label: 'Tarefas vencidas',
+          value: formatNumber(m.tasks_overdue),
+          to: '/tarefas',
+        },
+        {
+          key: 'next',
+          show: m.next_actions_overdue > 0,
+          tone: 'danger' as const,
+          icon: CalendarClock,
+          label: 'Próximas ações vencidas',
+          value: formatNumber(m.next_actions_overdue),
+          to: '/agenda?v=atrasados',
+        },
+        {
+          key: 'installments',
+          show: m.installments_overdue > 0,
+          tone: 'danger' as const,
+          icon: Receipt,
+          label: 'Parcelas em atraso',
+          value: formatCurrency(m.installments_overdue),
+          to: '/contratos',
+        },
+        {
+          key: 'docs',
+          show: m.demands_waiting_docs > 0,
+          tone: 'warning' as const,
+          icon: FileWarning,
+          label: 'Aguardando documentos',
+          value: formatNumber(m.demands_waiting_docs),
+          to: '/demandas?waiting_docs=1',
+        },
+        {
+          key: 'deadlines',
+          show: m.deadlines_upcoming > 0,
+          tone: 'warning' as const,
+          icon: Hourglass,
+          label: 'Prazos nos próximos 7 dias',
+          value: formatNumber(m.deadlines_upcoming),
+          to: '/tarefas?filter=week',
+        },
+      ].filter((r) => r.show)
+    : []
+  return (
+    <Card>
+      <CardHeader title="Precisa de atenção" description="Pendências que pedem ação" />
+      {!m ? (
+        <div className="space-y-2 p-4" aria-busy="true">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-9 w-full" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="flex items-center gap-3 px-5 py-6">
+          <span className="flex size-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-inset ring-emerald-100">
+            <CheckCircle2 className="size-4" aria-hidden />
+          </span>
+          <div>
+            <p className="text-body-sm font-medium text-ink">Tudo em dia</p>
+            <p className="text-caption text-ink-subtle">Nenhuma pendência vencida no escritório.</p>
+          </div>
+        </div>
+      ) : (
+        <ul className="divide-y divide-line">
+          {rows.map(({ key, tone, icon: Icon, label, value, to }) => (
+            <li key={key}>
+              <Link to={to} className="group flex min-h-12 items-center gap-3 px-5 py-2.5 transition-colors hover:bg-surface-muted">
+                <span
+                  className={cn(
+                    'flex size-8 shrink-0 items-center justify-center rounded-[var(--radius-control)] ring-1 ring-inset',
+                    tone === 'danger' ? 'bg-red-50 text-red-600 ring-red-100' : 'bg-amber-50 text-amber-700 ring-amber-100',
+                  )}
+                >
+                  <Icon className="size-4" aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1 truncate text-body-sm text-ink">{label}</span>
+                <span className="tabular shrink-0 text-body-sm font-semibold text-ink">{value}</span>
+                <ArrowRight className="size-3.5 shrink-0 text-ink-subtle transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   )
 }
 
@@ -236,7 +465,7 @@ function ChartCard({
 }
 
 function ChartEmpty({ text }: { text: string }) {
-  return <div className="flex h-[240px] items-center justify-center text-center text-[13px] text-ink-subtle">{text}</div>
+  return <div className="flex h-[240px] items-center justify-center text-center text-body-sm text-ink-subtle">{text}</div>
 }
 
 function MonthlyChart({ data }: { data: DashboardMetrics['monthly'] }) {
@@ -287,11 +516,11 @@ function StatusChart({ data }: { data: DashboardMetrics['by_status'] }) {
           </PieChart>
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-          <span className="tabular text-[20px] font-semibold text-ink">{formatNumber(total)}</span>
-          <span className="text-[11.5px] text-ink-subtle">demandas</span>
+          <span className="tabular text-heading font-semibold text-ink">{formatNumber(total)}</span>
+          <span className="text-caption text-ink-subtle">demandas</span>
         </div>
       </div>
-      <ul className="w-full space-y-1 text-[12.5px]">
+      <ul className="w-full space-y-1 text-label">
         {rows.map((r) => (
           <li key={r.status} className="flex items-center justify-between">
             <span className="flex items-center gap-2 text-ink-muted">
@@ -434,7 +663,7 @@ function PriorityTasks({ className }: { className?: string }) {
         title="Tarefas prioritárias"
         description="Pendentes ordenadas por vencimento e prioridade"
         action={
-          <Link to="/tarefas" className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-700 hover:underline">
+          <Link to="/tarefas" className="inline-flex items-center gap-1 text-label font-medium text-accent-700 hover:underline">
             Ver todas <ArrowRight className="size-3.5" />
           </Link>
         }
@@ -464,20 +693,20 @@ function PriorityTasks({ className }: { className?: string }) {
                 />
                 <div className="min-w-0 flex-1">
                   {t.demand_id ? (
-                    <Link to={`/demandas/${t.demand_id}`} className="block truncate text-[13.5px] font-medium text-ink hover:underline">
+                    <Link to={`/demandas/${t.demand_id}`} className="block truncate text-body font-medium text-ink hover:underline">
                       {t.title}
                     </Link>
                   ) : (
-                    <span className="block truncate text-[13.5px] font-medium text-ink">{t.title}</span>
+                    <span className="block truncate text-body font-medium text-ink">{t.title}</span>
                   )}
-                  <span className="block truncate text-[12px] text-ink-subtle">
+                  <span className="block truncate text-caption text-ink-subtle">
                     {[t.context, t.assignee_id ? names.map.get(t.assignee_id) : 'Sem responsável'].filter(Boolean).join(' · ')}
                   </span>
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   <span
                     className={cn(
-                      'tabular text-[12px]',
+                      'tabular text-caption',
                       tone === 'overdue' ? 'font-medium text-red-600' : tone === 'today' ? 'font-medium text-amber-700' : 'text-ink-muted',
                     )}
                   >
@@ -537,7 +766,7 @@ function StalledDemands() {
         description={`Sem mudança de etapa há mais de ${STALLED_DAYS} dias`}
         action={
           q.data && q.data.total > 0 ? (
-            <Link to={`/demandas?stalled=${STALLED_DAYS}`} className="inline-flex items-center gap-1 text-[12.5px] font-medium text-accent-700 hover:underline">
+            <Link to={`/demandas?stalled=${STALLED_DAYS}`} className="inline-flex items-center gap-1 text-label font-medium text-accent-700 hover:underline">
               Ver {q.data.total} <ArrowRight className="size-3.5" />
             </Link>
           ) : undefined
@@ -560,14 +789,14 @@ function StalledDemands() {
             return (
               <li key={d.id} className="px-4 py-2.5">
                 <div className="flex items-start justify-between gap-3">
-                  <Link to={`/demandas/${d.id}`} className="min-w-0 truncate text-[13.5px] font-medium text-ink hover:underline">
+                  <Link to={`/demandas/${d.id}`} className="min-w-0 truncate text-body font-medium text-ink hover:underline">
                     {d.title}
                   </Link>
                   <Badge tone="amber" className="shrink-0">
                     <AlarmClock className="size-3" /> {daysSince(d.stage_changed_at)} dias
                   </Badge>
                 </div>
-                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-ink-subtle">
+                <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-caption text-ink-subtle">
                   {cat && <span className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: cat.color }} />}
                   <span className="truncate">
                     {d.client} · {d.stage_id ? stageName.get(d.stage_id) ?? 'Etapa' : 'Sem etapa'}
@@ -591,8 +820,8 @@ function WelcomePanel() {
     <Card>
       <div className="grid gap-6 p-6 md:grid-cols-[1.2fr_1fr] md:items-center">
         <div>
-          <h2 className="text-[16px] font-semibold text-ink">Comece pelo cadastro dos seus clientes</h2>
-          <p className="mt-1 max-w-prose text-[13.5px] text-ink-muted">
+          <h2 className="text-title font-semibold text-ink">Comece pelo cadastro dos seus clientes</h2>
+          <p className="mt-1 max-w-prose text-body text-ink-muted">
             Os indicadores e gráficos deste painel são calculados a partir dos dados do escritório. Assim que você cadastrar clientes e
             abrir demandas, eles aparecem aqui.
           </p>
@@ -600,7 +829,7 @@ function WelcomePanel() {
         <div className="grid gap-2 sm:grid-cols-2">
           <Link
             to="/clientes?novo=1"
-            className="flex items-center gap-3 rounded-md border border-line-strong px-3 py-3 text-[13.5px] font-medium text-ink transition-colors hover:bg-navy-50"
+            className="flex items-center gap-3 rounded-md border border-line-strong px-3 py-3 text-body font-medium text-ink transition-colors hover:bg-navy-50"
           >
             <span className="flex size-8 items-center justify-center rounded-md bg-navy-50 text-navy-600">
               <Users className="size-4" />
@@ -610,7 +839,7 @@ function WelcomePanel() {
           <button
             type="button"
             onClick={() => setDemandOpen(true)}
-            className="flex items-center gap-3 rounded-md border border-line-strong px-3 py-3 text-left text-[13.5px] font-medium text-ink transition-colors hover:bg-navy-50"
+            className="flex items-center gap-3 rounded-md border border-line-strong px-3 py-3 text-left text-body font-medium text-ink transition-colors hover:bg-navy-50"
           >
             <span className="flex size-8 items-center justify-center rounded-md bg-navy-50 text-navy-600">
               <Plus className="size-4" />

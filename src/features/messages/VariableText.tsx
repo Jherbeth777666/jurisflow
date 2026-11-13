@@ -9,9 +9,9 @@ export function VariableText({ text }: { text: string }) {
           <span
             key={i}
             title={variableLabel(p.text)}
-            className="mx-px rounded bg-accent-50 px-1 py-px font-mono text-[0.92em] text-accent-700 ring-1 ring-inset ring-accent-200"
+            className="mx-px rounded-md bg-accent-50 px-1.5 text-label text-accent-700 ring-1 ring-inset ring-accent-200"
           >
-            {p.text}
+            {variableLabel(p.text)}
           </span>
         ) : (
           <span key={i}>{p.text}</span>

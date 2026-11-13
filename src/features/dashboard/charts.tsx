@@ -12,7 +12,7 @@ export function ChartTooltip({ active, payload, label, formatValue = formatNumbe
   if (!active || !payload?.length) return null
   const title = formatLabel ? formatLabel(String(label ?? '')) : label
   return (
-    <div className="min-w-36 rounded-md bg-surface px-3 py-2 text-[12px] shadow-[var(--shadow-pop)]">
+    <div className="min-w-36 rounded-md bg-surface px-3 py-2 text-caption shadow-[var(--shadow-pop)]">
       {title !== undefined && title !== '' && <div className="mb-1 font-medium text-ink">{title}</div>}
       <ul className="space-y-0.5">
         {payload.map((p, i) => (
@@ -31,7 +31,7 @@ export function ChartTooltip({ active, payload, label, formatValue = formatNumbe
 
 export function Legend({ items }: { items: { label: string; color: string; dashed?: boolean }[] }) {
   return (
-    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-ink-muted">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-caption text-ink-muted">
       {items.map((i) => (
         <li key={i.label} className="flex items-center gap-1.5">
           <span

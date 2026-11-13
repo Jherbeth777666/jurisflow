@@ -630,6 +630,23 @@ begin
   end loop;
   perform tst.ok((select count(*) from organizations) = 0, 'membro desativado não lê organizations');
   perform tst.expect_error(format($q$insert into clients (organization_id, full_name) values (%L, 'XX')$q$, tst.id('org_a')), array['42501'], 'membro desativado cria cliente');
+  -- 1.1: o vínculo ativo com o escritório também é exigido no histórico de IA.
+  -- A conversa é a do próprio advogado (conv_adv, criada no seed): só user_id = auth.uid()
+  -- não pode bastar depois da desativação.
+  perform tst.expect_noop(format('delete from ai_conversations where id = %L', tst.id('conv_adv')),
+                          'membro desativado exclui a própria conversa de IA');
+  -- Sem WHERE o Postgres não aplica a policy de SELECT: só a de DELETE decide (era a brecha real).
+  perform tst.expect_noop('delete from ai_conversations',
+                          'membro desativado apaga todo o próprio histórico de IA (delete sem where)');
+  perform tst.expect_noop(format($q$update ai_conversations set title = 'invadido' where id = %L$q$, tst.id('conv_adv')),
+                          'membro desativado edita a própria conversa de IA');
+end $$;
+-- Verificado como superusuário (sem RLS): a conversa do ex-membro continua existindo.
+reset role;
+do $$
+begin
+  perform tst.ok(tst.visible(format('select 1 from public.ai_conversations where id = %L', tst.id('conv_adv'))) = 1,
+                 'conversa do membro desativado continua existindo no banco');
 end $$;
 rollback to savepoint t;
 

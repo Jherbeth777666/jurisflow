@@ -10,6 +10,7 @@ import type {
   Payment,
   Task,
 } from '@/types/database'
+import type { DemandChecklistItem } from '@/features/checklist/types'
 import { isValidEmail, todayISO } from '@/lib/format'
 
 export type SettingsTab = 'perfil' | 'escritorio' | 'equipe' | 'privacidade'
@@ -124,6 +125,7 @@ export interface ClientExportInput {
   contracts: Contract[]
   installments: Installment[]
   payments: Payment[]
+  checklistItems?: DemandChecklistItem[]
   generatedAt?: string
 }
 
@@ -138,16 +140,26 @@ function strip<T extends object>(row: T): Omit<T, 'organization_id' | 'created_b
 export function buildClientExport(input: ClientExportInput) {
   const taskById = new Map<string, Task>()
   input.tasks.forEach((t) => taskById.set(t.id, t))
+  const checklistByDemand = new Map<string, DemandChecklistItem[]>()
+  input.checklistItems?.forEach((item) => {
+    const list = checklistByDemand.get(item.demand_id)
+    if (list) list.push(item)
+    else checklistByDemand.set(item.demand_id, [item])
+  })
   return {
     formato: 'JurisFlow AI — exportação de dados do titular (LGPD, art. 18, V)',
-    versao: 1,
+    versao: 2,
     gerado_em: input.generatedAt ?? new Date().toISOString(),
     controlador: input.organizationName,
     observacao:
-      'Contém os dados cadastrais do titular e os registros de atendimento e financeiros vinculados a ele. ' +
+      'Contém os dados cadastrais do titular e os registros de atendimento e financeiros vinculados a ele, ' +
+      'incluindo o checklist de documentos de cada demanda. ' +
       'O sistema não armazena documentos (arquivos).',
     titular: strip(input.client),
-    demandas: input.demands.map(strip),
+    demandas: input.demands.map((d) => ({
+      ...strip(d),
+      checklist: (checklistByDemand.get(d.id) ?? []).slice().sort((a, b) => a.position - b.position).map(strip),
+    })),
     tarefas: [...taskById.values()].map(strip),
     contratos: input.contracts.map((c) => ({
       ...strip(c),

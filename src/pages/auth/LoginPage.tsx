@@ -45,7 +45,7 @@ export function LoginPage() {
           onChange={(e) => setPassword(e.target.value)}
         />
         <div className="flex justify-end">
-          <Link to="/recuperar-senha" className="text-[12.5px] text-accent-700 hover:underline">
+          <Link to="/recuperar-senha" className="text-label text-accent-700 hover:underline">
             Esqueci minha senha
           </Link>
         </div>

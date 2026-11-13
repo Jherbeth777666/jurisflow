@@ -5,7 +5,7 @@ export function Avatar({ name, className }: { name: string | null | undefined; c
   return (
     <span
       title={name ?? undefined}
-      className={cn('inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-navy-100 text-[10.5px] font-semibold text-navy-700', className)}
+      className={cn('inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-navy-100 text-2xs font-semibold text-navy-700', className)}
     >
       {initials(name)}
     </span>

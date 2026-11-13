@@ -54,6 +54,8 @@ export interface OrganizationInvitation extends Timestamps {
   role: MemberRole
   invited_by: UUID | null
   accepted_at: ISODateTime | null
+  token: string
+  expires_at: ISODateTime
 }
 
 export interface Client extends Timestamps {
@@ -69,6 +71,37 @@ export interface Client extends Timestamps {
   status: ClientStatus
   anonymized_at: ISODateTime | null
   created_by: UUID | null
+}
+
+/** Demanda resumida retornada por rpc('client_overview'). */
+export interface ClientOverviewDemand {
+  id: UUID
+  title: string
+  status: DemandStatus
+  stage_name: string
+  category_name: string
+  next_action: string | null
+  next_action_date: ISODate | null
+  next_action_overdue: boolean
+  checklist_pending: number
+  checklist_total: number
+  days_in_stage: number
+}
+
+/** Item de checklist pendente retornado por rpc('client_overview'). */
+export interface ClientOverviewChecklistItem {
+  demand_id: UUID
+  demand_title: string
+  label: string
+}
+
+/** Retorno de rpc('client_overview') — ficha 360° do cliente. */
+export interface ClientOverview {
+  open_demands: ClientOverviewDemand[]
+  checklist_pending_items: ClientOverviewChecklistItem[]
+  tasks: { open: number; overdue: number; next_due_date: ISODate | null }
+  finance: { open_amount: number; overdue_amount: number; overdue_count: number; next_due_date: ISODate | null }
+  last_activity_at: ISODateTime | null
 }
 
 export interface DemandCategory extends Timestamps {
@@ -123,6 +156,26 @@ export interface Task extends Timestamps {
   status: TaskStatus
   completed_at: ISODateTime | null
   created_by: UUID | null
+}
+
+export type NotificationKind =
+  | 'resumo_diario'
+  | 'tarefas_atrasadas'
+  | 'prazos_hoje'
+  | 'proximas_acoes_vencidas'
+  | 'demandas_paradas'
+
+export interface Notification {
+  id: UUID
+  organization_id: UUID
+  user_id: UUID
+  kind: NotificationKind
+  title: string
+  body: string | null
+  link: string
+  ref_date: ISODate
+  read_at: ISODateTime | null
+  created_at: ISODateTime
 }
 
 export interface Contract extends Timestamps {
@@ -223,6 +276,8 @@ export interface DashboardMetrics {
   demands_waiting_docs: number
   tasks_pending: number
   tasks_overdue: number
+  next_actions_overdue: number
+  next_actions_today: number
   deadlines_upcoming: number
   fees_expected: number
   fees_received: number

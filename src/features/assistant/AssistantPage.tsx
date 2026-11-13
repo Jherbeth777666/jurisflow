@@ -17,6 +17,7 @@ import {
 } from './api'
 import { ConversationList } from './ConversationList'
 import { MessageBubble, ThinkingIndicator } from './MessageBubble'
+import { ProposalCard } from './ProposalCard'
 import { MAX_MESSAGE_CHARS, PRIVACY_NOTICE, SUGGESTIONS, containsPersonalData } from './constants'
 
 export function AssistantPage() {
@@ -174,8 +175,8 @@ export function AssistantPage() {
             <PanelLeft className="size-4" />
           </Button>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate text-[14.5px] font-semibold text-ink">{current?.title ?? 'Assistente IA'}</h1>
-            <p className="truncate text-[12px] text-ink-muted">Consultas operacionais sobre o seu escritório</p>
+            <h1 className="truncate text-body-lg font-semibold text-ink">{current?.title ?? 'Assistente IA'}</h1>
+            <p className="truncate text-caption text-ink-muted">Consultas operacionais sobre o seu escritório</p>
           </div>
           {selectedId && (
             <Button size="sm" icon={<Plus className="size-3.5" />} onClick={startNew}>
@@ -186,11 +187,11 @@ export function AssistantPage() {
         </header>
 
         {notConfigured && (
-          <div role="alert" className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-[13px] text-amber-900">
+          <div role="alert" className="flex items-start gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-body-sm text-amber-900">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
               <strong className="font-semibold">Assistente não configurado — veja o README.</strong> Um administrador precisa definir a chave do
-              provedor de IA nos segredos da Edge Function <code className="font-mono text-[12px]">ai-assistant</code>.
+              provedor de IA nos segredos da Edge Function <code className="font-mono text-caption">ai-assistant</code>.
             </span>
           </div>
         )}
@@ -201,8 +202,8 @@ export function AssistantPage() {
               <div className="mb-3 flex size-10 items-center justify-center rounded-lg bg-accent-50 text-accent-700">
                 <Sparkles className="size-5" />
               </div>
-              <p className="text-[15px] font-semibold text-ink">Como posso ajudar hoje?</p>
-              <p className="mt-1 max-w-md text-[13px] text-ink-muted">
+              <p className="text-body-lg font-semibold text-ink">Como posso ajudar hoje?</p>
+              <p className="mt-1 max-w-md text-body-sm text-ink-muted">
                 Pergunte sobre demandas, prazos, tarefas e o andamento do escritório. Também posso redigir mensagens administrativas.
               </p>
               <div className="mt-5 grid w-full gap-2 sm:grid-cols-2">
@@ -211,7 +212,7 @@ export function AssistantPage() {
                     key={s}
                     onClick={() => submit(s)}
                     disabled={send.isPending}
-                    className="rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-[13px] text-ink transition-colors hover:border-accent-200 hover:bg-accent-50 disabled:opacity-50"
+                    className="rounded-lg border border-line bg-surface px-3 py-2.5 text-left text-body-sm text-ink transition-colors hover:border-accent-200 hover:bg-accent-50 disabled:opacity-50"
                   >
                     {s}
                   </button>
@@ -225,7 +226,16 @@ export function AssistantPage() {
           ) : (
             <div className="mx-auto flex max-w-3xl flex-col gap-4">
               {msgs.map((m) => (
-                <MessageBubble key={m.id} role={m.role} content={m.content} toolsUsed={m.tools_used} />
+                <div key={m.id} className="flex flex-col gap-2">
+                  <MessageBubble role={m.role} content={m.content} toolsUsed={m.tools_used} />
+                  {m.role === 'assistant' && m.proposals && m.proposals.length > 0 && (
+                    <div className="flex flex-col gap-2 sm:pl-9">
+                      {m.proposals.map((p) => (
+                        <ProposalCard key={p.id} proposal={p} messageId={m.id} />
+                      ))}
+                    </div>
+                  )}
+                </div>
               ))}
               {pending && (
                 <>
@@ -238,7 +248,7 @@ export function AssistantPage() {
 
           {sendError && !send.isPending && (
             <div className="mx-auto mt-4 max-w-3xl">
-              <div role="alert" className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+              <div role="alert" className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-body-sm text-red-700">
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                 <span className="flex-1">{sendError.message}</span>
                 <button onClick={() => setSendError(null)} className="text-red-500 hover:text-red-700" aria-label="Fechar erro">
@@ -269,7 +279,7 @@ export function AssistantPage() {
                 onKeyDown={onKeyDown}
                 rows={1}
                 placeholder="Pergunte algo sobre o escritório…"
-                className="max-h-40 min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-[13.5px] text-ink placeholder:text-ink-subtle focus:outline-none field-sizing-content"
+                className="max-h-40 min-h-[36px] flex-1 resize-none bg-transparent py-1.5 text-body text-ink placeholder:text-ink-subtle focus:outline-none field-sizing-content"
                 aria-invalid={tooLong || undefined}
                 disabled={send.isPending}
               />
@@ -283,7 +293,7 @@ export function AssistantPage() {
                 icon={send.isPending ? undefined : <SendHorizontal className="size-4" />}
               />
             </div>
-            <div className="mt-1.5 flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-[11.5px]">
+            <div className="mt-1.5 flex flex-wrap items-start justify-between gap-x-3 gap-y-1 text-caption">
               <p className="flex items-start gap-1.5 text-ink-subtle">
                 <ShieldCheck className="mt-[1px] size-3.5 shrink-0" />
                 <span>{PRIVACY_NOTICE}</span>
@@ -295,7 +305,7 @@ export function AssistantPage() {
               )}
             </div>
             {hasPII && (
-              <p className="mt-1 text-[12px] text-amber-700" role="status">
+              <p className="mt-1 text-caption text-amber-700" role="status">
                 CPF, telefone e e-mail serão substituídos por “[dado removido]” antes do envio ao provedor de IA.
               </p>
             )}

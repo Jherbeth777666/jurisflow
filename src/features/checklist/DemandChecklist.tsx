@@ -133,7 +133,7 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
         <span className="inline-flex items-center gap-2">
           <ClipboardList className="size-4 text-ink-subtle" /> Checklist de pendências
           {progress.total > 0 && (
-            <span className={cn('tabular text-[12px] font-medium', progress.complete ? 'text-emerald-700' : 'text-ink-muted')}>
+            <span className={cn('tabular text-caption font-medium', progress.complete ? 'text-emerald-700' : 'text-ink-muted')}>
               {progress.done} de {progress.total}
             </span>
           )}
@@ -189,7 +189,7 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
       )}
 
       {progress.complete && nextStage && !dismissSuggestion && demand.data?.status !== 'concluida' && (
-        <div className="mx-4 mt-3 flex flex-col gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[13px] text-emerald-900 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-4 mt-3 flex flex-col gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-body-sm text-emerald-900 sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex items-center gap-2">
             <CheckCircle2 className="size-4 shrink-0" />
             Todos os itens recebidos — mover para a próxima etapa ({nextStage.name})?
@@ -261,14 +261,14 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
                     onBlur={saveEdit}
                     aria-label="Renomear item"
                     aria-invalid={!!editing.error || undefined}
-                    className="h-7 w-full rounded border border-accent-500 bg-surface px-2 text-[13px] outline-none ring-3 ring-accent-100"
+                    className="h-7 w-full rounded border border-accent-500 bg-surface px-2 text-body-sm outline-none ring-3 ring-accent-100"
                   />
-                  {editing.error && <p className="mt-0.5 text-[11.5px] text-red-600">{editing.error}</p>}
+                  {editing.error && <p className="mt-0.5 text-caption text-red-600">{editing.error}</p>}
                 </div>
               ) : (
                 <button
                   type="button"
-                  className={cn('min-w-0 flex-1 truncate text-left text-[13.5px]', item.done ? 'text-ink-subtle line-through' : 'text-ink')}
+                  className={cn('min-w-0 flex-1 truncate text-left text-body', item.done ? 'text-ink-subtle line-through' : 'text-ink')}
                   onClick={() => toggle(item)}
                   title={item.done && item.done_at ? `Recebido em ${formatDateTime(item.done_at)}` : item.label}
                 >
@@ -276,7 +276,7 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
                 </button>
               )}
               {item.done && item.done_at && editing?.id !== item.id && (
-                <span className="hidden shrink-0 text-[11.5px] text-ink-subtle tabular sm:inline">{formatDateTime(item.done_at)}</span>
+                <span className="hidden shrink-0 text-caption text-ink-subtle tabular sm:inline">{formatDateTime(item.done_at)}</span>
               )}
               <div className="flex shrink-0 items-center opacity-100 transition-opacity sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
                 <IconBtn label={`Subir ${item.label}`} disabled={idx === 0} onClick={() => move(item.id, -1)}>
@@ -311,18 +311,18 @@ export function DemandChecklist({ demandId, categoryId, clientId }: { demandId: 
             placeholder="Adicionar item (ex.: Comprovante de residência)"
             aria-label="Novo item do checklist"
             aria-invalid={!!addError || undefined}
-            className="h-8 min-w-0 flex-1 rounded-md border border-line-strong bg-surface px-2.5 text-[13px] placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
+            className="h-8 min-w-0 flex-1 rounded-md border border-line-strong bg-surface px-2.5 text-body-sm placeholder:text-ink-subtle focus:border-accent-500 focus:outline-none focus:ring-3 focus:ring-accent-100"
           />
           <Button size="sm" type="submit" icon={<Plus className="size-3.5" />} loading={actions.add.isPending} disabled={!newLabel.trim()}>
             Adicionar
           </Button>
         </div>
         {addError && (
-          <p className="mt-1 text-[12px] text-red-600" role="alert">
+          <p className="mt-1 text-caption text-red-600" role="alert">
             {addError}
           </p>
         )}
-        <p className="mt-2 flex items-start gap-1.5 text-[11.5px] text-ink-subtle">
+        <p className="mt-2 flex items-start gap-1.5 text-caption text-ink-subtle">
           <Info className="mt-px size-3 shrink-0" />
           Itens sugeridos são controles administrativos editáveis, não exigências legais.
         </p>

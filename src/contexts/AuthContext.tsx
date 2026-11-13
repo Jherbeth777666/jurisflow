@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { useQueryClient } from '@tanstack/react-query'
 import { supabase, friendlyError } from '@/lib/supabase'
@@ -43,12 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const lastAccessRefresh = useRef(0)
 
-  const loadUserData = useCallback(async (s: Session | null) => {
+  const loadUserData = useCallback(async (s: Session | null): Promise<Membership[] | null> => {
     if (!s) {
       setProfile(null)
       setMemberships([])
-      return
+      return []
     }
     try {
       // Aceita convites pendentes para o e-mail confirmado do usuário.
@@ -68,8 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       list.sort((a, b) => a.organization.name.localeCompare(b.organization.name))
       setMemberships(list)
       setError(null)
+      return list
     } catch (e) {
       setError(friendlyError(e))
+      return null
     }
   }, [])
 
@@ -96,6 +99,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       sub.subscription.unsubscribe()
     }
   }, [loadUserData, qc])
+
+  // Acesso revogado com a sessão aberta: recarrega vínculos e, se o escritório
+  // atual sumiu, limpa o cache e cai no primeiro restante (ou em nenhum).
+  useEffect(() => {
+    if (!session) return
+    const onAccessDenied = () => {
+      const now = Date.now()
+      if (now - lastAccessRefresh.current < 5000) return
+      lastAccessRefresh.current = now
+      void loadUserData(session).then((list) => {
+        // Falha ao recarregar (rede, sessão vencida): não mexe no escritório atual.
+        if (!list) return
+        if (currentOrgId && list.some((m) => m.organization.id === currentOrgId)) return
+        qc.clear()
+        const next = list[0]?.organization.id ?? null
+        setCurrentOrgId(next)
+        try {
+          if (next) localStorage.setItem(ORG_KEY, next)
+          else localStorage.removeItem(ORG_KEY)
+        } catch {
+          /* armazenamento indisponível: segue só em memória */
+        }
+      })
+    }
+    window.addEventListener('jurisflow:access-denied', onAccessDenied)
+    return () => window.removeEventListener('jurisflow:access-denied', onAccessDenied)
+  }, [loadUserData, qc, session, currentOrgId])
 
   const current = useMemo(
     () => memberships.find((m) => m.organization.id === currentOrgId) ?? memberships[0] ?? null,
@@ -125,7 +155,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     userId: session?.user.id ?? null,
     can: (p) => can(current?.role, p),
     switchOrganization,
-    refresh: () => loadUserData(session),
+    refresh: async () => {
+      await loadUserData(session)
+    },
     signOut: async () => {
       await supabase.auth.signOut()
     },

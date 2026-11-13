@@ -7,13 +7,15 @@ import { Button, Card, CardHeader, ErrorState, PageHeader, Spinner, StatCard, Ta
 import { useOrg } from '@/contexts/AuthContext'
 import { qk, useCategories } from '@/hooks/useOrgData'
 import { downloadCSV } from '@/lib/csv'
-import { AIUnavailableError, fetchExistingClients, mapWithAI, runImport, type ImportPlanItem, type ImportReport } from './api'
-import { buildAIRequest, columnsOf, distinctValues, guessCategory, suggestMapping, type ImportField, type Mapping } from './mapping'
+import { AIUnavailableError, fetchExistingClients, fetchSavedMapping, mapWithAI, runImport, saveMapping, type ImportPlanItem, type ImportReport } from './api'
+import { ImportHistory } from './ImportHistory'
+import { buildAIRequest, columnsOf, distinctValues, guessCategory, IMPORT_FIELDS, suggestMapping, type ImportField, type Mapping, type MappingSuggestion } from './mapping'
 import { MappingStep, type AIState } from './MappingStep'
 import { cellToString, nameKey } from './normalize'
 import { readSpreadsheet, SheetReadError, type LoadedSheet } from './readFile'
 import { ReviewStep } from './ReviewStep'
-import { classifyRows, draftsFromTable, effectiveAction, rowErrorText, summarize, type DraftRow, type ImportRow, type RowAction } from './rows'
+import { classifyRows, draftsFromTable, effectiveAction, rowErrorText, summarize, type DraftRow, type ImportRow, type RowAction, type UpdateMode } from './rows'
+import { headerSignature, mappingFromHeaders, mappingToHeaders } from './signature'
 import { Stepper, UploadStep } from './UploadStep'
 
 const STEPS = ['Enviar planilha', 'Mapear colunas', 'Revisar', 'Importar']
@@ -36,6 +38,10 @@ export function ImportPage() {
   const [categoryMap, setCategoryMap] = useState<Record<string, string>>({})
   const [drafts, setDrafts] = useState<DraftRow[]>([])
   const [overrides, setOverrides] = useState<Record<string, RowAction | undefined>>({})
+  const [modes, setModes] = useState<Record<string, UpdateMode | undefined>>({})
+  const [signature, setSignature] = useState<string | null>(null)
+  const [suggestion, setSuggestion] = useState<MappingSuggestion | null>(null)
+  const [remembered, setRemembered] = useState(false)
   const [createDemands, setCreateDemands] = useState(true)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [report, setReport] = useState<ImportReport | null>(null)
@@ -97,20 +103,48 @@ export function ImportPage() {
     try {
       const s = await readSpreadsheet(file)
       const sug = suggestMapping(columnsOf(s.table))
+      const sig = headerSignature(s.table.headers)
+      // Mapeamento da última importação desta planilha (se falhar, segue com a sugestão automática)
+      const saved = await fetchSavedMapping(orgId, sig).catch(() => null)
+      const reusedMapping = saved ? resolveSavedMapping(saved.mapping, s.table.headers.map(String)) : null
+      const reuse = saved && reusedMapping ? saved : null
+      const chosen = reusedMapping ?? sug.mapping
+      const savedCats: Record<string, string> = {}
+      if (reuse) {
+        const known = new Set(categories.map((c) => c.id))
+        for (const [v, id] of Object.entries(reuse.category_map ?? {})) {
+          if (typeof id === 'string' && (id === '' || known.size === 0 || known.has(id))) savedCats[v] = id
+        }
+      }
       setSheet(s)
-      setMapping(sug.mapping)
-      setConfidence(sug.confidence)
+      setSignature(sig)
+      setSuggestion(sug)
+      setRemembered(!!reuse)
+      setMapping(chosen)
+      setConfidence(reuse ? {} : sug.confidence)
       setAI({ kind: 'idle' })
       setOverrides({})
+      setModes({})
       setReport(null)
-      setCategoryMap(withLocalGuesses(sug.mapping.category !== undefined ? distinctValues(s.table.rows, sug.mapping.category) : [], {}))
+      setCategoryMap(withLocalGuesses(chosen.category !== undefined ? distinctValues(s.table.rows, chosen.category) : [], savedCats))
       setStep(1)
-      if (sug.lowConfidence) void runAI(s, sug.mapping, true)
+      if (!reuse && sug.lowConfidence) void runAI(s, sug.mapping, true)
     } catch (e) {
       setReadError(e instanceof SheetReadError ? e.message : 'Não foi possível ler o arquivo.')
     } finally {
       setReading(false)
     }
+  }
+
+  const redoMapping = () => {
+    if (!sheet || !suggestion) return
+    setRemembered(false)
+    setMapping(suggestion.mapping)
+    setConfidence(suggestion.confidence)
+    setCategoryMap(
+      withLocalGuesses(suggestion.mapping.category !== undefined ? distinctValues(sheet.table.rows, suggestion.mapping.category) : [], {}),
+    )
+    if (suggestion.lowConfidence) void runAI(sheet, suggestion.mapping, true)
   }
 
   const onMappingChange = (m: Mapping) => {
@@ -124,6 +158,7 @@ export function ImportPage() {
     if (!sheet) return
     setDrafts(draftsFromTable(sheet.table.rows, mapping, firstLine))
     setOverrides({})
+    setModes({})
     setStep(2)
   }
 
@@ -150,6 +185,13 @@ export function ImportPage() {
       return next
     })
 
+  const onMode = (ids: string[], m: UpdateMode) =>
+    setModes((cur) => {
+      const next = { ...cur }
+      ids.forEach((id) => (next[id] = m))
+      return next
+    })
+
   const startImport = async () => {
     const plan: ImportPlanItem[] = []
     let ignored = 0
@@ -160,7 +202,7 @@ export function ImportPage() {
         continue
       }
       const cat = demandsOn ? categoryFor(r) : null
-      plan.push({ row: r, action, categoryId: cat?.id ?? null, categoryName: cat?.name ?? null })
+      plan.push({ row: r, action, mode: modes[r.id], categoryId: cat?.id ?? null, categoryName: cat?.name ?? null })
     }
     setStep(3)
     setImportError(null)
@@ -171,9 +213,13 @@ export function ImportPage() {
         userId,
         existing: existingById,
         ignored,
+        fileName: sheet?.fileName ?? null,
         onProgress: (done, total) => setProgress({ done, total }),
       })
       setReport(rep)
+      // Lembra o mapeamento desta planilha para a próxima vez (falha aqui não afeta a importação)
+      if (signature && sheet)
+        await saveMapping(orgId, userId, signature, mappingToHeaders(mapping, sheet.table.headers.map(String)), categoryMap).catch(() => undefined)
     } catch (e) {
       setImportError(e instanceof Error ? e.message : 'A importação foi interrompida.')
     } finally {
@@ -181,6 +227,8 @@ export function ImportPage() {
       qc.invalidateQueries({ queryKey: qk.demands(orgId) })
       qc.invalidateQueries({ queryKey: qk.dashboard(orgId) })
       qc.invalidateQueries({ queryKey: qk.activity(orgId) })
+      // Histórico de importações (a nova importação precisa aparecer para poder ser desfeita)
+      qc.invalidateQueries({ queryKey: ['import-batches', orgId] })
     }
   }
 
@@ -214,13 +262,14 @@ export function ImportPage() {
       />
       <Stepper steps={STEPS} current={step} />
       {sheet && step > 0 && step < 3 && (
-        <p className="-mt-2 mb-4 flex items-center gap-1.5 text-[12.5px] text-ink-muted">
+        <p className="-mt-2 mb-4 flex items-center gap-1.5 text-label text-ink-muted">
           <FileSpreadsheet className="size-3.5" /> {sheet.fileName}
           {sheet.sheetName && ` · aba “${sheet.sheetName}”`} · lido apenas no seu navegador
         </p>
       )}
 
       {step === 0 && <UploadStep onFile={onFile} loading={reading} error={readError} />}
+      {step === 0 && <ImportHistory />}
 
       {step === 1 && sheet && (
         <MappingStep
@@ -237,6 +286,8 @@ export function ImportPage() {
           onBack={reset}
           onNext={goReview}
           rowsCount={sheet.table.rows.length}
+          remembered={remembered}
+          onRedo={redoMapping}
         />
       )}
 
@@ -256,6 +307,9 @@ export function ImportPage() {
             overrides={overrides}
             onOverride={onOverride}
             onEdit={onEdit}
+            modes={modes}
+            onMode={onMode}
+            existingById={existingById}
             createDemands={demandsOn}
             onCreateDemands={setCreateDemands}
             canCreateDemands={canCreateDemands}
@@ -279,6 +333,13 @@ export function ImportPage() {
   )
 }
 
+/** O mapeamento salvo (por nome de cabeçalho) só vale se cada coluna ainda existir na planilha e o campo for conhecido. */
+function resolveSavedMapping(saved: unknown, headers: string[]): Mapping | null {
+  const m = mappingFromHeaders(saved, headers)
+  if (!m) return null
+  return Object.keys(m).every((k) => (IMPORT_FIELDS as readonly string[]).includes(k)) ? (m as Mapping) : null
+}
+
 function ResultView({
   progress,
   report,
@@ -298,8 +359,8 @@ function ResultView({
   if (!report && !error) {
     return (
       <Card className="p-6">
-        <p className="text-[14px] font-medium text-ink">Importando…</p>
-        <p className="mt-1 text-[13px] text-ink-muted">Não feche esta página. Os registros são gravados em lotes de 100.</p>
+        <p className="text-body-lg font-medium text-ink">Importando…</p>
+        <p className="mt-1 text-body-sm text-ink-muted">Não feche esta página. Os registros são gravados em lotes de 100.</p>
         <div
           className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"
           role="progressbar"
@@ -310,7 +371,7 @@ function ResultView({
         >
           <div className="h-full rounded-full bg-navy-900 transition-[width] duration-300" style={{ width: `${pct}%` }} />
         </div>
-        <p className="tabular mt-2 text-[12.5px] text-ink-muted">
+        <p className="tabular mt-2 text-label text-ink-muted">
           {progress?.done ?? 0} de {progress?.total ?? 0} operações · {pct}%
         </p>
       </Card>
@@ -327,8 +388,8 @@ function ResultView({
         <Card className="flex items-start gap-3 p-5">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
           <div>
-            <p className="text-[14.5px] font-medium text-ink">Importação concluída</p>
-            <p className="mt-0.5 text-[13px] text-ink-muted">Seu cadastro já está organizado no JurisFlow. Os indicadores do painel foram atualizados.</p>
+            <p className="text-body-lg font-medium text-ink">Importação concluída</p>
+            <p className="mt-0.5 text-body-sm text-ink-muted">Seu cadastro já está organizado no JurisFlow. Os indicadores do painel foram atualizados.</p>
           </div>
         </Card>
       )}
@@ -344,7 +405,7 @@ function ResultView({
       {report && report.errors.length > 0 && (
         <Card className="overflow-hidden">
           <CardHeader title="Registros não gravados" description="Corrija na planilha e importe só estas linhas novamente." />
-          <Table>
+          <Table label="Registros não gravados">
             <THead>
               <tr>
                 <TH className="w-16">Linha</TH>
@@ -375,7 +436,7 @@ function ResultView({
         </Button>
         <Link
           to="/clientes"
-          className="inline-flex h-9 items-center rounded-md bg-navy-900 px-3.5 text-[13.5px] font-medium text-white shadow-sm hover:bg-navy-800"
+          className="inline-flex h-9 items-center rounded-md bg-navy-900 px-3.5 text-body font-medium text-white shadow-sm hover:bg-navy-800"
         >
           Ver clientes
         </Link>

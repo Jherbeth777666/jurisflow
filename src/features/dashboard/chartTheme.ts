@@ -8,8 +8,8 @@ export const CHART = {
   navy300: '#8ea6c9',
   navy200: '#bccbe1',
   accent: '#3b82f6',
-  grid: '#eef0f3',
-  axis: '#8a93a3',
+  grid: '#ecebe7',
+  axis: '#737b89',
 } as const
 
 export const STATUS_COLORS: Record<DemandStatus, string> = {

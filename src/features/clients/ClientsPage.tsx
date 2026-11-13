@@ -113,7 +113,27 @@ export function ClientsPage() {
           )
         ) : (
           <>
-            <Table className={q.isPlaceholderData ? 'opacity-60' : undefined}>
+            <ul className="divide-y divide-line sm:hidden">
+              {q.data.rows.map((c) => (
+                <li key={c.id} className="px-4 py-3">
+                  <Link to={`/clientes/${c.id}`} className="block truncate py-1 font-medium text-ink hover:underline">
+                    {c.full_name}
+                  </Link>
+                  {c.email && <p className="truncate text-caption text-ink-subtle">{c.email}</p>}
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <StatusBadge value={c.status} map={CLIENT_STATUS} />
+                    <span className="tabular text-caption text-ink-muted">{c.open_demands || 0} demanda(s) aberta(s)</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-muted">
+                    <span className="tabular">{maskCPF(c.cpf)}</span>
+                    {c.phone && <span className="tabular">{formatPhone(c.phone)}</span>}
+                    <span className="tabular">Cadastro: {formatDate(c.created_at)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden sm:block">
+            <Table label="Lista de clientes" className={q.isPlaceholderData ? 'opacity-60' : undefined}>
               <THead>
                 <tr>
                   <TH>Nome</TH>
@@ -131,11 +151,11 @@ export function ClientsPage() {
                       <Link
                         to={`/clientes/${c.id}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="block truncate font-medium text-ink hover:underline"
+                        className="block truncate py-1 font-medium text-ink hover:underline"
                       >
                         {c.full_name}
                       </Link>
-                      {c.email && <span className="block truncate text-[12px] text-ink-subtle">{c.email}</span>}
+                      {c.email && <span className="block truncate text-caption text-ink-subtle">{c.email}</span>}
                     </TD>
                     <TD className="tabular whitespace-nowrap text-ink-muted">{maskCPF(c.cpf)}</TD>
                     <TD className="tabular hidden whitespace-nowrap text-ink-muted md:table-cell">{c.phone ? formatPhone(c.phone) : '—'}</TD>
@@ -148,6 +168,7 @@ export function ClientsPage() {
                 ))}
               </TBody>
             </Table>
+            </div>
             <Pagination page={page} pageSize={PAGE_SIZE} total={q.data.total} onChange={(p) => update({ page: p ? String(p) : '' })} />
           </>
         )}

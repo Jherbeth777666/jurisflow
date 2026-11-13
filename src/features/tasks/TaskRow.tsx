@@ -1,7 +1,8 @@
 // Linha de tarefa compartilhada entre TasksPage e TaskList.
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Briefcase, Pencil, Trash2, User } from 'lucide-react'
-import { Avatar, Badge, Button } from '@/components/ui'
+import { Avatar, Badge, Button, ConfirmDialog } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { PRIORITY } from '@/lib/constants'
 import { dueBucket, dueLabel, isOpenStatus } from './dueBuckets'
@@ -26,6 +27,8 @@ export function TaskRowItem({
   compact,
   showLinks = true,
   today,
+  selected,
+  onSelect,
 }: {
   task: TaskRowData
   assigneeName: string | null
@@ -35,44 +38,62 @@ export function TaskRowItem({
   compact?: boolean
   showLinks?: boolean
   today: string
+  /** Seleção em massa (L13): só aparece quando `onSelect` é informado. */
+  selected?: boolean
+  onSelect?: () => void
 }) {
   const open = isOpenStatus(task.status)
   const done = task.status === 'concluida'
   const bucket = dueBucket(task.due_date, task.status, today)
+  // Concluir/reabrir pede confirmação: um clique sem querer não muda a tarefa.
+  const [confirming, setConfirming] = useState(false)
   return (
     <li className={cn('group flex items-start gap-3 px-4', compact ? 'py-2.5' : 'py-3')}>
-      <input
-        type="checkbox"
-        checked={done}
-        disabled={task.status === 'cancelada'}
-        onChange={(e) => onToggle(e.target.checked)}
-        aria-label={done ? `Reabrir tarefa: ${task.title}` : `Concluir tarefa: ${task.title}`}
-        className="mt-0.5 size-4 shrink-0 cursor-pointer rounded border-line-strong accent-navy-900 disabled:cursor-not-allowed"
-      />
+      {onSelect && (
+        <label className="touch-target mt-0.5 flex size-6 shrink-0 cursor-pointer items-center justify-center">
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={onSelect}
+            aria-label={`Selecionar ${task.title}`}
+            className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+          />
+        </label>
+      )}
+      <label className="touch-target mt-0.5 flex size-6 shrink-0 cursor-pointer items-center justify-center">
+        <input
+          type="checkbox"
+          checked={done}
+          disabled={task.status === 'cancelada'}
+          onChange={() => setConfirming(true)}
+          aria-label={done ? `Reabrir tarefa: ${task.title}` : `Concluir tarefa: ${task.title}`}
+          className="size-4 cursor-pointer rounded border-line-strong accent-navy-900 disabled:cursor-not-allowed"
+        />
+      </label>
       <div className="min-w-0 flex-1">
         <button
           type="button"
           onClick={onEdit}
           className={cn(
-            'block max-w-full truncate text-left text-[13.5px] font-medium text-ink hover:underline',
+            'block max-w-full truncate text-left text-body font-medium text-ink hover:underline',
             !open && 'text-ink-muted line-through decoration-ink-subtle',
           )}
         >
           {task.title}
         </button>
-        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-muted">
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-ink-muted">
           <span className={cn('tabular', dueTone[bucket])}>{open ? dueLabel(task.due_date, today) : task.status === 'cancelada' ? 'Cancelada' : 'Concluída'}</span>
           {(task.priority === 'alta' || task.priority === 'urgente') && (
             <Badge tone={PRIORITY[task.priority].tone}>{PRIORITY[task.priority].label}</Badge>
           )}
           {showLinks && task.client && (
-            <Link to={`/clientes/${task.client.id}`} className="inline-flex max-w-[220px] items-center gap-1 truncate hover:text-ink hover:underline">
+            <Link to={`/clientes/${task.client.id}`} className="inline-flex min-h-6 max-w-[220px] items-center gap-1 truncate hover:text-ink hover:underline">
               <User className="size-3 shrink-0" aria-hidden />
               <span className="truncate">{task.client.full_name}</span>
             </Link>
           )}
           {showLinks && task.demand && (
-            <Link to={`/demandas/${task.demand.id}`} className="inline-flex max-w-[260px] items-center gap-1 truncate hover:text-ink hover:underline">
+            <Link to={`/demandas/${task.demand.id}`} className="inline-flex min-h-6 max-w-[260px] items-center gap-1 truncate hover:text-ink hover:underline">
               <Briefcase className="size-3 shrink-0" aria-hidden />
               <span className="truncate">{task.demand.title}</span>
             </Link>
@@ -80,7 +101,7 @@ export function TaskRowItem({
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        {assigneeName ? <Avatar name={assigneeName} /> : <span className="text-[11.5px] text-ink-subtle">Sem resp.</span>}
+        {assigneeName ? <Avatar name={assigneeName} /> : <span className="text-caption text-ink-subtle">Sem resp.</span>}
         {!compact && (
           <Button variant="ghost" size="icon" onClick={onEdit} aria-label={`Editar tarefa: ${task.title}`}>
             <Pencil className="size-4" />
@@ -92,6 +113,15 @@ export function TaskRowItem({
           </Button>
         )}
       </div>
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => onToggle(!done)}
+        tone="primary"
+        title={done ? 'Reabrir esta tarefa?' : 'Concluir esta tarefa?'}
+        description={task.title}
+        confirmLabel={done ? 'Reabrir' : 'Concluir'}
+      />
     </li>
   )
 }
