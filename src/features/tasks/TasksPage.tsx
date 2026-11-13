@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { AlertTriangle, CalendarClock, CalendarDays, CalendarOff, CheckSquare, Plus, X } from 'lucide-react'
@@ -25,26 +25,25 @@ import { friendlyError, supabase, unwrap } from '@/lib/supabase'
 import { escapeLike, todayISO } from '@/lib/format'
 import { PRIORITY, TASK_STATUS, toOptions } from '@/lib/constants'
 import { cn } from '@/lib/cn'
-import type { PriorityLevel, Task, TaskStatus } from '@/types/database'
+import type { PriorityLevel, Task } from '@/types/database'
 import { OPEN_STATUSES, TASK_SELECT, useDeleteTask, useToggleTask, type TaskRow } from './api'
-import { DUE_BUCKET_LABEL, groupByDueBucket, parseRangeFilter, rangeBounds, type DueBucket, type RangeFilter } from './dueBuckets'
+import { DUE_BUCKET_LABEL, groupByDueBucket, rangeBounds, type DueBucket, type RangeFilter } from './dueBuckets'
 import { TaskFormModal } from './TaskFormModal'
 import { TaskRowItem } from './TaskRow'
+import { TasksBulkActions } from './TasksBulkActions'
+import { parseTaskFilters, serializeTaskFilters, type TaskFilters, type TaskStatusFilter } from './taskFilters'
+import { SavedViewsMenu } from '@/features/views/SavedViewsMenu'
 import { useOpenFromParam } from '@/hooks/useOpenFromParam'
+import { useSelection } from '@/hooks/useSelection'
 
 const PAGE = 30
 
 type Tab = 'mine' | 'all'
-type StatusFilter = 'open' | 'all' | TaskStatus
+type StatusFilter = TaskStatusFilter
+// Filtros que alimentam as consultas (o agrupamento é só visual).
+type Filters = Omit<TaskFilters, 'byPerson'>
 
-interface Filters {
-  tab: Tab
-  assignee: string // '' | user_id | 'none'
-  priority: '' | PriorityLevel
-  status: StatusFilter
-  search: string
-  range: RangeFilter | null
-}
+const FILTER_PARAMS = ['aba', 'resp', 'prio', 'status', 'q', 'filter', 'agrupar']
 
 const RANGE_LABEL: Record<RangeFilter, string> = {
   overdue: 'Vencidas',
@@ -94,13 +93,23 @@ export function TasksPage() {
   const toggle = useToggleTask()
   const deleteTask = useDeleteTask()
   const [params, setParams] = useSearchParams()
-  const range = parseRangeFilter(params.get('filter'))
-
-  const [tab, setTab] = useState<Tab>('mine')
-  const [assignee, setAssignee] = useState('')
-  const [priority, setPriority] = useState<'' | PriorityLevel>('')
-  const [status, setStatus] = useState<StatusFilter>('open')
-  const [search, setSearch] = useState('')
+  // Os filtros moram na URL (compartilhável e salvável): aba, resp, prio, status, q, filter, agrupar.
+  const urlFilters = useMemo(() => parseTaskFilters(params), [params])
+  const { tab, assignee, priority, status, search, range, byPerson: groupByPersonParam } = urlFilters
+  const apply = useCallback(
+    (patch: Partial<TaskFilters>) =>
+      setParams(
+        (current) => {
+          const next = new URLSearchParams(current)
+          FILTER_PARAMS.forEach((k) => next.delete(k))
+          serializeTaskFilters({ ...parseTaskFilters(current), ...patch }).forEach((v, k) => next.set(k, v))
+          return next
+        },
+        { replace: true },
+      ),
+    [setParams],
+  )
+  const setSearch = useCallback((v: string) => apply({ search: v }), [apply])
   const [editing, setEditing] = useState<Task | null>(null)
   // ?tarefa=<id> (vindo da busca global) abre a tarefa para edição
   const taskParam = params.get('tarefa')
@@ -125,12 +134,7 @@ export function TasksPage() {
   const today = todayISO()
   const filters: Filters = { tab, assignee, priority, status, search, range }
 
-  const setRange = (r: RangeFilter | null) => {
-    const next = new URLSearchParams(params)
-    if (r) next.set('filter', r)
-    else next.delete('filter')
-    setParams(next, { replace: true })
-  }
+  const setRange = (r: RangeFilter | null) => apply({ range: r })
 
   // Contadores do resumo (respeitam aba, responsável, prioridade e busca).
   const summaryFilters = { tab, assignee, priority, search }
@@ -168,17 +172,17 @@ export function TasksPage() {
   const rows = useMemo(() => list.data?.pages.flat() ?? [], [list.data])
   const groups = useMemo(() => groupByDueBucket(rows, today), [rows, today])
   // "Agrupar por pessoa" só faz sentido na aba Todas; fica na URL para poder compartilhar o link.
-  const byPerson = tab === 'all' && params.get('agrupar') === 'pessoa'
+  const byPerson = tab === 'all' && groupByPersonParam
   const personGroups = useMemo(
     () => (byPerson ? groupByPerson(rows, members.map, today) : []),
     [byPerson, rows, members.map, today],
   )
-  const setGrouping = (value: 'prazo' | 'pessoa') => {
-    const next = new URLSearchParams(params)
-    if (value === 'pessoa') next.set('agrupar', 'pessoa')
-    else next.delete('agrupar')
-    setParams(next, { replace: true })
-  }
+  const setGrouping = (value: 'prazo' | 'pessoa') => apply({ byPerson: value === 'pessoa' })
+
+  // Seleção em massa: some ao mudar qualquer filtro.
+  const selection = useSelection(serializeTaskFilters(urlFilters).toString())
+  const rowIds = rows.map((t) => t.id)
+  const allSelected = rowIds.length > 0 && rowIds.every((id) => selection.has(id))
   const renderTask = (t: TaskRow) => (
     <TaskRowItem
       key={t.id}
@@ -188,17 +192,13 @@ export function TasksPage() {
       onToggle={(done) => toggle.mutate({ id: t.id, done })}
       onEdit={() => setEditing(t)}
       onDelete={can('tasks.delete') ? () => setDeleting(t) : undefined}
+      selected={selection.has(t.id)}
+      onSelect={() => selection.toggle(t.id)}
     />
   )
   const hasFilters = !!(assignee || priority || status !== 'open' || search || range)
 
-  const clearFilters = () => {
-    setAssignee('')
-    setPriority('')
-    setStatus('open')
-    setSearch('')
-    setRange(null)
-  }
+  const clearFilters = () => apply({ assignee: '', priority: '', status: 'open', search: '', range: null })
 
   const assigneeOptions = [{ value: 'none', label: 'Sem responsável' }, ...members.options]
   const statusOptions = [
@@ -286,10 +286,7 @@ export function TasksPage() {
         <div className="px-4 pt-2">
           <Tabs<Tab>
             value={tab}
-            onChange={(v) => {
-              setTab(v)
-              setAssignee('')
-            }}
+            onChange={(v) => apply({ tab: v, assignee: '' })}
             items={[
               { value: 'mine', label: 'Minhas' },
               { value: 'all', label: 'Todas' },
@@ -302,7 +299,7 @@ export function TasksPage() {
             <Select
               aria-label="Responsável"
               value={assignee}
-              onChange={(e) => setAssignee(e.target.value)}
+              onChange={(e) => apply({ assignee: e.target.value })}
               options={assigneeOptions}
               placeholder="Todos os responsáveis"
               wrapperClassName="sm:w-48"
@@ -311,7 +308,7 @@ export function TasksPage() {
           <Select
             aria-label="Prioridade"
             value={priority}
-            onChange={(e) => setPriority(e.target.value as '' | PriorityLevel)}
+            onChange={(e) => apply({ priority: e.target.value as '' | PriorityLevel })}
             options={toOptions(PRIORITY)}
             placeholder="Todas as prioridades"
             wrapperClassName="sm:w-44"
@@ -320,7 +317,7 @@ export function TasksPage() {
             aria-label="Status"
             value={range ? 'open' : status}
             disabled={!!range}
-            onChange={(e) => setStatus(e.target.value as StatusFilter)}
+            onChange={(e) => apply({ status: e.target.value as StatusFilter })}
             options={statusOptions}
             wrapperClassName="sm:w-56"
           />
@@ -337,6 +334,7 @@ export function TasksPage() {
               Limpar filtros
             </Button>
           )}
+          <SavedViewsMenu page="tarefas" />
           {tab === 'all' && (
             <div className="flex items-center gap-2 self-start sm:ml-auto sm:self-auto">
               <span className="text-label text-ink-muted">Agrupar por</span>
@@ -376,6 +374,18 @@ export function TasksPage() {
           />
         ) : (
           <div>
+            <label className="flex items-center gap-3 border-b border-line bg-surface-muted px-4 py-2 text-label text-ink-muted">
+              <span className="touch-target flex size-6 shrink-0 items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={() => selection.toggleAll(rowIds)}
+                  aria-label="Selecionar todas as visíveis"
+                  className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+                />
+              </span>
+              Selecionar todas as visíveis
+            </label>
             {byPerson
               ? personGroups.map((g) => (
                   <section key={g.key} aria-labelledby={`pessoa-${g.key}`}>
@@ -430,6 +440,12 @@ export function TasksPage() {
         Os alertas são auxiliares de organização e não substituem o controle oficial de prazos processuais.
       </p>
 
+      <TasksBulkActions
+        ids={selection.ids}
+        memberOptions={members.options}
+        canDelete={can('tasks.delete')}
+        onClear={selection.clear}
+      />
       <TaskFormModal open={creating} onClose={() => setCreating(false)} />
       <TaskFormModal open={!!editing} onClose={() => setEditing(null)} task={editing} />
       <ConfirmDialog

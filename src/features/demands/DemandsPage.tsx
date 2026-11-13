@@ -30,6 +30,9 @@ import type { PriorityLevel } from '@/types/database'
 import { useDemandsList } from './api'
 import { DemandFormModal } from './DemandFormModal'
 import { useOpenFromParam } from '@/hooks/useOpenFromParam'
+import { useSelection } from '@/hooks/useSelection'
+import { SavedViewsMenu } from '@/features/views/SavedViewsMenu'
+import { DemandsBulkActions } from './DemandsBulkActions'
 import { ExportDemands } from './ExportDemands'
 import {
   STALLED_DAYS,
@@ -71,6 +74,13 @@ export function DemandsPage() {
   )
 
   const q = useDemandsList(filters, waitingStageIds)
+
+  // Seleção em massa: some ao mudar filtros/página (a chave é a própria URL).
+  const selection = useSelection(params.toString())
+  const pageRows = q.data?.rows ?? []
+  const pageIds = pageRows.map((d) => d.id)
+  const allSelected = pageIds.length > 0 && pageIds.every((id) => selection.has(id))
+  const selectedRows = pageRows.filter((d) => selection.has(d.id))
 
   const apply = useCallback(
     (patch: Partial<DemandFilters>) => setParams(serializeDemandFilters(patchDemandFilters(parseDemandFilters(params), patch)), { replace: true }),
@@ -141,6 +151,7 @@ export function DemandsPage() {
         description="Acompanhe os casos do escritório por categoria, etapa e responsável."
         actions={
           <>
+            <SavedViewsMenu page="demandas" />
             <ExportDemands />
             <Button variant="primary" icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
               Nova demanda
@@ -219,6 +230,16 @@ export function DemandsPage() {
           )
         ) : (
           <>
+            <label className="flex items-center gap-2.5 border-b border-line bg-surface-muted px-4 py-2 text-label text-ink-muted sm:hidden">
+              <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={() => selection.toggleAll(pageIds)}
+                aria-label="Selecionar todas desta página"
+                className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+              />
+              Selecionar todas desta página
+            </label>
             <ul className="divide-y divide-line sm:hidden">
               {q.data.rows.map((d) => {
                 const cat = catById.get(d.category_id)
@@ -228,7 +249,15 @@ export function DemandsPage() {
                 const overdue = isNextActionOverdue(d)
                 const responsible = d.responsible_id ? members.map.get(d.responsible_id) : null
                 return (
-                  <li key={d.id} className="px-4 py-3">
+                  <li key={d.id} className="flex items-start gap-3 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selection.has(d.id)}
+                      onChange={() => selection.toggle(d.id)}
+                      aria-label={`Selecionar ${d.title}`}
+                      className="mt-2 size-4 shrink-0 cursor-pointer rounded border-line-strong accent-navy-900"
+                    />
+                    <div className="min-w-0 flex-1">
                     <Link to={`/demandas/${d.id}`} className="block truncate py-1 font-medium text-ink hover:underline">
                       {d.title}
                     </Link>
@@ -259,6 +288,7 @@ export function DemandsPage() {
                         </span>
                       )}
                     </div>
+                    </div>
                   </li>
                 )
               })}
@@ -267,6 +297,15 @@ export function DemandsPage() {
             <Table label="Lista de demandas" className={q.isPlaceholderData ? 'opacity-60' : undefined}>
               <THead>
                 <tr>
+                  <TH className="w-10 pr-0">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={() => selection.toggleAll(pageIds)}
+                      aria-label="Selecionar todas desta página"
+                      className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+                    />
+                  </TH>
                   <TH>Demanda</TH>
                   <TH>Categoria</TH>
                   <TH>Etapa</TH>
@@ -286,6 +325,15 @@ export function DemandsPage() {
                   const responsible = d.responsible_id ? members.map.get(d.responsible_id) : null
                   return (
                     <TR key={d.id} onClick={() => navigate(`/demandas/${d.id}`)}>
+                      <TD className="w-10 pr-0" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selection.has(d.id)}
+                          onChange={() => selection.toggle(d.id)}
+                          aria-label={`Selecionar ${d.title}`}
+                          className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+                        />
+                      </TD>
                       <TD className="max-w-[280px]">
                         <Link
                           to={`/demandas/${d.id}`}
@@ -348,6 +396,13 @@ export function DemandsPage() {
           </>
         )}
       </Card>
+
+      <DemandsBulkActions
+        selected={selectedRows}
+        categories={cats.data ?? []}
+        memberOptions={members.options}
+        onClear={selection.clear}
+      />
 
       <DemandFormModal open={creating} onClose={() => setCreating(false)} onSaved={(d) => navigate(`/demandas/${d.id}`)} />
     </div>

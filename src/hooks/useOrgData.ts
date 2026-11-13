@@ -20,6 +20,7 @@ export const qk = {
   activity: (org: string, ...rest: unknown[]) => ['activity', org, ...rest] as const,
   ai: (org: string, ...rest: unknown[]) => ['ai', org, ...rest] as const,
   notifications: (org: string) => ['notifications', org] as const,
+  savedViews: (org: string, page?: string) => (page ? (['saved_views', org, page] as const) : (['saved_views', org] as const)),
 }
 
 export function useMembers() {

@@ -26,6 +26,8 @@ export function TaskRowItem({
   compact,
   showLinks = true,
   today,
+  selected,
+  onSelect,
 }: {
   task: TaskRowData
   assigneeName: string | null
@@ -35,12 +37,26 @@ export function TaskRowItem({
   compact?: boolean
   showLinks?: boolean
   today: string
+  /** Seleção em massa (L13): só aparece quando `onSelect` é informado. */
+  selected?: boolean
+  onSelect?: () => void
 }) {
   const open = isOpenStatus(task.status)
   const done = task.status === 'concluida'
   const bucket = dueBucket(task.due_date, task.status, today)
   return (
     <li className={cn('group flex items-start gap-3 px-4', compact ? 'py-2.5' : 'py-3')}>
+      {onSelect && (
+        <label className="touch-target mt-0.5 flex size-6 shrink-0 cursor-pointer items-center justify-center">
+          <input
+            type="checkbox"
+            checked={!!selected}
+            onChange={onSelect}
+            aria-label={`Selecionar ${task.title}`}
+            className="size-4 cursor-pointer rounded border-line-strong accent-navy-900"
+          />
+        </label>
+      )}
       <label className="touch-target mt-0.5 flex size-6 shrink-0 cursor-pointer items-center justify-center">
         <input
           type="checkbox"

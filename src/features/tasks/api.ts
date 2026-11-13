@@ -95,3 +95,30 @@ export function useDeleteTask() {
     await invalidateTaskData(qc, orgId)
   }
 }
+
+export type BulkTaskPatch = { status: TaskStatus } | { assignee_id: string | null } | { due_date: string | null }
+
+/** Alteração em massa (RPC bulk_update_tasks). Devolve quantas tarefas foram atualizadas. */
+export function useBulkUpdateTasks() {
+  const { orgId } = useOrg()
+  const qc = useQueryClient()
+  return useMutation<number, Error, { ids: string[]; patch: BulkTaskPatch }>({
+    mutationFn: async ({ ids, patch }) =>
+      Number(unwrap(await supabase.rpc('bulk_update_tasks', { p_org: orgId, p_ids: ids, p_patch: patch })) ?? 0),
+    onSuccess: () => invalidateTaskData(qc, orgId),
+  })
+}
+
+/** Exclusão em massa (usada com ConfirmDialog). Devolve quantas tarefas foram excluídas. */
+export function useBulkDeleteTasks() {
+  const { orgId } = useOrg()
+  const qc = useQueryClient()
+  return useMutation<number, Error, string[]>({
+    mutationFn: async (ids) => {
+      const rows = unwrap(await supabase.from('tasks').delete().eq('organization_id', orgId).in('id', ids).select('id'))
+      if (!rows?.length) throw new Error('Não foi possível excluir: as tarefas não existem mais ou você não tem permissão.')
+      return rows.length
+    },
+    onSuccess: () => invalidateTaskData(qc, orgId),
+  })
+}

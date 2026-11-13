@@ -39,11 +39,12 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, description, co
       size="sm"
       footer={
         <>
-          <Button onClick={onClose} disabled={loading}>
-            Cancelar
-          </Button>
+          {/* Padrão do produto: a ação de confirmar vem primeiro (docs/DESIGN.md). */}
           <Button variant={tone} onClick={handle} loading={loading} data-autofocus>
             {confirmLabel}
+          </Button>
+          <Button onClick={onClose} disabled={loading}>
+            Cancelar
           </Button>
         </>
       }
