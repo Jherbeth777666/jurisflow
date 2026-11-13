@@ -208,18 +208,53 @@ export function effectiveAction(row: ImportRow, overrides: Record<string, RowAct
   return row.defaultAction
 }
 
+export type UpdateMode = 'completar' | 'substituir'
+type PatchField = 'cpf' | 'phone' | 'email' | 'birth_date' | 'address'
+const PATCH_FIELDS: PatchField[] = ['cpf', 'phone', 'email', 'birth_date', 'address']
+
+/** "Substituir" só é permitido quando a correspondência com o cadastro é por CPF. */
+export const canReplace = (row: ImportRow): boolean => row.match?.target === 'existing' && row.match.reason === 'cpf'
+
+/** Modo efetivo da linha: "substituir" cai para "completar" sem correspondência por CPF. */
+export const effectiveMode = (row: ImportRow, mode: UpdateMode | undefined): UpdateMode =>
+  mode === 'substituir' && canReplace(row) ? 'substituir' : 'completar'
+
 /**
- * Campos para complementar um cliente existente: só preenche o que está VAZIO no
- * cadastro (nunca sobrescreve dados que o escritório já tem).
+ * Campos para atualizar um cliente existente.
+ *  - 'completar' (padrão): só preenche o que está VAZIO no cadastro.
+ *  - 'substituir': usa o valor da planilha nos campos preenchidos nela e diferentes do cadastro
+ *    (célula vazia na planilha nunca apaga dado do cadastro).
  */
-export function updatePatch(existing: ExistingClient, v: RowValues): Partial<Pick<Client, 'cpf' | 'phone' | 'email' | 'birth_date' | 'address'>> {
-  const patch: Partial<Pick<Client, 'cpf' | 'phone' | 'email' | 'birth_date' | 'address'>> = {}
-  if (!existing.cpf && v.cpf) patch.cpf = v.cpf
-  if (!existing.phone && v.phone) patch.phone = v.phone
-  if (!existing.email && v.email) patch.email = v.email
-  if (!existing.birth_date && v.birth_date) patch.birth_date = v.birth_date
-  if (!existing.address && v.address) patch.address = v.address
+export function updatePatch(
+  existing: ExistingClient,
+  v: RowValues,
+  mode: UpdateMode = 'completar',
+): Partial<Pick<Client, PatchField>> {
+  const patch: Partial<Pick<Client, PatchField>> = {}
+  for (const f of PATCH_FIELDS) {
+    const next = v[f]
+    if (!next) continue
+    if (mode === 'substituir' ? existing[f] !== next : !existing[f]) patch[f] = next
+  }
   return patch
+}
+
+export interface UpdateDiffItem {
+  field: PatchField
+  label: string
+  from: string | null
+  to: string
+}
+
+/** O que muda em cada campo (valor atual → valor novo), coerente com `updatePatch`. */
+export function updateDiff(existing: ExistingClient, v: RowValues, mode: UpdateMode = 'completar'): UpdateDiffItem[] {
+  const patch = updatePatch(existing, v, mode)
+  return PATCH_FIELDS.filter((f) => patch[f] !== undefined).map((f) => ({
+    field: f,
+    label: FIELD_LABELS[f],
+    from: existing[f] ?? null,
+    to: patch[f] as string,
+  }))
 }
 
 export interface RowSummary {

@@ -75,19 +75,18 @@ export function Modal({ open, onClose, title, description, children, footer, siz
           sizes[size],
         )}
       >
-        <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-4">
-          <div>
-            <h2 id="modal-title" className="text-title font-semibold tracking-[-0.01em] text-ink">
-              {title}
-            </h2>
-            {description && <p className="mt-0.5 text-body-sm text-ink-muted">{description}</p>}
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar">
-            <X className="size-4" />
-          </Button>
+        <div className="border-b border-line py-4 pl-6 pr-14">
+          <h2 id="modal-title" className="text-title font-semibold tracking-[-0.01em] text-ink">
+            {title}
+          </h2>
+          {description && <p className="mt-0.5 text-body-sm text-ink-muted">{description}</p>}
         </div>
         <div className="scrollbar-thin overflow-y-auto px-6 py-5">{children}</div>
         {footer && <div className="flex justify-end gap-2 rounded-b-[var(--radius-dialog)] border-t border-line bg-surface-muted px-6 py-3.5">{footer}</div>}
+        {/* "Fechar" fica por último na ordem de foco (as ações do conteúdo vêm antes), mas no canto visual de sempre. */}
+        <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar" className="absolute right-4 top-3.5">
+          <X className="size-4" />
+        </Button>
       </div>
     </div>,
     document.body,

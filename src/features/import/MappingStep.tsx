@@ -1,4 +1,4 @@
-import { ArrowRight, Info, Sparkles } from 'lucide-react'
+import { ArrowRight, History, Info, Sparkles } from 'lucide-react'
 import { Badge, Button, Card, CardHeader, InlineError, Select } from '@/components/ui'
 import { FIELD_HINTS, FIELD_LABELS, IMPORT_FIELDS, type ColumnInfo, type ImportField, type Mapping } from './mapping'
 
@@ -18,6 +18,9 @@ interface Props {
   onBack: () => void
   onNext: () => void
   rowsCount: number
+  /** o mapeamento veio da última importação desta planilha */
+  remembered?: boolean
+  onRedo?: () => void
 }
 
 export function MappingStep(p: Props) {
@@ -55,6 +58,16 @@ export function MappingStep(p: Props) {
           }
         />
         <div className="px-4 pt-3">
+          {p.remembered && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-accent-50 px-3 py-2">
+              <p className="flex items-center gap-1.5 text-label text-accent-700">
+                <History className="size-3.5 shrink-0" /> Usamos o mapeamento salvo da última importação desta planilha.
+              </p>
+              <Button size="sm" onClick={p.onRedo}>
+                Refazer mapeamento
+              </Button>
+            </div>
+          )}
           {p.ai.kind === 'done' && (
             <p className="flex items-center gap-1.5 text-label text-emerald-700">
               <Sparkles className="size-3.5" /> Sugestão da IA aplicada — confira antes de seguir.
