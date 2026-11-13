@@ -1,7 +1,8 @@
 // Linha de tarefa compartilhada entre TasksPage e TaskList.
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Briefcase, Pencil, Trash2, User } from 'lucide-react'
-import { Avatar, Badge, Button } from '@/components/ui'
+import { Avatar, Badge, Button, ConfirmDialog } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { PRIORITY } from '@/lib/constants'
 import { dueBucket, dueLabel, isOpenStatus } from './dueBuckets'
@@ -44,6 +45,8 @@ export function TaskRowItem({
   const open = isOpenStatus(task.status)
   const done = task.status === 'concluida'
   const bucket = dueBucket(task.due_date, task.status, today)
+  // Concluir/reabrir pede confirmação: um clique sem querer não muda a tarefa.
+  const [confirming, setConfirming] = useState(false)
   return (
     <li className={cn('group flex items-start gap-3 px-4', compact ? 'py-2.5' : 'py-3')}>
       {onSelect && (
@@ -62,7 +65,7 @@ export function TaskRowItem({
           type="checkbox"
           checked={done}
           disabled={task.status === 'cancelada'}
-          onChange={(e) => onToggle(e.target.checked)}
+          onChange={() => setConfirming(true)}
           aria-label={done ? `Reabrir tarefa: ${task.title}` : `Concluir tarefa: ${task.title}`}
           className="size-4 cursor-pointer rounded border-line-strong accent-navy-900 disabled:cursor-not-allowed"
         />
@@ -110,6 +113,15 @@ export function TaskRowItem({
           </Button>
         )}
       </div>
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => onToggle(!done)}
+        tone="primary"
+        title={done ? 'Reabrir esta tarefa?' : 'Concluir esta tarefa?'}
+        description={task.title}
+        confirmLabel={done ? 'Reabrir' : 'Concluir'}
+      />
     </li>
   )
 }

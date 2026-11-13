@@ -7,7 +7,7 @@ import { supabase, unwrap } from '@/lib/supabase'
 import { useOrg } from '@/contexts/AuthContext'
 import { qk } from '@/hooks/useOrgData'
 import { diffInDays, todayISO } from '@/lib/format'
-import { Badge, Card, CardHeader, ErrorState, SegmentedControl, Skeleton } from '@/components/ui'
+import { Badge, Card, CardHeader, ConfirmDialog, ErrorState, SegmentedControl, Skeleton } from '@/components/ui'
 import { OPEN_STATUSES as DEMAND_OPEN_STATUSES, STALLED_DAYS } from '@/features/demands/logic'
 import { OPEN_STATUSES as TASK_OPEN_STATUSES, useToggleTask } from '@/features/tasks/api'
 import { fetchClientNames } from '@/features/contracts/api'
@@ -42,6 +42,8 @@ function dateLabel(item: TodayItem, today: string): string {
 export function TodayPanel() {
   const { orgId, userId } = useOrg()
   const toggle = useToggleTask()
+  // Concluir pede confirmação antes (padrão do produto: confirmar vem primeiro).
+  const [confirmTask, setConfirmTask] = useState<{ id: string; title: string } | null>(null)
   const [scope, setScope] = useState<Scope>(readScope)
   const today = todayISO()
 
@@ -216,7 +218,7 @@ export function TodayPanel() {
               {item.kind === 'task' && (
                 <button
                   type="button"
-                  onClick={() => toggle.mutate({ id: item.id, done: true })}
+                  onClick={() => setConfirmTask({ id: item.id, title: item.title })}
                   aria-label={`Concluir tarefa ${item.title}`}
                   className="touch-target inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-line-strong text-ink-muted transition-colors hover:bg-navy-50 hover:text-ink"
                 >
@@ -234,6 +236,15 @@ export function TodayPanel() {
           </Link>
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirmTask}
+        onClose={() => setConfirmTask(null)}
+        onConfirm={() => (confirmTask ? toggle.mutateAsync({ id: confirmTask.id, done: true }) : undefined)}
+        tone="primary"
+        title="Concluir esta tarefa?"
+        description={confirmTask?.title ?? ''}
+        confirmLabel="Concluir"
+      />
     </Card>
   )
 }

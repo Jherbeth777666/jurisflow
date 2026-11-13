@@ -205,6 +205,9 @@ describe('<TodayPanel>', () => {
     renderPanel()
 
     fireEvent.click(await screen.findByRole('button', { name: 'Concluir tarefa Protocolar recurso' }))
+    // Pede confirmação antes de concluir
+    expect(mockDb.updates.find((u) => u.table === 'tasks')).toBeUndefined()
+    fireEvent.click(await screen.findByRole('button', { name: 'Concluir' }))
 
     await waitFor(() => {
       const update = mockDb.updates.find((u) => u.table === 'tasks')
