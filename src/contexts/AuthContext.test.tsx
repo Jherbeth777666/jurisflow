@@ -52,6 +52,9 @@ vi.mock('@/lib/supabase', () => ({
 
 const { AuthProvider, useAuth } = await import('./AuthContext')
 
+// Com a suíte inteira rodando em paralelo, a carga inicial pode passar de 1 s (padrão do waitFor).
+const WAIT = { timeout: 5000 }
+
 const membership = (id: string): FakeMembership => ({ role: 'advogado', organization: { id, name: `Escritório ${id}` } })
 
 function Probe() {
@@ -89,7 +92,7 @@ describe('AuthContext — acesso revogado com a sessão aberta (1.5)', () => {
     mocks.state.memberships = [membership('org-a')]
     localStorage.setItem('jurisflow.currentOrg', 'org-a')
     const { clear } = setup()
-    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('org-a'))
+    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('org-a'), WAIT)
     clear.mockClear()
 
     mocks.state.memberships = []
@@ -97,7 +100,7 @@ describe('AuthContext — acesso revogado com a sessão aberta (1.5)', () => {
       window.dispatchEvent(new CustomEvent('jurisflow:access-denied'))
     })
 
-    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('nenhum'))
+    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('nenhum'), WAIT)
     expect(clear).toHaveBeenCalled()
   })
 
@@ -105,7 +108,7 @@ describe('AuthContext — acesso revogado com a sessão aberta (1.5)', () => {
     mocks.state.memberships = [membership('org-a'), membership('org-b')]
     localStorage.setItem('jurisflow.currentOrg', 'org-a')
     const { clear } = setup()
-    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('org-a'))
+    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('org-a'), WAIT)
     clear.mockClear()
 
     mocks.state.memberships = [membership('org-b')]
@@ -113,7 +116,7 @@ describe('AuthContext — acesso revogado com a sessão aberta (1.5)', () => {
       window.dispatchEvent(new CustomEvent('jurisflow:access-denied'))
     })
 
-    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('org-b'))
+    await waitFor(() => expect(screen.getByTestId('org')).toHaveTextContent('org-b'), WAIT)
     expect(screen.getByTestId('members')).toHaveTextContent('org-b')
     expect(clear).toHaveBeenCalled()
   })
